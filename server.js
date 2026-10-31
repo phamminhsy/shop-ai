@@ -22,29 +22,38 @@ db.serialize(() => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
-    // 2. Bảng sản phẩm (Bổ sung cột category & note/description)
+    // 2. Bảng sản phẩm (Có price: Giá thường, price_cookie: Giá kèm cookie)
     db.run(`CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT,
         category TEXT DEFAULT 'Tài khoản AI',
-        price INTEGER,
-        old_price INTEGER,
+        price INTEGER DEFAULT 35000,
+        price_cookie INTEGER DEFAULT 45000,
+        old_price INTEGER DEFAULT 350000,
         image TEXT,
         description TEXT
     )`);
 
-    // Đảm bảo tương thích nếu bảng cũ chưa có cột category
+    // Tự động thêm cột mới nếu file database.sqlite cũ chưa có (tránh lỗi trắng dữ liệu)
     db.run(`ALTER TABLE products ADD COLUMN category TEXT DEFAULT 'Tài khoản AI'`, () => {});
+    db.run(`ALTER TABLE products ADD COLUMN price_cookie INTEGER DEFAULT 0`, () => {
+        db.run(`UPDATE products SET price_cookie = price + 10000 WHERE price_cookie IS NULL OR price_cookie = 0`, () => {});
+    });
 
-    // 3. Bảng kho tài khoản
+    // 3. Bảng kho hàng (Có cột variant: 'normal' = Không cookie, 'cookie' = Có cookie)
     db.run(`CREATE TABLE IF NOT EXISTS inventory (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         product_id INTEGER,
+        variant TEXT DEFAULT 'normal',
         account_data TEXT,
         is_sold INTEGER DEFAULT 0,
         buyer_id INTEGER,
         sold_at DATETIME
     )`);
+
+    db.run(`ALTER TABLE inventory ADD COLUMN variant TEXT DEFAULT 'normal'`, () => {
+        db.run(`UPDATE inventory SET variant = 'normal' WHERE variant IS NULL OR variant = ''`, () => {});
+    });
 
     // 4. Bảng giao dịch nạp tiền
     db.run(`CREATE TABLE IF NOT EXISTS transactions (
@@ -61,16 +70,16 @@ db.serialize(() => {
     db.run(`INSERT OR IGNORE INTO users (username, password, balance, role) 
             VALUES ('admin', '123456', 500000, 'admin')`);
 
-    // Khởi tạo sản phẩm mẫu nếu bảng products đang trống (KHÔNG xóa sản phẩm khi khởi động lại)
+    // Tạo sản phẩm mẫu + Kho mẫu nếu chưa có sản phẩm nào
     db.get("SELECT COUNT(*) as count FROM products", (err, row) => {
-        if (row && row.count === 0) {
-            db.run(`INSERT INTO products (name, category, price, old_price, image, description) VALUES 
-                ('Tài khoản Muse AI 1 Tỷ Token (Dùng riêng)', 'Tài khoản AI', 35000, 350000, ?, '• Tài khoản Muse AI cấp sẵn có 1 tỷ token sử dụng độc lập.\n• Hệ thống tự động xuất định dạng Email|Pass|Token ngay sau khi bấm thanh toán.\n• Bảo hành 1 đổi 1 nếu phát sinh lỗi đăng nhập lần đầu.')`, [DEFAULT_MUSE_IMAGE]);
+        if (!row || row.count === 0) {
+            db.run(`INSERT INTO products (id, name, category, price, price_cookie, old_price, image, description) VALUES 
+                (1, 'Tài khoản Muse AI có sẵn 1 tỷ token – Cấp sẵn dùng riêng', 'Tài khoản AI', 35000, 45000, 350000, ?, '• Tài khoản Muse AI cấp sẵn có 1 tỷ token dùng riêng.\n• Tùy chọn 1 (Không Cookie): Nhận định dạng Email|Pass.\n• Tùy chọn 2 (Kèm Cookie): Nhận định dạng Email|Pass|Cookie_Token vào thẳng không cần xác minh.\n• Hệ thống giao tự động 24/7 ngay sau khi bấm thanh toán.')`, [DEFAULT_MUSE_IMAGE]);
         }
     });
 });
 
-// Middleware kiểm tra quyền Admin đơn giản
+// Kiểm tra quyền Admin
 function verifyAdmin(req, res, next) {
     const adminId = req.headers['x-admin-id'] || req.body.adminId;
     if (!adminId) return res.status(403).json({ error: 'Không có quyền truy cập!' });
@@ -109,30 +118,65 @@ app.get('/api/user/:id', (req, res) => {
     });
 });
 
-// ================= SẢN PHẨM & MUA HÀNG =================
+// ================= SẢN PHẨM & MUA HÀNG (CÓ CHỌN SỐ LƯỢNG & LOẠI COOKIE) =================
 app.get('/api/products', (req, res) => {
-    db.all(`SELECT p.*, 
+    const sql = `
+        SELECT p.*,
+            (SELECT COUNT(*) FROM inventory i WHERE i.product_id = p.id AND i.is_sold = 0 AND (i.variant = 'normal' OR i.variant IS NULL)) as stock_normal,
+            (SELECT COUNT(*) FROM inventory i WHERE i.product_id = p.id AND i.is_sold = 0 AND i.variant = 'cookie') as stock_cookie,
             (SELECT COUNT(*) FROM inventory i WHERE i.product_id = p.id AND i.is_sold = 0) as stock,
             (SELECT COUNT(*) FROM inventory i WHERE i.product_id = p.id AND i.is_sold = 1) as sold
-            FROM products p ORDER BY p.id DESC`, [], (err, rows) => {
+        FROM products p
+        ORDER BY p.id DESC
+    `;
+    db.all(sql, [], (err, rows) => {
         res.json(rows || []);
     });
 });
 
 app.post('/api/buy', (req, res) => {
-    const { userId, productId } = req.body;
+    const { userId, productId, variant, quantity } = req.body;
+    const buyType = variant === 'cookie' ? 'cookie' : 'normal';
+    const qty = Math.max(1, parseInt(quantity) || 1);
+
     db.get(`SELECT * FROM users WHERE id = ?`, [userId], (err, user) => {
         db.get(`SELECT * FROM products WHERE id = ?`, [productId], (err, product) => {
-            if (!user || !product) return res.status(400).json({ error: 'Dữ liệu không hợp lệ!' });
-            if (user.balance < product.price) return res.status(400).json({ error: 'Số dư của bạn không đủ! Vui lòng nạp thêm tiền.' });
+            if (!user || !product) return res.status(400).json({ error: 'Dữ liệu sản phẩm hoặc tài khoản không hợp lệ!' });
 
-            db.get(`SELECT * FROM inventory WHERE product_id = ? AND is_sold = 0 LIMIT 1`, [productId], (err, item) => {
-                if (!item) return res.status(400).json({ error: 'Sản phẩm hiện đang tạm hết hàng! Vui lòng chờ Admin nhập thêm.' });
+            const unitPrice = buyType === 'cookie' 
+                ? (product.price_cookie || product.price) 
+                : product.price;
+            const totalCost = unitPrice * qty;
+
+            if (user.balance < totalCost) {
+                return res.status(400).json({ error: `Số dư không đủ! Cần ${totalCost.toLocaleString()}đ nhưng ví bạn có ${user.balance.toLocaleString()}đ.` });
+            }
+
+            const variantCondition = buyType === 'cookie' 
+                ? `variant = 'cookie'` 
+                : `(variant = 'normal' OR variant IS NULL)`;
+
+            db.all(`SELECT * FROM inventory WHERE product_id = ? AND is_sold = 0 AND ${variantCondition} LIMIT ?`, [productId, qty], (err, items) => {
+                if (!items || items.length < qty) {
+                    const currentStock = items ? items.length : 0;
+                    const typeLabel = buyType === 'cookie' ? 'Bản Kèm Cookie' : 'Bản Thường (Không Cookie)';
+                    return res.status(400).json({ error: `Kho [${typeLabel}] chỉ còn ${currentStock} tài khoản, không đủ số lượng ${qty} bạn chọn!` });
+                }
+
+                const ids = items.map(i => i.id);
+                const placeholders = ids.map(() => '?').join(',');
 
                 db.serialize(() => {
-                    db.run(`UPDATE users SET balance = balance - ? WHERE id = ?`, [product.price, userId]);
-                    db.run(`UPDATE inventory SET is_sold = 1, buyer_id = ?, sold_at = CURRENT_TIMESTAMP WHERE id = ?`, [userId, item.id]);
-                    res.json({ message: 'Mua hàng thành công!', account: item.account_data, productName: product.name });
+                    db.run(`UPDATE users SET balance = balance - ? WHERE id = ?`, [totalCost, userId]);
+                    db.run(`UPDATE inventory SET is_sold = 1, buyer_id = ?, sold_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`, [userId, ...ids], (updateErr) => {
+                        if (updateErr) return res.status(500).json({ error: 'Lỗi khi xuất kho tài khoản!' });
+                        res.json({
+                            message: `Mua thành công ${qty} tài khoản!`,
+                            accounts: items.map(i => i.account_data),
+                            productName: product.name,
+                            totalCost
+                        });
+                    });
                 });
             });
         });
@@ -140,9 +184,9 @@ app.post('/api/buy', (req, res) => {
 });
 
 app.get('/api/orders/:userId', (req, res) => {
-    db.all(`SELECT i.id, i.account_data, i.sold_at, p.name, p.price, p.image 
+    db.all(`SELECT i.id, i.account_data, i.variant, i.sold_at, p.name, p.price, p.price_cookie 
             FROM inventory i JOIN products p ON i.product_id = p.id 
-            WHERE i.buyer_id = ? ORDER BY i.sold_at DESC`, [req.params.userId], (err, rows) => {
+            WHERE i.buyer_id = ? ORDER BY i.sold_at DESC, i.id DESC`, [req.params.userId], (err, rows) => {
         res.json(rows || []);
     });
 });
@@ -199,14 +243,13 @@ app.get('/api/transactions/:userId', (req, res) => {
     db.all(`SELECT * FROM transactions WHERE user_id = ? ORDER BY created_at DESC`, [req.params.userId], (err, rows) => res.json(rows || []));
 });
 
-// ================= HỆ THỐNG QUẢN TRỊ ADMIN TOÀN DIỆN =================
-
-// 1. Thống kê tổng quan Dashboard
+// ================= QUẢN TRỊ VIÊN (ADMIN) =================
 app.get('/api/admin/stats', verifyAdmin, (req, res) => {
     const stats = {};
     db.get(`SELECT COUNT(*) as totalUsers FROM users`, (e1, r1) => {
         stats.totalUsers = r1 ? r1.totalUsers : 0;
-        db.get(`SELECT COUNT(*) as totalSold, COALESCE(SUM(p.price), 0) as totalRevenue 
+        db.get(`SELECT COUNT(*) as totalSold, 
+                COALESCE(SUM(CASE WHEN i.variant = 'cookie' THEN p.price_cookie ELSE p.price END), 0) as totalRevenue 
                 FROM inventory i JOIN products p ON i.product_id = p.id WHERE i.is_sold = 1`, (e2, r2) => {
             stats.totalSold = r2 ? r2.totalSold : 0;
             stats.totalRevenue = r2 ? r2.totalRevenue : 0;
@@ -221,15 +264,16 @@ app.get('/api/admin/stats', verifyAdmin, (req, res) => {
     });
 });
 
-// 2. Thêm sản phẩm mới
+// Thêm sản phẩm (Có Giá Thường & Giá Kèm Cookie)
 app.post('/api/admin/products', verifyAdmin, (req, res) => {
-    const { name, category, price, old_price, image, description } = req.body;
+    const { name, category, price, price_cookie, old_price, image, description } = req.body;
     const numPrice = parseInt(price);
+    const numPriceCookie = parseInt(price_cookie) || numPrice;
     const numOldPrice = parseInt(old_price) || numPrice * 2;
-    if (!name || !numPrice) return res.status(400).json({ error: 'Vui lòng nhập tên sản phẩm và giá bán hợp lệ!' });
+    if (!name || !numPrice) return res.status(400).json({ error: 'Vui lòng nhập tên sản phẩm và giá bán!' });
 
-    db.run(`INSERT INTO products (name, category, price, old_price, image, description) VALUES (?, ?, ?, ?, ?, ?)`,
-        [name.trim(), (category || 'Tài khoản AI').trim(), numPrice, numOldPrice, image || DEFAULT_MUSE_IMAGE, description || ''],
+    db.run(`INSERT INTO products (name, category, price, price_cookie, old_price, image, description) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [name.trim(), (category || 'Tài khoản AI').trim(), numPrice, numPriceCookie, numOldPrice, image || DEFAULT_MUSE_IMAGE, description || ''],
         function(err) {
             if (err) return res.status(500).json({ error: 'Lỗi khi tạo sản phẩm!' });
             res.json({ message: 'Đã thêm sản phẩm mới thành công!', id: this.lastID });
@@ -237,44 +281,47 @@ app.post('/api/admin/products', verifyAdmin, (req, res) => {
     );
 });
 
-// 3. Chỉnh sửa sản phẩm
+// Cập nhật sản phẩm
 app.put('/api/admin/products/:id', verifyAdmin, (req, res) => {
-    const { name, category, price, old_price, image, description } = req.body;
+    const { name, category, price, price_cookie, old_price, image, description } = req.body;
     const numPrice = parseInt(price);
+    const numPriceCookie = parseInt(price_cookie) || numPrice;
     const numOldPrice = parseInt(old_price) || numPrice * 2;
     if (!name || !numPrice) return res.status(400).json({ error: 'Tên và giá bán không được để trống!' });
 
-    db.run(`UPDATE products SET name = ?, category = ?, price = ?, old_price = ?, image = ?, description = ? WHERE id = ?`,
-        [name.trim(), (category || 'Tài khoản AI').trim(), numPrice, numOldPrice, image || DEFAULT_MUSE_IMAGE, description || '', req.params.id],
+    db.run(`UPDATE products SET name = ?, category = ?, price = ?, price_cookie = ?, old_price = ?, image = ?, description = ? WHERE id = ?`,
+        [name.trim(), (category || 'Tài khoản AI').trim(), numPrice, numPriceCookie, numOldPrice, image || DEFAULT_MUSE_IMAGE, description || '', req.params.id],
         function(err) {
             if (err) return res.status(500).json({ error: 'Lỗi cập nhật sản phẩm!' });
-            res.json({ message: 'Đã cập nhật thông tin sản phẩm!' });
+            res.json({ message: 'Đã lưu thay đổi sản phẩm!' });
         }
     );
 });
 
-// 4. Xóa sản phẩm
+// Xóa sản phẩm
 app.delete('/api/admin/products/:id', verifyAdmin, (req, res) => {
     const prodId = req.params.id;
     db.serialize(() => {
         db.run(`DELETE FROM inventory WHERE product_id = ? AND is_sold = 0`, [prodId]);
         db.run(`DELETE FROM products WHERE id = ?`, [prodId], () => {
-            res.json({ message: 'Đã xóa sản phẩm và dọn kho chưa bán!' });
+            res.json({ message: 'Đã xóa sản phẩm!' });
         });
     });
 });
 
-// 5. Quản lý Kho hàng (Thêm acc vào kho & Xem acc tồn kho)
+// Nạp kho theo Phân loại (normal = Không cookie, cookie = Kèm cookie)
 app.post('/api/admin/add-stock', verifyAdmin, (req, res) => {
-    const { productId, accountsText } = req.body;
+    const { productId, variant, accountsText } = req.body;
     if (!productId || !accountsText) return res.status(400).json({ error: 'Vui lòng chọn sản phẩm và nhập danh sách tài khoản!' });
+    const stockVariant = variant === 'cookie' ? 'cookie' : 'normal';
     const lines = accountsText.split('\n').map(l => l.trim()).filter(l => l !== '');
     if (!lines.length) return res.status(400).json({ error: 'Danh sách tài khoản trống!' });
 
-    const stmt = db.prepare(`INSERT INTO inventory (product_id, account_data) VALUES (?, ?)`);
-    lines.forEach(acc => stmt.run(productId, acc));
+    const stmt = db.prepare(`INSERT INTO inventory (product_id, variant, account_data) VALUES (?, ?, ?)`);
+    lines.forEach(acc => stmt.run(productId, stockVariant, acc));
     stmt.finalize();
-    res.json({ message: `Đã nạp thành công ${lines.length} tài khoản vào kho!` });
+    const label = stockVariant === 'cookie' ? 'Bản Kèm Cookie' : 'Bản Thường (Không Cookie)';
+    res.json({ message: `Đã thêm ${lines.length} tài khoản vào kho [${label}]!` });
 });
 
 app.get('/api/admin/inventory', verifyAdmin, (req, res) => {
@@ -291,7 +338,6 @@ app.delete('/api/admin/inventory/:id', verifyAdmin, (req, res) => {
     });
 });
 
-// 6. Quản lý Thành viên (Xem, Cộng/Trừ tiền, Đổi quyền, Xóa user)
 app.get('/api/admin/users', verifyAdmin, (req, res) => {
     db.all(`SELECT id, username, balance, role, created_at,
             (SELECT COUNT(*) FROM inventory WHERE buyer_id = users.id) as orders_count
@@ -299,7 +345,7 @@ app.get('/api/admin/users', verifyAdmin, (req, res) => {
 });
 
 app.post('/api/admin/users/balance', verifyAdmin, (req, res) => {
-    const { userId, amount, mode } = req.body; // mode: 'add' (cộng/trừ thêm) hoặc 'set' (đặt cố định)
+    const { userId, amount, mode } = req.body;
     const val = parseInt(amount);
     if (isNaN(val)) return res.status(400).json({ error: 'Số tiền không hợp lệ!' });
 
@@ -312,20 +358,12 @@ app.post('/api/admin/users/balance', verifyAdmin, (req, res) => {
     });
 });
 
-app.post('/api/admin/users/role', verifyAdmin, (req, res) => {
-    const { userId, role } = req.body;
-    db.run(`UPDATE users SET role = ? WHERE id = ?`, [role, userId], () => {
-        res.json({ message: `Đã cập nhật quyền thành ${role}!` });
-    });
-});
-
-// 7. Quản lý Giao dịch nạp tiền
 app.get('/api/admin/transactions', verifyAdmin, (req, res) => {
     db.all(`SELECT t.*, u.username FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC`, [], (err, rows) => res.json(rows || []));
 });
 
 app.post('/api/admin/approve-tx', verifyAdmin, (req, res) => {
-    const { txId, action } = req.body; // action: 'approve' | 'cancel'
+    const { txId, action } = req.body;
     db.get(`SELECT * FROM transactions WHERE id = ? AND status = 'pending'`, [txId], (err, tx) => {
         if (!tx) return res.status(400).json({ error: 'Giao dịch không tồn tại hoặc đã xử lý!' });
         if (action === 'cancel') {
