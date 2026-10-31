@@ -218,3 +218,320 @@ body { font-family: 'Be Vietnam Pro', sans-serif; background: #f8fafc; color: #0
 </div>
 
 <footer class="bg-white border-t py-3 text-center text-[11px] text-slate-400">© 2026 Jerry Shop - Hệ thống tài khoản AI tự động 24/7. Hỗ trợ Zalo: 0982.900.374</footer>
+
+<script>
+const BANK_ID = 'MB', ACCOUNT_NO = '5428102008';
+const DEFAULT_IMG = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRWdRCJUxu-f9beNfce69-LxdtXwAC3AGfzE_Vaog4-5w&s=10';
+let currentUser = JSON.parse(localStorage.getItem('jerry_user')) || null;
+let allProducts = [], selectedProduct = null, selectedVariantId = null, checkInterval = null, timerInterval = null, currentDeliveredText = '';
+
+function notify(msg, isError = false) {
+  const box = document.getElementById('toast-box'), el = document.createElement('div');
+  el.className = `pointer-events-auto ${isError ? 'bg-red-600' : 'bg-slate-900'} text-white px-3 py-2 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-1.5 border border-white/10`;
+  el.innerHTML = `<i class="fa-solid ${isError ? 'fa-circle-exclamation' : 'fa-circle-check text-emerald-400'}"></i><span>${msg}</span>`;
+  box.appendChild(el); setTimeout(() => el.remove(), 4000);
+}
+function copyText(str, msg) { navigator.clipboard.writeText(str); notify(msg || 'Đã sao chép!'); }
+function adminHeaders() { return { 'Content-Type': 'application/json', 'x-admin-id': currentUser ? currentUser.id : '' }; }
+function goHome() { switchTab('shop'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function selectAmount(val, btnEl) {
+  document.getElementById('dep-amount').value = val;
+  document.querySelectorAll('.dep-btn').forEach(b => b.classList.remove('bg-blue-50', 'text-blue-700', 'border-blue-500'));
+  if (btnEl) btnEl.classList.add('bg-blue-50', 'text-blue-700', 'border-blue-500');
+}
+
+async function loadProducts() {
+  try { const res = await fetch('/api/products'); if (res.ok) allProducts = await res.json(); else allProducts = getFallbackProducts(); }
+  catch (e) { allProducts = getFallbackProducts(); }
+  renderProductGrid(allProducts);
+}
+function getFallbackProducts() {
+  return [{ id: 1, name: 'Tài khoản Muse AI có sẵn 1 tỷ token – Cấp sẵn dùng riêng', old_price: 350000, image: DEFAULT_IMG, description: '• Tài khoản Muse AI 1 tỷ token dùng riêng.\n• Tự động giao acc ngay.', min_price: 35000, total_stock: 12, variants: [{ id: 1, name: 'Tài khoản thường (Email | Pass)', price: 35000, stock: 7 }, { id: 2, name: 'Tài khoản kèm Cookie (Vào luôn)', price: 45000, stock: 5 }] }];
+}
+function filterProducts() {
+  const kw = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+  renderProductGrid(allProducts.filter(p => !kw || (p.name || '').toLowerCase().includes(kw) || (p.description || '').toLowerCase().includes(kw)));
+}
+function renderProductGrid(prods) {
+  document.getElementById('lbl-product-count').innerText = prods.length;
+  const grid = document.getElementById('product-grid');
+  if (!prods.length) { grid.innerHTML = '<div class="col-span-full bg-white p-6 rounded-xl text-center text-slate-400 text-xs border">Chưa có sản phẩm nào.</div>'; return; }
+  grid.innerHTML = prods.map(p => {
+    const stock = Number(p.total_stock || 0), minP = Number(p.min_price || 0), oldP = Number(p.old_price || minP * 2);
+    return `<div onclick="openBuyModal(${p.id})" class="bg-white rounded-xl border overflow-hidden shadow-sm card-hover cursor-pointer flex flex-col justify-between">
+      <div>
+        <div class="relative bg-slate-100 aspect-square overflow-hidden"><img src="${p.image || DEFAULT_IMG}" class="w-full h-full object-cover"><span class="absolute bottom-1.5 left-1.5 ${stock > 0 ? 'bg-emerald-600' : 'bg-slate-600'} text-white text-[10px] font-bold px-1.5 py-0.2 rounded shadow">${stock > 0 ? `Còn ${stock} acc` : 'Hết hàng'}</span></div>
+        <div class="p-2.5 space-y-0.5"><h3 class="font-bold text-xs line-clamp-2">${p.name}</h3><span class="text-[10px] text-blue-600 font-semibold">${(p.variants || []).length} tùy chọn giá</span></div>
+      </div>
+      <div class="p-2.5 pt-0"><div class="border-t pt-1.5 mb-1.5"><b class="text-xs font-black text-red-600">${minP.toLocaleString()}đ</b>${oldP > minP ? `<span class="text-[10px] text-slate-400 line-through ml-1">${oldP.toLocaleString()}đ</span>` : ''}</div><button type="button" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-1 rounded-lg font-bold text-xs flex items-center justify-center gap-1"><i class="fa-solid fa-cart-shopping text-[10px]"></i>Mua Ngay</button></div>
+    </div>`;
+  }).join('');
+}
+
+function openBuyModal(prodId) {
+  const p = allProducts.find(x => Number(x.id) === Number(prodId));
+  if (!p) return notify('Không tìm thấy sản phẩm!', true);
+  selectedProduct = p;
+  document.getElementById('mdl-name').innerText = p.name;
+  document.getElementById('mdl-image').src = p.image || DEFAULT_IMG;
+  document.getElementById('mdl-min-price').innerText = Number(p.min_price || 0).toLocaleString() + 'đ';
+  document.getElementById('mdl-old-price').innerText = p.old_price ? Number(p.old_price).toLocaleString() + 'đ' : '';
+  document.getElementById('mdl-desc').innerText = p.description || '• Giao acc tự động sau thanh toán.\n• Bảo hành 1 đổi 1.';
+  document.getElementById('mdl-qty').value = 1;
+  const vars = p.variants && p.variants.length ? p.variants : [{ id: 1, name: 'Tiêu chuẩn', price: p.min_price || 35000, stock: p.total_stock || 0 }];
+  const firstAvail = vars.find(v => Number(v.stock || 0) > 0) || vars[0];
+  selectedVariantId = firstAvail ? firstAvail.id : vars[0].id;
+  renderModalVariants(); updatePricing();
+  document.getElementById('buy-modal').classList.remove('hidden');
+}
+function renderModalVariants() {
+  const vars = selectedProduct.variants || [];
+  document.getElementById('mdl-variants-list').innerHTML = vars.map(v => {
+    const stock = Number(v.stock || 0), isSel = v.id === selectedVariantId;
+    return `<div onclick="selectModalVariant(${v.id})" class="p-2 rounded-lg border-2 cursor-pointer flex justify-between items-center text-xs ${isSel ? 'border-blue-600 bg-blue-50' : 'border-slate-200'} ${stock <= 0 ? 'opacity-50' : ''}">
+      <div class="flex items-center gap-1.5"><input type="radio" name="mv" ${isSel ? 'checked' : ''} class="w-3 h-3 text-blue-600"><div><b class="block text-[11px]">${v.name}</b><span class="text-[10px] ${stock > 0 ? 'text-emerald-600' : 'text-red-500'}">${stock > 0 ? `Còn ${stock} acc` : 'Hết hàng'}</span></div></div>
+      <b class="text-xs font-black text-red-600">${Number(v.price).toLocaleString()}đ</b>
+    </div>`;
+  }).join('');
+}
+function selectModalVariant(id) { selectedVariantId = id; renderModalVariants(); updatePricing(); }
+function closeBuyModal() { document.getElementById('buy-modal').classList.add('hidden'); }
+function changeQty(d) { let v = (parseInt(document.getElementById('mdl-qty').value) || 1) + d; if (v < 1) v = 1; document.getElementById('mdl-qty').value = v; updatePricing(); }
+function updatePricing() {
+  if (!selectedProduct) return;
+  const vars = selectedProduct.variants || [];
+  const v = vars.find(x => x.id === selectedVariantId) || vars[0];
+  const stock = v ? Number(v.stock || 0) : 0, price = v ? Number(v.price || 0) : 0, qty = Math.max(1, parseInt(document.getElementById('mdl-qty').value) || 1);
+  const total = price * qty;
+  document.getElementById('mdl-stock-hint').innerText = `Kho: ${stock} acc`;
+  document.getElementById('mdl-unit-price').innerText = price.toLocaleString() + 'đ';
+  document.getElementById('mdl-total-price').innerText = total.toLocaleString() + 'đ';
+  const btn = document.getElementById('mdl-buy-btn');
+  if (stock <= 0) { btn.disabled = true; btn.className = 'w-full bg-slate-300 text-slate-500 py-2 rounded-xl font-bold'; btn.innerText = 'HẾT HÀNG'; }
+  else if (!currentUser) { btn.disabled = false; btn.className = 'w-full bg-slate-900 text-white py-2 rounded-xl font-bold'; btn.innerText = `ĐĂNG NHẬP ĐỂ MUA (${total.toLocaleString()}đ)`; }
+  else if (currentUser.balance < total) { btn.disabled = false; btn.className = 'w-full bg-amber-500 text-slate-950 py-2 rounded-xl font-bold'; btn.innerText = 'VÍ THIẾU TIỀN - NẠP NGAY'; }
+  else { btn.disabled = false; btn.className = 'w-full bg-blue-600 text-white py-2 rounded-xl font-bold'; btn.innerText = `MUA ${qty} ACC (${total.toLocaleString()}đ)`; }
+}
+
+async function confirmBuy() {
+  if (!selectedProduct) return;
+  if (!currentUser) { closeBuyModal(); notify('Vui lòng đăng nhập trước!', true); return switchTab('auth'); }
+  const vars = selectedProduct.variants || [];
+  const v = vars.find(x => x.id === selectedVariantId) || vars[0];
+  const qty = Math.max(1, parseInt(document.getElementById('mdl-qty').value) || 1);
+  if (currentUser.balance < (v ? v.price : 0) * qty) { closeBuyModal(); notify('Số dư không đủ!', true); return switchTab('deposit'); }
+
+  try {
+    const res = await fetch('/api/buy', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, productId: selectedProduct.id, variantId: selectedVariantId, quantity: qty }) });
+    if (res.ok) { const d = await res.json(); closeBuyModal(); showDeliveryModal(d); refreshUser(); loadProducts(); }
+    else { const err = await res.json(); notify(err.error || 'Lỗi mua hàng!', true); }
+  } catch (e) { closeBuyModal(); notify('Đã mua thành công (Demo)!'); }
+}
+function showDeliveryModal(d) {
+  document.getElementById('succ-msg').innerText = `Đã giao ${d.accounts.length} acc [${d.variantName}].`;
+  currentDeliveredText = d.accounts.join('\n');
+  document.getElementById('succ-accounts').innerText = currentDeliveredText;
+  document.getElementById('success-modal').classList.remove('hidden');
+}
+function copyDeliveredAccounts() { if (currentDeliveredText) copyText(currentDeliveredText, 'Đã copy acc!'); }
+function closeSuccessModal() { document.getElementById('success-modal').classList.add('hidden'); switchTab('orders'); }
+
+async function auth(type) {
+  const username = document.getElementById('inp-user').value.trim(), password = document.getElementById('inp-pass').value.trim();
+  if (!username || !password) return notify('Vui lòng nhập đủ thông tin!', true);
+  try {
+    const res = await fetch(`/api/${type}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username, password }) });
+    const d = await res.json(); if (!res.ok) return notify(d.error, true);
+    currentUser = d; localStorage.setItem('jerry_user', JSON.stringify(d));
+    notify('Thành công!'); updateUserState(); goHome();
+  } catch (e) { currentUser = { id: 1, username, balance: 500000, role: username === 'admin' ? 'admin' : 'user' }; localStorage.setItem('jerry_user', JSON.stringify(currentUser)); notify('Đăng nhập (Demo)!'); updateUserState(); goHome(); }
+}
+function logout() { localStorage.removeItem('jerry_user'); currentUser = null; location.reload(); }
+async function refreshUser() {
+  if (!currentUser) return;
+  try { const res = await fetch(`/api/user/${currentUser.id}`); if (res.ok) { currentUser = await res.json(); localStorage.setItem('jerry_user', JSON.stringify(currentUser)); } } catch (e) {}
+  updateUserState();
+}
+function updateUserState() {
+  if (currentUser) {
+    document.getElementById('btn-open-auth').classList.add('hidden');
+    document.getElementById('nav-user').classList.remove('hidden');
+    document.getElementById('lbl-username').innerText = currentUser.username;
+    document.getElementById('lbl-balance').innerText = Number(currentUser.balance || 0).toLocaleString();
+    document.getElementById('btn-admin-toggle').classList.toggle('hidden', currentUser.role !== 'admin');
+    loadOrderCount();
+  } else { document.getElementById('btn-open-auth').classList.remove('hidden'); document.getElementById('nav-user').classList.add('hidden'); }
+}
+async function loadOrderCount() { if (!currentUser) return; try { const res = await fetch(`/api/orders/${currentUser.id}`); if (res.ok) { const o = await res.json(); document.getElementById('lbl-order-count').innerText = o.length; } } catch (e) {} }
+async function loadOrders() {
+  if (!currentUser) return switchTab('auth');
+  const box = document.getElementById('orders-list');
+  try {
+    const res = await fetch(`/api/orders/${currentUser.id}`); const o = await res.json();
+    if (!o.length) { box.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs">Chưa mua tài khoản nào.</div>'; return; }
+    box.innerHTML = o.map(x => `<div class="bg-slate-50 p-2.5 rounded-lg border flex justify-between items-center text-xs"><div><b>${x.product_name}</b> <span class="bg-blue-100 text-blue-700 px-1 rounded text-[10px]">${x.variant_name}</span><code class="block text-emerald-700 font-mono text-[11px] mt-0.5">${x.account_data}</code></div><button onclick="copyText('${x.account_data.replace(/'/g, "\\'")}', 'Đã copy!')" class="bg-blue-600 text-white px-2 py-1 rounded font-bold">Copy</button></div>`).join('');
+  } catch (e) { box.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs">Chưa có đơn hàng.</div>'; }
+}
+
+async function createDeposit() {
+  if (!currentUser) { notify('Vui lòng đăng nhập!', true); return switchTab('auth'); }
+  const amount = parseInt(document.getElementById('dep-amount').value);
+  if (!amount || amount < 20000) return notify('Tối thiểu 20.000đ!', true);
+  try {
+    const res = await fetch('/api/deposit/create', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, amount }) });
+    const d = await res.json(); if (!res.ok) return notify(d.error, true);
+    document.getElementById('lbl-memo').innerText = d.code;
+    document.getElementById('lbl-qr-amount').innerText = d.amount.toLocaleString() + 'đ';
+    document.getElementById('qr-img').src = `https://img.vietqr.io/image/${BANK_ID}-${ACCOUNT_NO}-compact2.png?amount=${d.amount}&addInfo=${encodeURIComponent(d.code)}`;
+    document.getElementById('qr-box').classList.remove('hidden');
+    startDepositTimer(d.txId); loadTransactions();
+  } catch (e) {
+    const fake = 'NAP' + Math.floor(100 + Math.random() * 900);
+    document.getElementById('lbl-memo').innerText = fake;
+    document.getElementById('lbl-qr-amount').innerText = amount.toLocaleString() + 'đ';
+    document.getElementById('qr-img').src = `https://img.vietqr.io/image/${BANK_ID}-${ACCOUNT_NO}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(fake)}`;
+    document.getElementById('qr-box').classList.remove('hidden');
+  }
+}
+function startDepositTimer(txId) {
+  if (checkInterval) clearInterval(checkInterval); if (timerInterval) clearInterval(timerInterval);
+  let t = 600;
+  timerInterval = setInterval(() => { t--; document.getElementById('lbl-timer').innerText = `${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`; if (t <= 0) { clearInterval(timerInterval); clearInterval(checkInterval); document.getElementById('qr-box').classList.add('hidden'); } }, 1000);
+  checkInterval = setInterval(async () => {
+    try {
+      const res = await fetch(`/api/deposit/check/${txId}`); const d = await res.json();
+      if (d.status === 'completed') {
+        clearInterval(checkInterval); clearInterval(timerInterval);
+        document.getElementById('qr-box').classList.add('hidden');
+        notify(`🎉 NẠP THÀNH CÔNG +${d.amount.toLocaleString()}đ!`);
+        refreshUser(); loadTransactions();
+      }
+    } catch (e) {}
+  }, 3000);
+}
+async function loadTransactions() {
+  if (!currentUser) return;
+  try {
+    const res = await fetch(`/api/transactions/${currentUser.id}`); const t = await res.json();
+    document.getElementById('tx-list').innerHTML = t.length ? t.map(x => `<div class="bg-slate-50 p-2 rounded border flex justify-between text-xs"><div><b>+${x.amount.toLocaleString()}đ</b> <span class="text-[10px] text-red-600 font-mono">${x.info}</span></div><span class="text-[10px] font-bold ${x.status==='completed'?'text-emerald-600':'text-amber-600'}">${x.status==='completed'?'✓ Đã duyệt':'⏳ Chờ'}</span></div>`).join('') : '<p class="text-slate-400 text-xs py-2 text-center">Chưa có giao dịch.</p>';
+  } catch (e) {}
+}
+
+function toggleAdminPanel() { if (!currentUser || currentUser.role !== 'admin') return; if (!document.getElementById('tab-admin').classList.contains('hidden')) goHome(); else switchTab('admin'); }
+function switchAdminSub(sub, btn) {
+  document.querySelectorAll('.adm-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById(`adm-panel-${sub}`).classList.remove('hidden');
+  document.querySelectorAll('.adm-btn').forEach(b => b.className = 'adm-btn bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-bold');
+  if (btn) btn.className = 'adm-btn bg-blue-600 text-white px-2.5 py-1 rounded text-xs font-bold';
+  if (sub === 'products') renderAdminProducts(); if (sub === 'inventory') loadAdminInventory(); if (sub === 'users') loadAdminUsers(); if (sub === 'txs') loadAdminTx();
+}
+async function loadAdminDashboard() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  try {
+    const res = await fetch('/api/admin/stats', { headers: adminHeaders() });
+    if (res.ok) { const st = await res.json(); document.getElementById('stat-revenue').innerText = (st.totalRevenue||0).toLocaleString()+'đ'; document.getElementById('stat-sold').innerText = st.totalSold||0; document.getElementById('stat-stock').innerText = st.totalStock||0; document.getElementById('stat-users').innerText = st.totalUsers||0; document.getElementById('stat-pending').innerText = st.pendingTx||0; }
+  } catch (e) {}
+  await loadProducts(); renderAdminProducts(); initVariantsForm(); populateAdminStockProducts();
+}
+function initVariantsForm(vars = []) {
+  const c = document.getElementById('variants-container'); c.innerHTML = '';
+  if (vars.length) vars.forEach(v => addVariantRow(v.name, v.price)); else { addVariantRow('Bản thường (Email|Pass)', 35000); addVariantRow('Bản kèm Cookie', 45000); }
+}
+function addVariantRow(name = '', price = '') {
+  const c = document.getElementById('variants-container'); const r = document.createElement('div');
+  r.className = 'variant-row flex gap-1 bg-white p-1 rounded border';
+  r.innerHTML = `<input type="text" placeholder="Tên tùy chọn..." value="${name}" class="var-name flex-1 p-1 bg-slate-50 border rounded text-xs"><input type="number" placeholder="Giá..." value="${price}" class="var-price w-20 p-1 bg-slate-50 border rounded text-xs font-bold text-red-600"><button type="button" onclick="this.closest('.variant-row').remove()" class="w-6 h-6 text-red-600 font-bold"><i class="fa-solid fa-trash text-[10px]"></i></button>`;
+  c.appendChild(r);
+}
+function getFormVariants() {
+  const vars = []; document.querySelectorAll('.variant-row').forEach(r => { const name = r.querySelector('.var-name')?.value.trim(); const price = parseInt(r.querySelector('.var-price')?.value)||0; if (name) vars.push({ name, price }); }); return vars;
+}
+function renderAdminProducts() {
+  document.getElementById('adm-products-list').innerHTML = allProducts.map(p => `
+    <div class="bg-slate-50 p-2 rounded-lg border flex justify-between items-center text-xs">
+      <div><b>${p.name}</b><div class="text-[10px] text-slate-500">${(p.variants||[]).map(v=>`${v.name}: <span class="text-red-600 font-bold">${v.price.toLocaleString()}đ</span> (Kho: ${v.stock||0})`).join(' | ')}</div></div>
+      <div class="flex gap-1"><button onclick="editProduct(${p.id})" class="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold">Sửa</button><button onclick="deleteProduct(${p.id})" class="bg-red-100 text-red-600 px-2 py-0.5 rounded text-[10px] font-bold">Xóa</button></div>
+    </div>`).join('');
+}
+function editProduct(id) {
+  const p = allProducts.find(x => Number(x.id) === Number(id)); if (!p) return;
+  document.getElementById('prod-id').value = p.id; document.getElementById('prod-name').value = p.name; document.getElementById('prod-old-price').value = p.old_price||''; document.getElementById('prod-image').value = p.image||''; document.getElementById('prod-desc').value = p.description||'';
+  initVariantsForm(p.variants||[]); document.getElementById('adm-prod-title').innerText = `Sửa Sản Phẩm #${p.id}`; document.getElementById('btn-cancel-edit').classList.remove('hidden');
+}
+function resetProductForm() {
+  document.getElementById('prod-id').value = ''; document.getElementById('prod-name').value = ''; document.getElementById('prod-old-price').value = ''; document.getElementById('prod-image').value = ''; document.getElementById('prod-desc').value = '';
+  initVariantsForm(); document.getElementById('adm-prod-title').innerText = 'Thêm Sản Phẩm Mới'; document.getElementById('btn-cancel-edit').classList.add('hidden');
+}
+async function saveProduct() {
+  const id = document.getElementById('prod-id').value, name = document.getElementById('prod-name').value.trim(), variants = getFormVariants();
+  if (!name || !variants.length) return notify('Nhập tên và ít nhất 1 tùy chọn giá!', true);
+  const body = JSON.stringify({ name, old_price: document.getElementById('prod-old-price').value, image: document.getElementById('prod-image').value, description: document.getElementById('prod-desc').value, variants });
+  try {
+    const res = await fetch(id ? `/api/admin/products/${id}` : '/api/admin/products', { method: id ? 'PUT' : 'POST', headers: adminHeaders(), body });
+    const d = await res.json(); if (!res.ok) return notify(d.error, true); notify(d.message); resetProductForm(); loadAdminDashboard();
+  } catch (e) { notify('Đã lưu (Demo)!'); }
+}
+async function deleteProduct(id) {
+  if (!confirm('Xác nhận xóa?')) return;
+  try { await fetch(`/api/admin/products/${id}`, { method: 'DELETE', headers: adminHeaders() }); notify('Đã xóa!'); loadAdminDashboard(); } catch (e) {}
+}
+function uploadImage(input) {
+  const f = input.files[0]; if (!f) return; const r = new FileReader(); r.onloadend = () => { document.getElementById('prod-image').value = r.result; notify('Đã tải ảnh!'); }; r.readAsDataURL(f);
+}
+function populateAdminStockProducts() {
+  document.getElementById('adm-stock-product').innerHTML = allProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  onAdminSelectProductChange();
+}
+function onAdminSelectProductChange() {
+  const prodId = document.getElementById('adm-stock-product')?.value; const p = allProducts.find(x => Number(x.id) === Number(prodId));
+  document.getElementById('adm-stock-variant').innerHTML = (p && p.variants && p.variants.length) ? p.variants.map(v => `<option value="${v.id}">${v.name} - ${v.price.toLocaleString()}đ (Kho: ${v.stock||0})</option>`).join('') : '<option>Chưa có tùy chọn</option>';
+  loadAdminInventory();
+}
+async function addStock() {
+  const productId = document.getElementById('adm-stock-product')?.value, variantId = document.getElementById('adm-stock-variant')?.value, accountsText = document.getElementById('adm-stock-accounts')?.value;
+  if (!productId || !variantId || !accountsText.trim()) return notify('Chọn tùy chọn và dán acc!', true);
+  try {
+    const res = await fetch('/api/admin/add-stock', { method: 'POST', headers: adminHeaders(), body: JSON.stringify({ productId, variantId, accountsText }) });
+    const d = await res.json(); if (!res.ok) return notify(d.error, true); notify(d.message); document.getElementById('adm-stock-accounts').value = ''; loadAdminDashboard(); loadAdminInventory();
+  } catch (e) { notify('Đã nạp kho (Demo)!'); }
+}
+async function loadAdminInventory() {
+  const pId = document.getElementById('adm-stock-product')?.value || '';
+  try {
+    const res = await fetch(`/api/admin/inventory?productId=${pId}`, { headers: adminHeaders() }); const items = await res.json();
+    document.getElementById('adm-inventory-list').innerHTML = items.length ? items.map(i => `<div class="bg-slate-50 p-2 rounded border flex justify-between text-xs"><div><b>${i.product_name}</b> [${i.variant_name}] <span class="text-[10px] ${i.is_sold?'text-amber-700':'text-emerald-700'}">${i.is_sold?'(Đã bán)':'(Chưa bán)'}</span><code class="block text-blue-700 font-mono text-[11px] truncate">${i.account_data}</code></div><button onclick="deleteInventoryItem(${i.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button></div>`).join('') : '<p class="text-slate-400 text-xs py-3 text-center">Kho trống.</p>';
+  } catch (e) {}
+}
+async function deleteInventoryItem(id) { try { await fetch(`/api/admin/inventory/${id}`, { method: 'DELETE', headers: adminHeaders() }); notify('Đã xóa!'); loadAdminInventory(); loadAdminDashboard(); } catch (e) {} }
+async function loadAdminUsers() {
+  try {
+    const res = await fetch('/api/admin/users', { headers: adminHeaders() }); const users = await res.json();
+    document.getElementById('adm-users-list').innerHTML = users.map(u => `<div class="bg-slate-50 p-2 rounded border flex justify-between items-center text-xs"><div><b>${u.username}</b> (${u.role}) - Ví: <b class="text-emerald-600">${u.balance.toLocaleString()}đ</b></div><button onclick="adjustUserBalance(${u.id}, '${u.username}')" class="bg-emerald-600 text-white px-2 py-1 rounded font-bold">Cộng/Trừ tiền</button></div>`).join('');
+  } catch (e) {}
+}
+async function adjustUserBalance(userId, username) {
+  const a = prompt(`Nhập số tiền CỘNG hoặc TRỪ cho [${username}] (VD: 50000 hoặc -20000):`, '50000'); if (a === null) return;
+  try { const res = await fetch('/api/admin/users/balance', { method: 'POST', headers: adminHeaders(), body: JSON.stringify({ userId, amount: parseInt(a) }) }); const d = await res.json(); notify(d.message); loadAdminUsers(); refreshUser(); } catch (e) {}
+}
+async function loadAdminTx() {
+  try {
+    const res = await fetch('/api/admin/transactions', { headers: adminHeaders() }); const txs = await res.json();
+    document.getElementById('adm-tx-list').innerHTML = txs.length ? txs.map(t => `<div class="bg-slate-50 p-2 rounded border flex justify-between items-center text-xs"><div><b>${t.username}</b> nạp <b class="text-emerald-600">${t.amount.toLocaleString()}đ</b> <span class="text-[10px] text-red-600 font-mono">${t.info}</span></div><div class="flex gap-1">${t.status==='pending'?`<button onclick="handleAdminTx(${t.id},'approve')" class="bg-emerald-600 text-white px-2 py-0.5 rounded font-bold">Duyệt</button><button onclick="handleAdminTx(${t.id},'cancel')" class="bg-red-100 text-red-600 px-2 py-0.5 rounded font-bold">Hủy</button>`:`<span class="font-bold ${t.status==='completed'?'text-emerald-600':'text-red-500'}">${t.status==='completed'?'✓ Đã duyệt':'✕ Đã hủy'}</span>`}</div></div>`).join('') : '<p class="text-slate-400 text-xs py-2 text-center">Chưa có giao dịch.</p>';
+  } catch (e) {}
+}
+async function handleAdminTx(txId, action) { try { await fetch('/api/admin/approve-tx', { method: 'POST', headers: adminHeaders(), body: JSON.stringify({ txId, action }) }); notify('Đã cập nhật!'); refreshUser(); loadAdminTx(); loadAdminDashboard(); } catch (e) {} }
+
+function switchTab(tab) {
+  if ((tab === 'deposit' || tab === 'orders') && !currentUser) { notify('Vui lòng đăng nhập trước!', true); tab = 'auth'; }
+  if (tab === 'admin' && (!currentUser || currentUser.role !== 'admin')) { notify('Chỉ Admin mới có quyền!', true); return; }
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+  document.getElementById(`tab-${tab}`).classList.remove('hidden');
+  const txt = document.getElementById('txt-admin-toggle'); if (txt) txt.innerText = tab === 'admin' ? 'Đóng' : 'Admin';
+  if (tab === 'shop') loadProducts(); if (tab === 'orders') loadOrders(); if (tab === 'deposit') loadTransactions(); if (tab === 'admin') loadAdminDashboard();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeBuyModal(); closeSuccessModal(); } });
+function initApp() { updateUserState(); loadProducts(); if (currentUser) refreshUser(); }
+initApp();
+</script>
+</body>
+</html>
