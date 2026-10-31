@@ -3,95 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jerry Shop - Hệ Thống Tài Khoản AI Giá Siêu Rẻ Tự Động 24/7</title>
+    <title>Jerry Digital — Hệ Thống Tài Nguyên Số & AI Tự Động 24/7</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        body { font-family: 'Be Vietnam Pro', sans-serif; background-color: #f4f6f9; color: #1e293b; }
-        .blue-header { background: linear-gradient(90deg, #0052cc 0%, #0065ff 100%); }
-        .section-bar { background: linear-gradient(90deg, #0052cc 0%, #0284c7 100%); }
-        .product-card { transition: all 0.25s ease; }
-        .product-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px -6px rgba(0, 82, 204, 0.18); }
-        .amount-btn.active { background-color: #0052cc; color: white; border-color: #0052cc; }
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #3730a3;
+            --accent: #10b981;
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+            background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+            background-size: 24px 24px;
+            color: #0f172a;
+        }
+        .font-mono-code { font-family: 'JetBrains Mono', monospace; }
+        .brand-gradient { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 55%, #312e81 100%); }
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.4);
+        }
+        .card-compact {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+        }
+        .card-compact:hover {
+            transform: translateY(-5px);
+            border-color: #6366f1;
+            box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(79, 70, 229, 0.06);
+        }
+        .amount-btn.active {
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 6px 15px -3px rgba(79, 70, 229, 0.35);
+        }
+        .admin-nav-btn.active {
+            background-color: #4f46e5;
+            color: white;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between">
 
     <!-- Thông báo nổi góc phải -->
-    <div id="toast-box" class="fixed top-5 right-5 z-50 space-y-2"></div>
+    <div id="toast-box" class="fixed top-5 right-5 z-50 space-y-2.5 max-w-sm w-full pointer-events-none"></div>
 
-    <!-- 1. THANH TOP BAR TRÊN CÙNG (Chữ đỏ cam kết như mẫu) -->
-    <div class="bg-white border-b border-slate-200 text-xs py-2 px-4">
+    <!-- 1. TOP ANNOUNCEMENT BAR -->
+    <div class="bg-slate-950 text-slate-300 text-xs py-2 px-4 border-b border-slate-800">
         <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
-            <div class="flex flex-wrap items-center gap-4 text-red-600 font-semibold">
-                <span><i class="fa-solid fa-bolt mr-1"></i> Jerry Shop - Hệ thống giao tài khoản tự động 24/7</span>
-                <span class="hidden sm:inline"><i class="fa-solid fa-book mr-1"></i> Hướng dẫn mua hàng</span>
-                <span class="hidden md:inline"><i class="fa-solid fa-gift mr-1"></i> Ưu đãi khách hàng</span>
-                <span class="hidden lg:inline"><i class="fa-solid fa-phone-volume mr-1"></i> Hỗ trợ nhanh chóng: 0982.900.374</span>
+            <div class="flex items-center gap-4 font-medium">
+                <span class="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    Hệ thống xuất tài khoản tự động 24/7
+                </span>
+                <span class="hidden md:inline text-slate-600">|</span>
+                <span class="hidden md:inline hover:text-white transition"><i class="fa-solid fa-headset mr-1 text-indigo-400"></i> Hotline / Zalo: <b>0982.900.374</b></span>
             </div>
-            <div class="text-emerald-600 font-semibold hidden sm:block">
-                <i class="fa-solid fa-shield-halved mr-1"></i> Thanh toán chuyển khoản VietQR tự động 100%
+            <div class="text-amber-400 font-semibold hidden sm:flex items-center gap-1.5">
+                <i class="fa-solid fa-bolt"></i> Tích hợp nạp tự động VietQR MB Bank 3 giây
             </div>
         </div>
     </div>
 
-    <!-- 2. HEADER CHÍNH MÀU XANH DƯƠNG (Có Logo Jerry Shop bên trái) -->
-    <header class="blue-header text-white py-4 px-4 shadow-md sticky top-0 z-40">
+    <!-- 2. HEADER CHÍNH -->
+    <header class="brand-gradient text-white py-4 px-4 shadow-xl sticky top-0 z-40 border-b border-indigo-950/60">
         <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
             
-            <!-- LOGO JERRY SHOP (Bấm vào luôn quay về trang chủ) -->
-            <a href="javascript:void(0)" onclick="goHome()" class="flex items-center gap-3 group cursor-pointer">
-                <div class="w-11 h-11 rounded-2xl bg-white text-blue-600 flex items-center justify-center shadow-md group-hover:scale-105 transition">
-                    <i class="fa-solid fa-cart-shopping text-xl"></i>
+            <!-- LOGO JERRY SHOP -->
+            <a href="javascript:void(0)" onclick="goHome()" class="flex items-center gap-3.5 group">
+                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-emerald-400 p-0.5 shadow-lg group-hover:rotate-6 transition duration-300">
+                    <div class="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
+                        <i class="fa-solid fa-layer-group text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-emerald-400 text-xl"></i>
+                    </div>
                 </div>
                 <div>
-                    <span class="text-2xl font-extrabold tracking-tight block leading-none text-white">JERRY <span class="text-yellow-300">SHOP</span></span>
-                    <span class="text-[11px] text-blue-100 font-medium">Tài Khoản AI Giá Siêu Rẻ</span>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xl font-extrabold tracking-tight text-white">JERRY</span>
+                        <span class="text-xs font-extrabold px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">STORE</span>
+                    </div>
+                    <span class="text-[11px] text-slate-400 font-medium block">Tài Nguyên AI & Phần Mềm Bản Quyền</span>
                 </div>
             </a>
 
-            <!-- Ô tìm kiếm ở giữa -->
+            <!-- Ô TÌM KIẾM TRỰC TIẾP -->
             <div class="flex-1 max-w-md mx-4 hidden md:block">
                 <div class="relative">
-                    <input type="text" placeholder="Tìm kiếm sản phẩm Muse AI..." class="w-full py-2.5 pl-4 pr-12 rounded-full text-slate-800 text-sm focus:outline-none shadow-inner">
-                    <button onclick="goHome()" class="absolute right-1.5 top-1.5 w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center">
-                        <i class="fa-solid fa-magnifying-glass text-xs"></i>
-                    </button>
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input id="search-input" oninput="filterProducts()" type="text" placeholder="Tìm nhanh sản phẩm, tài khoản AI..." class="w-full py-2.5 pl-10 pr-4 rounded-2xl bg-slate-900/80 border border-slate-700/80 text-white placeholder-slate-400 text-sm focus:outline-none focus:border-indigo-400 transition">
                 </div>
             </div>
 
-            <!-- Cụm nút bên phải: Đăng nhập / Số dư / Nạp tiền / Đơn hàng -->
+            <!-- CỤM TÀI KHOẢN / ĐIỀU HƯỚNG PHẢI -->
             <div class="flex items-center gap-2.5">
                 <!-- Khi chưa đăng nhập -->
-                <button id="btn-open-auth" onclick="switchTab('auth')" class="bg-blue-700/80 hover:bg-blue-800 border border-blue-400/40 px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 transition">
-                    <i class="fa-solid fa-circle-user"></i> Đăng nhập / Đăng ký
+                <button id="btn-open-auth" onclick="switchTab('auth')" class="btn-primary px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shadow-lg">
+                    <i class="fa-regular fa-user"></i> Đăng nhập / Đăng ký
                 </button>
 
                 <!-- Khi đã đăng nhập -->
                 <div id="nav-user" class="hidden flex items-center gap-2 flex-wrap">
-                    <div class="bg-white text-slate-800 px-3.5 py-1.5 rounded-full text-xs font-bold shadow flex items-center gap-1.5">
-                        <i class="fa-solid fa-user text-blue-600"></i>
-                        <span id="lbl-username"> khách</span>
-                        <span class="text-slate-300">|</span>
-                        <span class="text-red-600 font-extrabold"><span id="lbl-balance">0</span>đ</span>
+                    <!-- Ví & Tên tài khoản -->
+                    <div class="bg-slate-900/90 border border-slate-700/80 px-3.5 py-2 rounded-2xl text-xs font-semibold flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span id="lbl-username" class="text-slate-200 font-bold">khách</span>
+                        <span id="badge-role" class="hidden text-[10px] bg-amber-500/20 text-amber-300 border border-amber-400/30 px-1.5 py-0.5 rounded font-extrabold">ADMIN</span>
+                        <span class="text-slate-600">|</span>
+                        <span class="text-emerald-400 font-extrabold font-mono-code"><span id="lbl-balance">0</span>đ</span>
                     </div>
 
-                    <button onclick="switchTab('deposit')" class="bg-yellow-400 hover:bg-yellow-300 text-slate-900 px-4 py-2 rounded-full text-xs font-extrabold shadow flex items-center gap-1.5 transition">
-                        <i class="fa-solid fa-wallet"></i> Nạp tiền
+                    <!-- Nút Nạp tiền -->
+                    <button onclick="switchTab('deposit')" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 px-3.5 py-2 rounded-2xl text-xs font-extrabold shadow flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-qrcode"></i> <span class="hidden sm:inline">Nạp tiền</span>
                     </button>
 
-                    <button onclick="switchTab('orders')" class="bg-blue-800/90 hover:bg-blue-900 border border-blue-400/30 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1.5 transition">
-                        <i class="fa-solid fa-basket-shopping"></i> Đơn hàng đã mua
-                        <span id="lbl-order-count" class="bg-red-500 text-white px-1.5 py-0.2 rounded-full text-[10px]">0</span>
+                    <!-- Nút Đơn hàng đã mua -->
+                    <button onclick="switchTab('orders')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3.5 py-2 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-box-archive text-indigo-400"></i>
+                        <span class="hidden sm:inline">Kho đã mua</span>
+                        <span id="lbl-order-count" class="bg-indigo-600 text-white px-1.5 py-0.2 rounded-full text-[10px] font-mono-code">0</span>
                     </button>
 
-                    <button id="btn-admin" onclick="switchTab('admin')" class="hidden bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-2 rounded-full text-xs font-bold shadow">
-                        <i class="fa-solid fa-gear"></i> Quản trị
+                    <!-- NÚT BẬT/TẮT QUẢN TRỊ (CHỈ ADMIN MỚI THẤY, KHÁCH TUYỆT ĐỐI KHÔNG CÓ) -->
+                    <button id="btn-admin-toggle" onclick="toggleAdminPanel()" class="hidden bg-amber-500 hover:bg-amber-400 text-slate-950 px-3.5 py-2 rounded-2xl text-xs font-extrabold shadow-lg flex items-center gap-1.5 transition">
+                        <i id="icon-admin-toggle" class="fa-solid fa-sliders"></i>
+                        <span id="txt-admin-toggle">Quản trị</span>
                     </button>
 
-                    <button onclick="logout()" title="Đăng xuất" class="bg-red-500/90 hover:bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-xs">
-                        <i class="fa-solid fa-power-off"></i>
+                    <!-- Nút Đăng xuất -->
+                    <button onclick="logout()" title="Đăng xuất tài khoản" class="bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white border border-rose-500/30 px-3 py-2 rounded-2xl flex items-center gap-1.5 text-xs font-bold transition">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span class="hidden lg:inline">Thoát</span>
                     </button>
                 </div>
             </div>
@@ -99,285 +153,448 @@
         </div>
     </header>
 
-    <!-- 3. THANH MENU PHỤ MÀU TRẮNG (Có thêm Logo nhỏ Jerry Shop bên mép trái để bấm về Trang chủ) -->
-    <div class="bg-white border-b border-slate-200 shadow-sm px-4">
-        <div class="max-w-7xl mx-auto flex items-center gap-6 overflow-x-auto py-2.5 text-sm font-semibold text-slate-700">
-            <!-- Logo thứ 2 bên mép trái theo yêu cầu -->
-            <a href="javascript:void(0)" onclick="goHome()" class="flex items-center gap-1.5 text-blue-600 font-extrabold shrink-0 border-r border-slate-200 pr-5 hover:text-blue-700">
-                <i class="fa-solid fa-house"></i> JERRY SHOP
-            </a>
-            <button onclick="goHome()" class="hover:text-blue-600 flex items-center gap-1.5 shrink-0 text-blue-600">
-                <i class="fa-solid fa-trophy"></i> Sản phẩm nổi bật
-            </button>
-            <button onclick="switchTab('orders')" class="hover:text-blue-600 flex items-center gap-1.5 shrink-0">
-                <i class="fa-solid fa-clock-rotate-left text-blue-600"></i> Lịch sử đơn hàng
-            </button>
-            <button onclick="switchTab('deposit')" class="hover:text-blue-600 flex items-center gap-1.5 shrink-0">
-                <i class="fa-solid fa-credit-card text-blue-600"></i> Nạp tiền tự động
-            </button>
-            <a href="https://zalo.me/0982900374" target="_blank" class="hover:text-blue-600 flex items-center gap-1.5 shrink-0">
-                <i class="fa-solid fa-headset text-blue-600"></i> Liên hệ hỗ trợ Zalo
-            </a>
+    <!-- 3. THANH ĐIỀU HƯỚNG NHANH -->
+    <div class="bg-white/80 backdrop-blur-md border-b border-slate-200/80 px-4 sticky top-[73px] z-30">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-4 overflow-x-auto py-2.5 text-xs sm:text-sm font-semibold text-slate-600">
+            <div class="flex items-center gap-6 shrink-0">
+                <button onclick="goHome()" class="hover:text-indigo-600 flex items-center gap-2 text-indigo-600 font-bold">
+                    <i class="fa-solid fa-compass"></i> Khám phá sản phẩm
+                </button>
+                <button onclick="switchTab('orders')" class="hover:text-indigo-600 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-key text-slate-400"></i> Tài khoản đã mua
+                </button>
+                <button onclick="switchTab('deposit')" class="hover:text-indigo-600 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-building-columns text-slate-400"></i> Nạp tiền VietQR
+                </button>
+                <a href="https://zalo.me/0982900374" target="_blank" class="hover:text-indigo-600 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-shield-heart text-slate-400"></i> Bảo hành & Hỗ trợ
+                </a>
+            </div>
+            <div class="hidden lg:flex items-center gap-2 text-xs text-slate-500">
+                <i class="fa-solid fa-circle-info text-indigo-500"></i>
+                <span>Nhấn trực tiếp vào ô sản phẩm để xem chi tiết & ghi chú trước khi mua</span>
+            </div>
         </div>
     </div>
 
     <!-- ================= NỘI DUNG CHÍNH ================= -->
-    <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
-
-        <!-- Khung cảnh báo Lưu ý màu đỏ chuẩn mẫu -->
-        <div class="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm text-sm">
-            <b class="text-red-600">Lưu ý:</b>
-            <span class="font-semibold text-slate-700">Tài nguyên chỉ được sử dụng vào mục đích chính đáng, Jerry Shop cam kết giao tài khoản tự động tức thì ngay sau khi thanh toán!</span>
-        </div>
+    <main class="max-w-7xl mx-auto px-4 py-7 flex-1 w-full space-y-7">
 
         <!-- TAB ĐĂNG NHẬP / ĐĂNG KÝ -->
-        <div id="tab-auth" class="tab-content hidden max-w-md mx-auto bg-white p-8 rounded-2xl shadow-lg border border-slate-200 my-6">
+        <div id="tab-auth" class="tab-content hidden max-w-md mx-auto bg-white p-8 rounded-3xl shadow-xl border border-slate-200/80 my-6">
             <div class="text-center mb-6">
-                <div class="w-14 h-14 rounded-2xl blue-header text-white mx-auto flex items-center justify-center mb-3 shadow">
-                    <i class="fa-solid fa-user-check text-2xl"></i>
+                <div class="w-14 h-14 rounded-2xl btn-primary text-white mx-auto flex items-center justify-center mb-3 shadow-lg">
+                    <i class="fa-solid fa-fingerprint text-2xl"></i>
                 </div>
-                <h2 class="text-2xl font-extrabold text-slate-800">Tài Khoản Jerry Shop</h2>
-                <p class="text-xs text-slate-500 mt-1">Đăng nhập hoặc tạo tài khoản mới để mua hàng & nạp tiền</p>
+                <h2 class="text-2xl font-extrabold text-slate-900">Chào mừng bạn trở lại</h2>
+                <p class="text-xs text-slate-500 mt-1">Đăng nhập hoặc tạo tài khoản mới (Dữ liệu lưu tự động bền vững)</p>
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="text-xs font-bold text-slate-600 block mb-1">TÊN ĐĂNG NHẬP</label>
-                    <input id="inp-user" type="text" placeholder="Nhập tên tài khoản của bạn..." class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white focus:outline-none text-sm">
+                    <label class="text-xs font-bold text-slate-700 block mb-1.5">TÊN TÀI KHOẢN</label>
+                    <input id="inp-user" type="text" placeholder="Ví dụ: minhsy2026" class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:border-indigo-600 focus:bg-white focus:outline-none text-sm font-medium">
                 </div>
                 <div>
-                    <label class="text-xs font-bold text-slate-600 block mb-1">MẬT KHẨU</label>
-                    <input id="inp-pass" type="password" placeholder="Nhập mật khẩu..." class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white focus:outline-none text-sm">
+                    <label class="text-xs font-bold text-slate-700 block mb-1.5">MẬT KHẨU</label>
+                    <input id="inp-pass" type="password" placeholder="Nhập mật khẩu..." onkeydown="if(event.key==='Enter') auth('login')" class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:border-indigo-600 focus:bg-white focus:outline-none text-sm font-medium">
                 </div>
-                <div class="grid grid-cols-2 gap-3 pt-2">
-                    <button onclick="auth('login')" class="blue-header hover:opacity-95 text-white py-3 rounded-xl font-bold text-sm shadow">
+                <div class="grid grid-cols-2 gap-3 pt-3">
+                    <button onclick="auth('login')" class="btn-primary text-white py-3.5 rounded-2xl font-bold text-sm shadow-md">
                         Đăng Nhập
                     </button>
-                    <button onclick="auth('register')" class="bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-bold text-sm shadow">
-                        Tạo Tài Khoản
+                    <button onclick="auth('register')" class="bg-slate-900 hover:bg-slate-800 text-white py-3.5 rounded-2xl font-bold text-sm shadow-md transition">
+                        Đăng Ký Mới
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- TAB 1: TRANG CHỦ CỬA HÀNG (Bố cục cột trái Danh mục + cột phải Sản phẩm Muse AI) -->
-        <div id="tab-shop" class="tab-content grid lg:grid-cols-4 gap-6">
+        <!-- TAB 1: CỬA HÀNG (LƯỚI Ô NHỎ GỌN - BẤM VÀO HIỆN MODAL CHI TIẾT) -->
+        <div id="tab-shop" class="tab-content space-y-6">
             
-            <!-- Cột Trái: Danh mục sản phẩm -->
-            <div class="lg:col-span-1 space-y-4">
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="blue-header text-white px-4 py-3.5 font-bold text-sm flex items-center gap-2">
-                        <i class="fa-solid fa-bars"></i> Danh mục sản phẩm
+            <!-- Banner Hero thanh lịch -->
+            <div class="brand-gradient rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="space-y-3 max-w-xl z-10">
+                    <div class="inline-flex items-center gap-2 bg-white/10 backdrop-blur px-3 py-1 rounded-full text-xs font-semibold text-indigo-200 border border-white/15">
+                        <i class="fa-solid fa-sparkles text-amber-300"></i> Kho Tài Nguyên Số Chính Hãng Giá Sỉ
                     </div>
-                    <div class="divide-y divide-slate-100 text-sm font-semibold">
-                        <button onclick="goHome()" class="w-full px-4 py-3.5 text-left flex items-center justify-between bg-blue-50/70 text-blue-700">
-                            <span class="flex items-center gap-2.5">
-                                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRWdRCJUxu-f9beNfce69-LxdtXwAC3AGfzE_Vaog4-5w&s=10" class="w-6 h-6 rounded object-cover">
-                                Tài Khoản Muse AI
-                            </span>
-                            <span class="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full">HOT</span>
-                        </button>
-                    </div>
+                    <h1 class="text-2xl sm:text-3xl font-extrabold leading-tight">
+                        Nâng cấp hiệu suất làm việc với <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-emerald-300">Tài Khoản AI Cao Cấp</span>
+                    </h1>
+                    <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                        Tất cả tài khoản đều được hệ thống kiểm duyệt kỹ, xuất thông tin tự động ngay lập tức sau khi thanh toán. Nhấn vào từng sản phẩm để xem ghi chú bảo hành chi tiết.
+                    </p>
                 </div>
-
-                <!-- Khung cam kết uy tín -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3 text-xs">
-                    <div class="font-extrabold text-slate-800 text-sm border-b pb-2">🌟 Cam Kết Từ Jerry Shop</div>
-                    <div class="flex items-center gap-2.5 text-slate-600">
-                        <i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>
-                        <span>Tài khoản Muse AI có sẵn <b>1 tỷ token</b> dùng riêng.</span>
+                <div class="grid grid-cols-3 gap-3 shrink-0 z-10 w-full md:w-auto">
+                    <div class="bg-white/10 backdrop-blur border border-white/10 p-3.5 rounded-2xl text-center">
+                        <div class="text-lg sm:text-xl font-extrabold text-emerald-400 font-mono-code">1 Giây</div>
+                        <div class="text-[11px] text-slate-300 mt-0.5">Nhận acc tức thì</div>
                     </div>
-                    <div class="flex items-center gap-2.5 text-slate-600">
-                        <i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>
-                        <span>Tự động trả tài khoản ngay lập tức sau khi bấm mua.</span>
+                    <div class="bg-white/10 backdrop-blur border border-white/10 p-3.5 rounded-2xl text-center">
+                        <div class="text-lg sm:text-xl font-extrabold text-amber-300 font-mono-code">100%</div>
+                        <div class="text-[11px] text-slate-300 mt-0.5">Tài khoản dùng riêng</div>
                     </div>
-                    <div class="flex items-center gap-2.5 text-slate-600">
-                        <i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>
-                        <span>Nạp tiền tự động qua QR MB Bank chỉ trong 3 giây.</span>
+                    <div class="bg-white/10 backdrop-blur border border-white/10 p-3.5 rounded-2xl text-center">
+                        <div class="text-lg sm:text-xl font-extrabold text-indigo-300 font-mono-code">24/7</div>
+                        <div class="text-[11px] text-slate-300 mt-0.5">Nạp & Giao tự động</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Cột Phải: Hiển thị sản phẩm Muse AI duy nhất -->
-            <div class="lg:col-span-3 space-y-5">
-                <!-- Thanh tiêu đề xanh dương giống mẫu -->
-                <div class="section-bar text-white px-5 py-3 rounded-xl shadow flex items-center justify-between">
-                    <div class="flex items-center gap-2.5 font-extrabold text-base">
-                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRWdRCJUxu-f9beNfce69-LxdtXwAC3AGfzE_Vaog4-5w&s=10" class="w-7 h-7 rounded-lg border border-white">
-                        <span>Tài Khoản AI Nổi Bật</span>
-                    </div>
-                    <span class="text-xs bg-white/20 px-3 py-1 rounded-full font-semibold">Giao tự động 24/7</span>
+            <!-- Bộ lọc danh mục ngang -->
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div id="category-pills" class="flex items-center gap-2 overflow-x-auto pb-1">
+                    <!-- Tự động render từ danh sách sản phẩm -->
                 </div>
-
-                <!-- Nơi chứa sản phẩm Muse AI -->
-                <div id="product-container"></div>
+                <div class="text-xs font-semibold text-slate-500">
+                    Hiển thị <b id="lbl-product-count" class="text-indigo-600">0</b> sản phẩm
+                </div>
             </div>
 
+            <!-- LƯỚI SẢN PHẨM DẠNG Ô NHỎ (COMPACT CARDS) -->
+            <div id="product-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5"></div>
         </div>
 
         <!-- TAB 2: ĐƠN HÀNG ĐÃ MUA -->
-        <div id="tab-orders" class="tab-content hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <div class="flex justify-between items-center border-b border-slate-200 pb-4 mb-5">
-                <h3 class="text-lg font-extrabold text-slate-800 flex items-center gap-2">
-                    <i class="fa-solid fa-box-open text-blue-600"></i> Danh Sách Tài Khoản Muse AI Bạn Đã Mua
-                </h3>
-                <button onclick="goHome()" class="text-xs text-blue-600 font-bold hover:underline">← Quay lại cửa hàng</button>
+        <div id="tab-orders" class="tab-content hidden bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200/90">
+            <div class="flex flex-wrap justify-between items-center border-b border-slate-100 pb-4 mb-5 gap-2">
+                <div>
+                    <h3 class="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-box-open text-indigo-600"></i> Kho Tài Khoản Bạn Đã Mua
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Sao chép thông tin tài khoản bên dưới để sử dụng</p>
+                </div>
+                <button onclick="goHome()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl font-bold transition">← Tiếp tục mua hàng</button>
             </div>
             <div id="orders-list" class="space-y-3"></div>
         </div>
 
-        <!-- TAB 3: NẠP TIỀN TỰ ĐỘNG (Định mức tối thiểu 20k + Các nút 20k, 50k, 100k, 200k, 500k) -->
+        <!-- TAB 3: NẠP TIỀN TỰ ĐỘNG -->
         <div id="tab-deposit" class="tab-content hidden grid lg:grid-cols-5 gap-6">
-            <div class="lg:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h3 class="text-lg font-extrabold mb-3 text-slate-800 flex items-center gap-2">
-                    <i class="fa-solid fa-building-columns text-blue-600"></i> Nạp Tiền Tự Động Qua Ngân Hàng (MB Bank)
+            <div class="lg:col-span-3 bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200/90">
+                <h3 class="text-lg font-extrabold mb-3 text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-building-columns text-indigo-600"></i> Nạp Tiền Tự Động Qua VietQR (MB Bank)
                 </h3>
 
-                <!-- CẢNH BÁO ĐỎ ĐỊNH MỨC TỐI THIỂU 20K -->
-                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl mb-5 text-xs sm:text-sm text-red-800 space-y-1">
-                    <div class="font-extrabold text-red-600 flex items-center gap-1.5">
-                        <i class="fa-solid fa-triangle-exclamation"></i> CẢNH BÁO QUAN TRỌNG VỀ ĐỊNH MỨC NẠP:
+                <div class="bg-rose-50 border border-rose-200 p-4 rounded-2xl mb-5 text-xs sm:text-sm text-rose-900 space-y-1">
+                    <div class="font-extrabold text-rose-600 flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation"></i> LƯU Ý QUAN TRỌNG VỀ ĐỊNH MỨC NẠP:
                     </div>
-                    <p>• Hệ thống quy định mức nạp tối thiểu là <b>20.000đ</b>.</p>
-                    <p>• Nếu bạn chuyển khoản <b>ít hơn 20.000đ</b>, hệ thống sẽ <b>KHÔNG cộng tiền</b>, không báo lỗi và không hỗ trợ hoàn trả!</p>
+                    <p>• Hệ thống quy định mức nạp tối thiểu là <b>20.000đ</b> và ghi đúng nội dung chuyển khoản.</p>
+                    <p>• Các giao dịch chuyển khoản <b>dưới 20.000đ</b> hệ thống tự động từ chối cộng số dư.</p>
                 </div>
 
-                <!-- Mục chọn nhanh mệnh giá có sẵn: 20k, 50k, 100k, 200k, 500k -->
                 <label class="block text-xs font-bold text-slate-600 mb-2">1. CHỌN NHANH MỆNH GIÁ NẠP:</label>
                 <div class="grid grid-cols-3 sm:grid-cols-5 gap-2.5 mb-5">
-                    <button type="button" onclick="selectAmount(20000, this)" class="amount-btn active border-2 border-slate-200 hover:border-blue-600 py-2.5 rounded-xl font-extrabold text-sm transition">
-                        20.000đ
-                    </button>
-                    <button type="button" onclick="selectAmount(50000, this)" class="amount-btn border-2 border-slate-200 hover:border-blue-600 py-2.5 rounded-xl font-extrabold text-sm transition">
-                        50.000đ
-                    </button>
-                    <button type="button" onclick="selectAmount(100000, this)" class="amount-btn border-2 border-slate-200 hover:border-blue-600 py-2.5 rounded-xl font-extrabold text-sm transition">
-                        100.000đ
-                    </button>
-                    <button type="button" onclick="selectAmount(200000, this)" class="amount-btn border-2 border-slate-200 hover:border-blue-600 py-2.5 rounded-xl font-extrabold text-sm transition">
-                        200.000đ
-                    </button>
-                    <button type="button" onclick="selectAmount(500000, this)" class="amount-btn border-2 border-slate-200 hover:border-blue-600 py-2.5 rounded-xl font-extrabold text-sm transition">
-                        500.000đ
-                    </button>
+                    <button type="button" onclick="selectAmount(20000, this)" class="amount-btn active border border-slate-200 py-2.5 rounded-2xl font-extrabold text-sm transition">20.000đ</button>
+                    <button type="button" onclick="selectAmount(50000, this)" class="amount-btn border border-slate-200 py-2.5 rounded-2xl font-extrabold text-sm transition">50.000đ</button>
+                    <button type="button" onclick="selectAmount(100000, this)" class="amount-btn border border-slate-200 py-2.5 rounded-2xl font-extrabold text-sm transition">100.000đ</button>
+                    <button type="button" onclick="selectAmount(200000, this)" class="amount-btn border border-slate-200 py-2.5 rounded-2xl font-extrabold text-sm transition">200.000đ</button>
+                    <button type="button" onclick="selectAmount(500000, this)" class="amount-btn border border-slate-200 py-2.5 rounded-2xl font-extrabold text-sm transition">500.000đ</button>
                 </div>
 
-                <!-- Ô tự nhập hoặc bấm xổ bảng chọn số tiền -->
-                <label class="block text-xs font-bold text-slate-600 mb-2">2. HOẶC TỰ NHẬP / CHỌN SỐ TIỀN TÙY Ý (TỐI THIỂU 20.000Đ):</label>
+                <label class="block text-xs font-bold text-slate-600 mb-2">2. HOẶC NHẬP SỐ TIỀN TÙY Ý (TỐI THIỂU 20.000Đ):</label>
                 <div class="flex flex-col sm:flex-row gap-3 mb-4">
-                    <div class="relative flex-1">
-                        <input id="dep-amount" list="amount-options" type="number" value="20000" min="20000" step="10000" placeholder="Nhấn để nhập hoặc chọn số tiền..." class="w-full p-3.5 rounded-xl bg-slate-50 border-2 border-slate-300 focus:border-blue-600 focus:bg-white focus:outline-none font-extrabold text-blue-600 text-base">
-                        <datalist id="amount-options">
-                            <option value="20000">20.000 VNĐ (Tối thiểu)</option>
-                            <option value="35000">35.000 VNĐ (Đủ mua 1 acc Muse AI)</option>
-                            <option value="50000">50.000 VNĐ</option>
-                            <option value="100000">100.000 VNĐ</option>
-                            <option value="200000">200.000 VNĐ</option>
-                            <option value="500000">500.000 VNĐ</option>
-                        </datalist>
-                    </div>
-                    <button onclick="createDeposit()" class="blue-header hover:opacity-95 text-white px-6 py-3.5 rounded-xl font-bold text-sm shrink-0 shadow-md transition">
-                        <i class="fa-solid fa-qrcode mr-1"></i> Tạo Mã QR Nạp Tiền
+                    <input id="dep-amount" type="number" value="20000" min="20000" step="5000" class="flex-1 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 focus:border-indigo-600 focus:bg-white focus:outline-none font-extrabold text-indigo-600 text-base font-mono-code">
+                    <button onclick="createDeposit()" class="btn-primary text-white px-6 py-3.5 rounded-2xl font-bold text-sm shrink-0 shadow-md">
+                        <i class="fa-solid fa-qrcode mr-1.5"></i> Tạo Mã QR Nạp Tiền
                     </button>
                 </div>
 
-                <!-- Khung hiển thị mã QR + Đếm ngược -->
-                <div id="qr-box" class="mt-6 bg-blue-50/60 border-2 border-blue-500/40 rounded-2xl p-5 hidden">
-                    <div class="flex justify-between items-center border-b border-blue-200 pb-3 mb-4">
-                        <span class="flex items-center gap-2 text-xs font-bold text-blue-700">
-                            <i class="fa-solid fa-spinner fa-spin"></i> Hệ thống đang tự động kiểm tra giao dịch...
+                <!-- Khung hiển thị mã QR -->
+                <div id="qr-box" class="mt-6 bg-indigo-50/50 border-2 border-indigo-500/30 rounded-3xl p-5 hidden">
+                    <div class="flex justify-between items-center border-b border-indigo-100 pb-3 mb-4">
+                        <span class="flex items-center gap-2 text-xs font-bold text-indigo-700">
+                            <i class="fa-solid fa-spinner fa-spin"></i> Đang chờ ngân hàng xác nhận...
                         </span>
-                        <span class="bg-red-100 text-red-600 border border-red-200 px-3 py-1 rounded-full text-xs font-extrabold font-mono">
-                            ⏳ Thời gian còn: <span id="lbl-timer">10:00</span>
+                        <span class="bg-rose-100 text-rose-600 px-3 py-1 rounded-full text-xs font-extrabold font-mono-code">
+                            ⏳ <span id="lbl-timer">10:00</span>
                         </span>
                     </div>
 
                     <div class="grid sm:grid-cols-2 gap-5 items-center">
-                        <div class="text-center bg-white p-3 rounded-xl shadow-sm border border-slate-200">
-                            <img id="qr-img" class="mx-auto rounded-lg max-w-[200px]" src="" alt="VietQR MB Bank">
-                            <span class="text-[11px] text-slate-500 block mt-2">Mở App Ngân hàng quét mã để thanh toán</span>
+                        <div class="text-center bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                            <img id="qr-img" class="mx-auto rounded-xl max-w-[200px]" src="" alt="VietQR MB Bank">
+                            <span class="text-[11px] text-slate-500 block mt-2">Mở App Ngân hàng quét mã tự điền chính xác</span>
                         </div>
 
                         <div class="space-y-2.5 text-sm">
-                            <div class="bg-white p-3 rounded-xl border border-slate-200">
-                                <span class="text-xs text-slate-400 block">Ngân hàng</span>
+                            <div class="bg-white p-3 rounded-2xl border border-slate-200">
+                                <span class="text-xs text-slate-400 block">Ngân hàng thụ hưởng</span>
                                 <b class="text-slate-800">MB BANK (Quân Đội)</b>
                             </div>
-                            <div class="bg-white p-3 rounded-xl border border-slate-200 flex justify-between items-center">
+                            <div class="bg-white p-3 rounded-2xl border border-slate-200 flex justify-between items-center">
                                 <div>
-                                    <span class="text-xs text-slate-400 block">Số tài khoản nhận</span>
-                                    <b class="text-blue-600 font-mono text-base">5428102008</b>
+                                    <span class="text-xs text-slate-400 block">Số tài khoản</span>
+                                    <b class="text-indigo-600 font-mono-code text-base">5428102008</b>
                                 </div>
-                                <button onclick="navigator.clipboard.writeText('5428102008'); notify('Đã copy STK 5428102008!')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded font-semibold">Copy</button>
+                                <button onclick="navigator.clipboard.writeText('5428102008'); notify('Đã sao chép STK!')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl font-bold">Copy</button>
                             </div>
-                            <div class="bg-white p-3 rounded-xl border border-slate-200">
-                                <span class="text-xs text-slate-400 block">Số tiền chuyển</span>
-                                <b id="lbl-qr-amount" class="text-emerald-600 font-extrabold text-base">20.000đ</b>
+                            <div class="bg-white p-3 rounded-2xl border border-slate-200">
+                                <span class="text-xs text-slate-400 block">Số tiền cần chuyển</span>
+                                <b id="lbl-qr-amount" class="text-emerald-600 font-extrabold text-base font-mono-code">20.000đ</b>
                             </div>
-                            <div class="bg-amber-50 border-2 border-amber-400 p-3 rounded-xl flex justify-between items-center">
+                            <div class="bg-amber-50 border-2 border-amber-400 p-3 rounded-2xl flex justify-between items-center">
                                 <div>
-                                    <span class="text-xs text-amber-800 block font-bold">Nội dung BẮT BUỘC:</span>
-                                    <b id="lbl-memo" class="text-red-600 font-mono text-lg tracking-wider">NAP101</b>
+                                    <span class="text-xs text-amber-800 block font-bold">Nội dung chuyển khoản:</span>
+                                    <b id="lbl-memo" class="text-rose-600 font-mono-code text-lg tracking-wider">NAP101</b>
                                 </div>
-                                <button onclick="navigator.clipboard.writeText(document.getElementById('lbl-memo').innerText); notify('Đã copy mã nội dung!')" class="text-xs bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg font-bold">Copy</button>
+                                <button onclick="navigator.clipboard.writeText(document.getElementById('lbl-memo').innerText); notify('Đã sao chép nội dung CK!')" class="text-xs bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-xl font-bold">Copy</button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Cột Lịch sử nạp tiền -->
-            <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h3 class="text-lg font-extrabold mb-4 text-slate-800">
-                    <i class="fa-solid fa-clock-rotate-left text-blue-600 mr-1"></i> Lịch Sử Nạp Tiền Của Bạn
+            <div class="lg:col-span-2 bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200/90">
+                <h3 class="text-lg font-extrabold mb-4 text-slate-900">
+                    <i class="fa-solid fa-clock-rotate-left text-indigo-600 mr-1"></i> Lịch Sử Nạp Tiền
                 </h3>
                 <div id="tx-list" class="space-y-2.5 text-sm"></div>
             </div>
         </div>
 
-        <!-- TAB 4: QUẢN TRỊ VIÊN (ADMIN) -->
-        <div id="tab-admin" class="tab-content hidden grid md:grid-cols-2 gap-6">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-                <h3 class="text-lg font-extrabold text-slate-800 border-b pb-2">
-                    <i class="fa-solid fa-boxes-stacked text-blue-600 mr-1"></i> 1. Quản Lý Sản Phẩm Muse AI & Kho Hàng
-                </h3>
-
-                <!-- Đổi giá bán nhanh -->
-                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex items-center justify-between gap-3">
-                    <div class="text-xs font-bold text-slate-600">Đổi giá bán Muse AI (VNĐ):</div>
-                    <input id="adm-price" type="number" value="35000" class="p-2 rounded-lg border border-slate-300 text-sm font-bold w-32">
-                    <button onclick="updatePrice()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-bold">Lưu Giá</button>
+        <!-- ================= TAB 4: HỆ THỐNG QUẢN TRỊ ADMIN CHUYÊN NGHIỆP ================= -->
+        <div id="tab-admin" class="tab-content hidden space-y-6">
+            
+            <!-- Header khu vực Admin có nút Đóng (X) và nút Đăng xuất nhanh -->
+            <div class="bg-slate-900 text-white p-5 rounded-3xl shadow-lg flex flex-wrap justify-between items-center gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-extrabold text-lg">
+                        <i class="fa-solid fa-user-shield"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-extrabold">Trung Tâm Quản Trị Hệ Thống (Admin)</h2>
+                        <p class="text-xs text-slate-400">Quản lý toàn diện sản phẩm, kho tài khoản, thành viên và dòng tiền</p>
+                    </div>
                 </div>
+                <div class="flex items-center gap-2.5">
+                    <button onclick="goHome()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-xmark"></i> Đóng bảng Admin (Về Shop)
+                    </button>
+                    <button onclick="logout()" class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-2xl text-xs font-extrabold flex items-center gap-1.5 shadow transition">
+                        <i class="fa-solid fa-power-off"></i> Tắt & Đăng xuất
+                    </button>
+                </div>
+            </div>
 
-                <label class="text-xs font-bold text-slate-600 block">Dán danh sách tài khoản Muse AI vào kho (Mỗi dòng 1 acc):</label>
-                <textarea id="adm-accounts" rows="6" placeholder="acc1@gmail.com|pass123|cookie_token&#10;acc2@gmail.com|pass456|cookie_token" class="w-full p-3 rounded-xl bg-slate-50 border border-slate-300 text-sm font-mono"></textarea>
-                <button onclick="addStock()" class="w-full blue-header text-white py-3 rounded-xl font-bold text-sm shadow">
-                    <i class="fa-solid fa-cloud-arrow-up mr-1"></i> Thêm Tài Khoản Vào Kho Muse AI
+            <!-- 4 Thẻ Thống Kê Tổng Quan -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm">
+                    <span class="text-xs font-bold text-slate-400 block">TỔNG DOANH THU BÁN ACC</span>
+                    <div id="stat-revenue" class="text-2xl font-extrabold text-emerald-600 font-mono-code mt-1">0đ</div>
+                </div>
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm">
+                    <span class="text-xs font-bold text-slate-400 block">TÀI KHOẢN ĐÃ BÁN / TỒN KHO</span>
+                    <div class="text-2xl font-extrabold text-indigo-600 font-mono-code mt-1">
+                        <span id="stat-sold">0</span> <span class="text-slate-300 text-base">/</span> <span id="stat-stock" class="text-slate-700">0</span>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm">
+                    <span class="text-xs font-bold text-slate-400 block">TỔNG THÀNH VIÊN ĐĂNG KÝ</span>
+                    <div id="stat-users" class="text-2xl font-extrabold text-slate-900 font-mono-code mt-1">0</div>
+                </div>
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm">
+                    <span class="text-xs font-bold text-slate-400 block">LỆNH NẠP CHỜ DUYỆT</span>
+                    <div id="stat-pending" class="text-2xl font-extrabold text-amber-500 font-mono-code mt-1">0</div>
+                </div>
+            </div>
+
+            <!-- Thanh Menu con trong Admin -->
+            <div class="flex flex-wrap gap-2 bg-white p-2 rounded-2xl border border-slate-200/90 shadow-sm">
+                <button onclick="switchAdminSubTab('products', this)" class="admin-nav-btn active px-4 py-2.5 rounded-xl text-xs font-extrabold flex items-center gap-2 transition">
+                    <i class="fa-solid fa-cubes"></i> 1. Quản Lý & Thêm Sản Phẩm
+                </button>
+                <button onclick="switchAdminSubTab('inventory', this)" class="admin-nav-btn px-4 py-2.5 rounded-xl text-xs font-extrabold text-slate-600 hover:bg-slate-100 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-vault"></i> 2. Nạp & Soát Kho Tài Khoản
+                </button>
+                <button onclick="switchAdminSubTab('users', this)" class="admin-nav-btn px-4 py-2.5 rounded-xl text-xs font-extrabold text-slate-600 hover:bg-slate-100 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-users-gear"></i> 3. Quản Lý Khách Hàng & Số Dư
+                </button>
+                <button onclick="switchAdminSubTab('txs', this)" class="admin-nav-btn px-4 py-2.5 rounded-xl text-xs font-extrabold text-slate-600 hover:bg-slate-100 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-money-bill-transfer"></i> 4. Duyệt Đơn Nạp Tiền
                 </button>
             </div>
 
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <div class="flex justify-between items-center border-b pb-2 mb-4">
-                    <h3 class="text-lg font-extrabold text-slate-800">2. Quản Lý Đơn Nạp Tiền</h3>
-                    <button onclick="loadAdminTx()" class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg font-semibold">Làm mới</button>
+            <!-- SUB-TAB 1: THÊM / SỬA / XÓA SẢN PHẨM -->
+            <div id="adm-sub-products" class="adm-sub-panel grid lg:grid-cols-5 gap-6">
+                <!-- Form Thêm / Sửa sản phẩm -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm space-y-4 h-fit">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                        <h3 id="form-prod-title" class="text-base font-extrabold text-slate-900">
+                            <i class="fa-solid fa-circle-plus text-indigo-600 mr-1"></i> Thêm Sản Phẩm Mới
+                        </h3>
+                        <button id="btn-cancel-edit" onclick="resetProductForm()" class="hidden text-xs text-rose-600 font-bold hover:underline">Hủy sửa</button>
+                    </div>
+
+                    <input type="hidden" id="prod-id">
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">TÊN SẢN PHẨM *</label>
+                        <input id="prod-name" type="text" placeholder="VD: Tài khoản ChatGPT Plus 1 Tháng..." class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-semibold focus:border-indigo-600 focus:outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">DANH MỤC</label>
+                            <input id="prod-category" type="text" value="Tài khoản AI" placeholder="VD: Tài khoản AI, Giải trí..." class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-semibold focus:border-indigo-600 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">GIÁ BÁN (VNĐ) *</label>
+                            <input id="prod-price" type="number" placeholder="35000" class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-extrabold text-indigo-600 font-mono-code focus:border-indigo-600 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">GIÁ GỐC GẠCH NGANG (VNĐ - Không bắt buộc)</label>
+                        <input id="prod-old-price" type="number" placeholder="350000" class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-mono-code focus:border-indigo-600 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">HÌNH ẢNH SẢN PHẨM (Dán Link hoặc Tải ảnh từ máy)</label>
+                        <div class="flex gap-2">
+                            <input id="prod-image" type="text" placeholder="https://..." class="flex-1 p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs focus:border-indigo-600 focus:outline-none">
+                            <label class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 rounded-2xl flex items-center justify-center cursor-pointer text-xs font-bold shrink-0 transition" title="Tải ảnh từ máy tính">
+                                <i class="fa-solid fa-upload mr-1"></i> Chọn file
+                                <input type="file" accept="image/*" class="hidden" onchange="encodeImageFileAsURL(this)">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">GHI CHÚ / MÔ TẢ CHI TIẾT SẢN PHẨM (Hiện khi khách bấm vào)</label>
+                        <textarea id="prod-desc" rows="4" placeholder="• Bảo hành 1 đổi 1&#10;• Tài khoản dùng riêng&#10;• Hướng dẫn đăng nhập..." class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:border-indigo-600 focus:outline-none"></textarea>
+                    </div>
+
+                    <button onclick="saveProduct()" class="w-full btn-primary text-white py-3.5 rounded-2xl font-extrabold text-sm shadow-md">
+                        <i class="fa-solid fa-floppy-disk mr-1.5"></i> <span id="btn-save-prod-text">Lưu & Đăng Sản Phẩm</span>
+                    </button>
                 </div>
-                <div id="adm-tx-list" class="space-y-2.5 text-sm max-h-96 overflow-y-auto"></div>
+
+                <!-- Danh sách sản phẩm hiện có -->
+                <div class="lg:col-span-3 bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
+                    <h3 class="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-3">
+                        Danh Sách Sản Phẩm Trên Cửa Hàng
+                    </h3>
+                    <div id="adm-products-list" class="space-y-3"></div>
+                </div>
             </div>
+
+            <!-- SUB-TAB 2: QUẢN LÝ KHO HÀNG (INVENTORY) -->
+            <div id="adm-sub-inventory" class="adm-sub-panel hidden grid lg:grid-cols-5 gap-6">
+                <div class="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm space-y-4 h-fit">
+                    <h3 class="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-3">
+                        <i class="fa-solid fa-cloud-arrow-up text-indigo-600 mr-1"></i> Nạp Tài Khoản Vào Kho
+                    </h3>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">CHỌN SẢN PHẨM CẦN NẠP KHO:</label>
+                        <select id="adm-stock-product" onchange="loadAdminInventory()" class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-800 focus:outline-none"></select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">DANH SÁCH TÀI KHOẢN (Mỗi dòng 1 tài khoản):</label>
+                        <textarea id="adm-accounts" rows="7" placeholder="email1@gmail.com|matkhau1|token&#10;email2@gmail.com|matkhau2|token" class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-mono-code focus:border-indigo-600 focus:outline-none"></textarea>
+                    </div>
+                    <button onclick="addStock()" class="w-full btn-primary text-white py-3.5 rounded-2xl font-extrabold text-sm shadow-md">
+                        <i class="fa-solid fa-plus mr-1"></i> Nạp Ngay Vào Kho
+                    </button>
+                </div>
+
+                <div class="lg:col-span-3 bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                        <h3 class="text-base font-extrabold text-slate-900">Chi Tiết Tài Khoản Trong Kho</h3>
+                        <button onclick="loadAdminInventory()" class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl font-bold">Làm mới</button>
+                    </div>
+                    <div id="adm-inventory-list" class="space-y-2 max-h-[500px] overflow-y-auto pr-1"></div>
+                </div>
+            </div>
+
+            <!-- SUB-TAB 3: QUẢN LÝ THÀNH VIÊN & CỘNG TRỪ TIỀN -->
+            <div id="adm-sub-users" class="adm-sub-panel hidden bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-900">Danh Sách Tài Khoản Khách Hàng Đã Đăng Ký</h3>
+                        <p class="text-xs text-slate-500">Mọi tài khoản đăng ký mới đều được lưu tại đây, bạn có thể cộng/trừ số dư trực tiếp</p>
+                    </div>
+                    <button onclick="loadAdminUsers()" class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl font-bold">Làm mới</button>
+                </div>
+                <div id="adm-users-list" class="space-y-2.5"></div>
+            </div>
+
+            <!-- SUB-TAB 4: QUẢN LÝ ĐƠN NẠP TIỀN -->
+            <div id="adm-sub-txs" class="adm-sub-panel hidden bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <h3 class="text-base font-extrabold text-slate-900">Lịch Sử & Duyệt Lệnh Nạp Tiền</h3>
+                    <button onclick="loadAdminTx()" class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl font-bold">Làm mới</button>
+                </div>
+                <div id="adm-tx-list" class="space-y-2.5 max-h-[500px] overflow-y-auto"></div>
+            </div>
+
         </div>
 
     </main>
 
+    <!-- ================= MODAL BỰ XEM CHI TIẾT SẢN PHẨM (BẤM VÀO Ô NHỎ MỚI HIỆN) ================= -->
+    <div id="product-modal" onclick="if(event.target === this) closeProductModal()" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl border border-slate-200 animate-fadeIn">
+            <!-- Header Modal -->
+            <div class="flex justify-between items-center px-6 py-4 bg-slate-50 border-b border-slate-100">
+                <span id="mdl-category" class="text-xs font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-100 text-indigo-700">Tài khoản AI</span>
+                <button onclick="closeProductModal()" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-rose-500 hover:text-white text-slate-600 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Body Modal -->
+            <div class="p-6 sm:p-7 grid sm:grid-cols-5 gap-6 items-start max-h-[80vh] overflow-y-auto">
+                <div class="sm:col-span-2">
+                    <div class="aspect-square rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-inner">
+                        <img id="mdl-image" src="" alt="" class="w-full h-full object-cover">
+                    </div>
+                    <div id="mdl-stock-badge" class="mt-3 text-center py-1.5 rounded-xl text-xs font-bold"></div>
+                </div>
+
+                <div class="sm:col-span-3 space-y-4">
+                    <h2 id="mdl-name" class="text-xl font-extrabold text-slate-900 leading-snug"></h2>
+
+                    <div class="flex items-baseline gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+                        <div>
+                            <span class="text-[11px] text-slate-400 font-semibold block">GIÁ ƯU ĐÃI</span>
+                            <span id="mdl-price" class="text-2xl sm:text-3xl font-extrabold text-indigo-600 font-mono-code"></span>
+                        </div>
+                        <span id="mdl-old-price" class="text-sm text-slate-400 line-through font-mono-code"></span>
+                    </div>
+
+                    <div>
+                        <span class="text-xs font-extrabold text-slate-700 uppercase tracking-wider block mb-2">
+                            <i class="fa-regular fa-clipboard text-indigo-600 mr-1"></i> Ghi chú & Thông tin chi tiết:
+                        </span>
+                        <div id="mdl-desc" class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 text-xs sm:text-sm text-slate-700 whitespace-pre-line leading-relaxed"></div>
+                    </div>
+
+                    <div class="pt-2 flex gap-3">
+                        <button id="mdl-buy-btn" class="flex-1 btn-primary text-white py-3.5 px-6 rounded-2xl font-extrabold text-sm shadow-lg flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-bolt"></i> MUA NGAY TỰ ĐỘNG
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Chân trang -->
-    <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500 mt-10">
+    <footer class="bg-white border-t border-slate-200/80 py-6 text-center text-xs text-slate-500 mt-12">
         <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
-            <a href="javascript:void(0)" onclick="goHome()" class="font-extrabold text-blue-600 text-sm">JERRY SHOP - Hệ Thống Tài Khoản AI Tự Động</a>
-            <span>© 2026 Jerry Shop. Hỗ trợ khách hàng 09:00 - 23:00 hàng ngày.</span>
+            <a href="javascript:void(0)" onclick="goHome()" class="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span> JERRY DIGITAL STORE
+            </a>
+            <span>© 2026 Jerry Shop. Hệ thống phân phối tài khoản tự động 24/7.</span>
         </div>
     </footer>
 
-    <!-- Nút Chat Zalo nổi giống mẫu -->
-    <a href="https://zalo.me/0982900374" target="_blank" class="fixed bottom-6 right-6 bg-white hover:bg-blue-50 text-slate-800 pl-4 pr-2 py-2 rounded-full shadow-2xl border border-slate-200 font-bold text-xs flex items-center gap-2 z-40 transition hover:scale-105">
-        <span>Chat hỗ trợ</span>
-        <span class="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-extrabold text-[11px] shadow">Zalo</span>
+    <!-- Nút Zalo nổi -->
+    <a href="https://zalo.me/0982900374" target="_blank" class="fixed bottom-6 right-6 bg-slate-900 hover:bg-indigo-600 text-white pl-4 pr-2 py-2 rounded-full shadow-2xl font-bold text-xs flex items-center gap-2.5 z-40 transition duration-200 hover:scale-105">
+        <span>Hỗ trợ 24/7</span>
+        <span class="w-8 h-8 rounded-full bg-white text-indigo-600 flex items-center justify-center font-extrabold text-[11px]">Zalo</span>
     </a>
 
     <script>
@@ -385,31 +602,39 @@
         const ACCOUNT_NO = '5428102008';
 
         let currentUser = JSON.parse(localStorage.getItem('user')) || null;
+        let allProducts = [];
+        let activeCategory = 'ALL';
         let checkInterval = null;
         let timerInterval = null;
 
         function notify(msg, isError = false) {
             const box = document.getElementById('toast-box');
             const el = document.createElement('div');
-            el.className = `${isError ? 'bg-red-600' : 'bg-emerald-600'} text-white px-4 py-3 rounded-xl shadow-xl text-sm font-semibold flex items-center gap-2`;
-            el.innerHTML = `<i class="fa-solid ${isError ? 'fa-circle-exclamation' : 'fa-circle-check'}"></i> <span>${msg}</span>`;
+            el.className = `pointer-events-auto ${isError ? 'bg-rose-600' : 'bg-slate-900 border border-emerald-500/40'} text-white px-4 py-3.5 rounded-2xl shadow-2xl text-xs sm:text-sm font-semibold flex items-center gap-2.5 transition`;
+            el.innerHTML = `<i class="fa-solid ${isError ? 'fa-circle-exclamation text-white' : 'fa-circle-check text-emerald-400'} text-base"></i> <span>${msg}</span>`;
             box.appendChild(el);
             setTimeout(() => el.remove(), 4000);
         }
 
-        // Bấm vào Logo Jerry Shop luôn quay về trang chủ
+        function adminHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'x-admin-id': currentUser ? currentUser.id : ''
+            };
+        }
+
         function goHome() {
             switchTab('shop');
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // Chọn nhanh mệnh giá 20k, 50k, 100k, 200k, 500k
         function selectAmount(val, btnEl) {
             document.getElementById('dep-amount').value = val;
             document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
             if (btnEl) btnEl.classList.add('active');
         }
 
+        // ================= ĐĂNG NHẬP / ĐĂNG KÝ / ĐĂNG XUẤT =================
         async function auth(type) {
             const username = document.getElementById('inp-user').value.trim();
             const password = document.getElementById('inp-pass').value.trim();
@@ -421,7 +646,7 @@
             if (!res.ok) return notify(data.error, true);
             currentUser = data;
             localStorage.setItem('user', JSON.stringify(data));
-            notify('Đăng nhập thành công vào Jerry Shop!');
+            notify(type === 'register' ? '🎉 Tạo tài khoản thành công! Đã lưu vào hệ thống.' : 'Đăng nhập thành công!');
             initApp();
             goHome();
         }
@@ -435,96 +660,156 @@
         async function refreshUser() {
             if (!currentUser) return;
             const res = await fetch(`/api/user/${currentUser.id}`);
-            if (!res.ok) return;
+            if (!res.ok) return logout();
             currentUser = await res.json();
             localStorage.setItem('user', JSON.stringify(currentUser));
+
             document.getElementById('lbl-username').innerText = currentUser.username;
             document.getElementById('lbl-balance').innerText = currentUser.balance.toLocaleString();
-            if (currentUser.role === 'admin') document.getElementById('btn-admin').classList.remove('hidden');
 
-            // Cập nhật số lượng đơn hàng đã mua trên Header
+            // KIỂM TRA CHẶT CHẼ QUYỀN ADMIN: Khách thường hoàn toàn không có nút Quản trị
+            const btnAdmin = document.getElementById('btn-admin-toggle');
+            const badgeRole = document.getElementById('badge-role');
+            if (currentUser.role === 'admin') {
+                btnAdmin.classList.remove('hidden');
+                badgeRole.classList.remove('hidden');
+            } else {
+                btnAdmin.classList.add('hidden');
+                badgeRole.classList.add('hidden');
+            }
+
             const ordRes = await fetch(`/api/orders/${currentUser.id}`);
             const orders = await ordRes.json();
             document.getElementById('lbl-order-count').innerText = orders.length;
         }
 
-        // Hiển thị duy nhất 1 sản phẩm Muse AI với đúng ảnh người dùng cung cấp
+        // Bật / Tắt chế độ Quản trị cho Admin
+        function toggleAdminPanel() {
+            if (!currentUser || currentUser.role !== 'admin') return;
+            const adminTab = document.getElementById('tab-admin');
+            const isShowingAdmin = !adminTab.classList.contains('hidden');
+            if (isShowingAdmin) {
+                goHome();
+            } else {
+                switchTab('admin');
+            }
+        }
+
+        // ================= HIỂN THỊ Ô SẢN PHẨM NHỎ & MỞ MODAL BỰ =================
         async function loadProducts() {
             const res = await fetch('/api/products');
-            const products = await res.json();
-            const p = products[0];
+            allProducts = await res.json();
+            renderCategoryPills();
+            filterProducts();
+        }
+
+        function renderCategoryPills() {
+            const cats = ['ALL', ...new Set(allProducts.map(p => p.category || 'Tài khoản AI'))];
+            const box = document.getElementById('category-pills');
+            box.innerHTML = cats.map(c => `
+                <button onclick="setCategory('${c}')" class="px-4 py-2 rounded-2xl text-xs font-extrabold transition shrink-0 ${activeCategory === c ? 'bg-indigo-600 text-white shadow' : 'bg-white text-slate-600 border border-slate-200 hover:border-indigo-400'}">
+                    ${c === 'ALL' ? 'Tất cả sản phẩm' : c}
+                </button>
+            `).join('');
+        }
+
+        function setCategory(cat) {
+            activeCategory = cat;
+            renderCategoryPills();
+            filterProducts();
+        }
+
+        function filterProducts() {
+            const keyword = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+            const filtered = allProducts.filter(p => {
+                const matchCat = activeCategory === 'ALL' || (p.category || 'Tài khoản AI') === activeCategory;
+                const matchKw = !keyword || p.name.toLowerCase().includes(keyword) || (p.description || '').toLowerCase().includes(keyword);
+                return matchCat && matchKw;
+            });
+
+            document.getElementById('lbl-product-count').innerText = filtered.length;
+            const grid = document.getElementById('product-grid');
+
+            if (!filtered.length) {
+                grid.innerHTML = `<div class="col-span-full bg-white rounded-3xl p-12 text-center text-slate-400 text-sm border border-slate-200">Không tìm thấy sản phẩm nào phù hợp.</div>`;
+                return;
+            }
+
+            // Ô sản phẩm nhỏ gọn (Compact Card) - Nhấn vào mở Modal chi tiết
+            grid.innerHTML = filtered.map(p => {
+                const discount = p.old_price > p.price ? Math.round((1 - p.price / p.old_price) * 100) : 0;
+                return `
+                <div onclick="openProductModal(${p.id})" class="bg-white rounded-3xl p-3.5 shadow-sm card-compact cursor-pointer flex flex-col justify-between group">
+                    <div>
+                        <div class="relative rounded-2xl overflow-hidden mb-3 bg-slate-100 aspect-[4/3]">
+                            <img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                            ${discount > 0 ? `<span class="absolute top-2.5 right-2.5 bg-rose-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-lg shadow">-${discount}%</span>` : ''}
+                            <span class="absolute bottom-2.5 left-2.5 ${p.stock > 0 ? 'bg-slate-900/85 text-emerald-400' : 'bg-rose-600 text-white'} backdrop-blur px-2.5 py-1 rounded-xl text-[10px] font-bold">
+                                ${p.stock > 0 ? `<i class="fa-solid fa-check-circle mr-1"></i>Sẵn hàng: ${p.stock}` : 'Hết hàng'}
+                            </span>
+                        </div>
+                        <span class="text-[10px] font-bold text-indigo-600 uppercase tracking-wider block mb-1">${p.category || 'Tài khoản AI'}</span>
+                        <h3 class="font-bold text-slate-900 text-sm line-clamp-2 group-hover:text-indigo-600 transition leading-snug">${p.name}</h3>
+                    </div>
+
+                    <div class="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">
+                        <div>
+                            <div class="text-base sm:text-lg font-extrabold text-slate-900 font-mono-code">${p.price.toLocaleString()}đ</div>
+                            ${p.old_price ? `<div class="text-[11px] text-slate-400 line-through font-mono-code">${p.old_price.toLocaleString()}đ</div>` : ''}
+                        </div>
+                        <span class="w-9 h-9 rounded-2xl bg-indigo-50 group-hover:bg-indigo-600 text-indigo-600 group-hover:text-white flex items-center justify-center transition">
+                            <i class="fa-solid fa-expand text-xs"></i>
+                        </span>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        // Mở ô bự (Modal) khi nhấn vào sản phẩm
+        function openProductModal(prodId) {
+            const p = allProducts.find(item => item.id === prodId);
             if (!p) return;
 
-            document.getElementById('adm-price').value = p.price;
+            document.getElementById('mdl-category').innerText = p.category || 'Tài khoản AI';
+            document.getElementById('mdl-image').src = p.image;
+            document.getElementById('mdl-name').innerText = p.name;
+            document.getElementById('mdl-price').innerText = p.price.toLocaleString() + 'đ';
+            document.getElementById('mdl-old-price').innerText = p.old_price ? p.old_price.toLocaleString() + 'đ' : '';
+            document.getElementById('mdl-desc').innerText = p.description || 'Sản phẩm chính hãng, giao tự động ngay sau khi thanh toán.';
 
-            document.getElementById('product-container').innerHTML = `
-                <div class="grid md:grid-cols-3 gap-6 items-start">
-                    
-                    <!-- Thẻ Card chuẩn mẫu Tài Khoản Giá Siêu Rẻ -->
-                    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm product-card">
-                        <div class="relative rounded-xl overflow-hidden mb-3 bg-slate-100 aspect-square flex items-center justify-center">
-                            <img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover">
-                            <span class="absolute top-2.5 right-2.5 bg-red-500 text-white text-xs font-extrabold px-2.5 py-1 rounded-lg shadow">
-                                -90%
-                            </span>
-                            <span class="absolute bottom-2.5 left-2.5 ${p.stock > 0 ? 'bg-emerald-600' : 'bg-amber-600'} text-white text-[11px] font-bold px-2.5 py-0.5 rounded-md shadow">
-                                ${p.stock > 0 ? `Còn lại: ${p.stock} acc` : 'Tạm hết hàng'}
-                            </span>
-                        </div>
-                        <h3 class="font-bold text-slate-800 text-base leading-snug mb-2">${p.name}</h3>
-                        <div class="border-t border-slate-100 pt-2 mb-3">
-                            <div class="text-xl font-extrabold text-slate-900">${p.price.toLocaleString()}đ</div>
-                            <div class="text-xs text-slate-400 line-through">${(p.old_price || p.price * 10).toLocaleString()}đ</div>
-                        </div>
-                        <button onclick="buyAccount(${p.id})" class="w-full ${p.stock > 0 ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-amber-500/80 text-white cursor-not-allowed'} py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow transition">
-                            <i class="fa-solid fa-cart-shopping"></i> ${p.stock > 0 ? 'Mua Ngay' : 'HẾT HÀNG'}
-                        </button>
-                    </div>
+            const badge = document.getElementById('mdl-stock-badge');
+            const buyBtn = document.getElementById('mdl-buy-btn');
 
-                    <!-- Khung Chi tiết sản phẩm bên cạnh (Học hỏi bố cục Tạp Hóa MMO) -->
-                    <div class="md:col-span-2 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-                        <div class="text-xs text-slate-400">Trang chủ – Tài khoản AI – <b class="text-slate-700">${p.name}</b></div>
-                        <h2 class="text-xl font-extrabold text-slate-900">${p.name}</h2>
+            if (p.stock > 0) {
+                badge.className = 'mt-3 text-center py-2 rounded-xl text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200';
+                badge.innerHTML = `<i class="fa-solid fa-box-check mr-1"></i> Còn lại ${p.stock} tài khoản trong kho`;
+                buyBtn.disabled = false;
+                buyBtn.className = 'flex-1 btn-primary text-white py-3.5 px-6 rounded-2xl font-extrabold text-sm shadow-lg flex items-center justify-center gap-2';
+                buyBtn.innerHTML = `<i class="fa-solid fa-bolt"></i> MUA NGAY (${p.price.toLocaleString()}đ)`;
+                buyBtn.onclick = () => buyAccount(p.id);
+            } else {
+                badge.className = 'mt-3 text-center py-2 rounded-xl text-xs font-extrabold bg-rose-50 text-rose-600 border border-rose-200';
+                badge.innerHTML = `Tạm hết hàng`;
+                buyBtn.disabled = true;
+                buyBtn.className = 'flex-1 bg-slate-300 text-slate-500 cursor-not-allowed py-3.5 px-6 rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2';
+                buyBtn.innerHTML = `TẠM HẾT HÀNG`;
+                buyBtn.onclick = null;
+            }
 
-                        <div class="space-y-2.5 text-sm">
-                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/80 flex items-center gap-3">
-                                <i class="fa-solid fa-circle-check text-emerald-500 text-lg"></i>
-                                <span>Mua tài khoản <b>Muse AI</b> cấp sẵn, có sẵn <b>1 tỷ token</b>, dùng riêng độc lập.</span>
-                            </div>
-                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/80 flex items-center gap-3">
-                                <i class="fa-solid fa-circle-check text-emerald-500 text-lg"></i>
-                                <span><b>Giao hàng tự động:</b> Nhận ngay tài khoản sau 1 giây bấm thanh toán.</span>
-                            </div>
-                        </div>
+            document.getElementById('product-modal').classList.remove('hidden');
+        }
 
-                        <div>
-                            <span class="text-xs text-slate-500 block mb-2">Phân loại sản phẩm:</span>
-                            <div class="inline-block border-2 border-red-500 text-red-600 bg-red-50/40 px-4 py-2 rounded-xl text-xs font-extrabold">
-                                ✓ MUSE AI 1 TỶ TOKEN (CẤP SẴN DÙNG RIÊNG)
-                            </div>
-                        </div>
-
-                        <div class="bg-slate-50 p-4 rounded-xl flex items-center justify-between">
-                            <div>
-                                <span class="text-xs text-slate-500 block">Giá ưu đãi tại Jerry Shop:</span>
-                                <span class="text-3xl font-extrabold text-red-600">${p.price.toLocaleString()}<u>đ</u></span>
-                            </div>
-                            <button onclick="buyAccount(${p.id})" class="blue-header hover:opacity-95 text-white px-7 py-3.5 rounded-xl font-extrabold text-sm shadow-lg transition">
-                                <i class="fa-solid fa-bolt mr-1"></i> MUA NGAY TỰ ĐỘNG
-                            </button>
-                        </div>
-                    </div>
-
-                </div>
-            `;
+        function closeProductModal() {
+            document.getElementById('product-modal').classList.add('hidden');
         }
 
         async function buyAccount(productId) {
             if (!currentUser) {
+                closeProductModal();
                 notify('Vui lòng đăng nhập hoặc tạo tài khoản trước khi mua!', true);
                 return switchTab('auth');
             }
-            if (!confirm('Xác nhận thanh toán mua Tài khoản Muse AI?')) return;
+            if (!confirm('Xác nhận thanh toán mua sản phẩm này?')) return;
             const res = await fetch('/api/buy', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ userId: currentUser.id, productId })
@@ -532,10 +817,14 @@
             const data = await res.json();
             if (!res.ok) {
                 notify(data.error, true);
-                if (data.error.includes('Số dư')) switchTab('deposit');
+                if (data.error.includes('Số dư')) {
+                    closeProductModal();
+                    switchTab('deposit');
+                }
                 return;
             }
-            notify('🎉 Mua thành công! Đã chuyển tài khoản Muse AI vào mục Đơn hàng đã mua.');
+            closeProductModal();
+            notify(`🎉 Mua thành công ${data.productName}!`);
             refreshUser();
             loadProducts();
             switchTab('orders');
@@ -546,27 +835,31 @@
             const res = await fetch(`/api/orders/${currentUser.id}`);
             const orders = await res.json();
             document.getElementById('orders-list').innerHTML = orders.length ? orders.map(o => `
-                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-                    <div class="overflow-hidden">
-                        <div class="font-bold text-blue-700 text-sm mb-1">${o.name} <span class="text-xs text-slate-400 ml-2">(${o.sold_at})</span></div>
-                        <code class="text-emerald-700 font-bold text-xs sm:text-sm break-all bg-white px-3 py-2 rounded-lg block border border-slate-200">${o.account_data}</code>
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                    <div class="overflow-hidden flex-1">
+                        <div class="font-bold text-slate-900 text-sm mb-1.5 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            ${o.name}
+                            <span class="text-xs text-slate-400 font-normal">(${o.sold_at})</span>
+                        </div>
+                        <code class="text-indigo-700 font-bold text-xs sm:text-sm break-all bg-white px-3.5 py-2.5 rounded-xl block border border-slate-200 font-mono-code">${o.account_data}</code>
                     </div>
-                    <button onclick="navigator.clipboard.writeText('${o.account_data}'); notify('Đã sao chép tài khoản Muse AI!')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold shrink-0">
+                    <button onclick="navigator.clipboard.writeText('${o.account_data.replace(/'/g, "\\'")}'); notify('Đã sao chép tài khoản!')" class="btn-primary text-white px-4 py-2.5 rounded-xl text-xs font-bold shrink-0">
                         <i class="fa-regular fa-copy mr-1"></i> Sao Chép
                     </button>
                 </div>
-            `).join('') : '<div class="text-center py-10 text-slate-400 text-sm">Bạn chưa mua đơn hàng nào tại Jerry Shop.</div>';
+            `).join('') : '<div class="text-center py-12 text-slate-400 text-sm">Bạn chưa mua sản phẩm nào.</div>';
         }
 
-        // TẠO ĐƠN NẠP (KIỂM TRA TỐI THIỂU 20.000Đ)
+        // ================= NẠP TIỀN =================
         async function createDeposit() {
             if (!currentUser) {
-                notify('Vui lòng đăng nhập tài khoản trước khi nạp tiền!', true);
+                notify('Vui lòng đăng nhập trước khi nạp tiền!', true);
                 return switchTab('auth');
             }
             const amount = parseInt(document.getElementById('dep-amount').value);
             if (!amount || amount < 20000) {
-                return notify('Cảnh báo: Định mức nạp tối thiểu là 20.000đ! Vui lòng chọn từ 20.000đ trở lên.', true);
+                return notify('Định mức nạp tối thiểu là 20.000đ!', true);
             }
 
             const res = await fetch('/api/deposit/create', {
@@ -595,7 +888,6 @@
                     clearInterval(timerInterval);
                     clearInterval(checkInterval);
                     document.getElementById('qr-box').classList.add('hidden');
-                    notify('Mã QR nạp tiền đã hết thời gian chờ!', true);
                 }
             }, 1000);
 
@@ -606,7 +898,7 @@
                     clearInterval(checkInterval);
                     clearInterval(timerInterval);
                     document.getElementById('qr-box').classList.add('hidden');
-                    notify(`🎉 NẠP THÀNH CÔNG +${statusData.amount.toLocaleString()}đ VÀO VÍ!`);
+                    notify(`🎉 NẠP THÀNH CÔNG +${statusData.amount.toLocaleString()}đ!`);
                     refreshUser();
                     loadTransactions();
                 }
@@ -618,78 +910,300 @@
             const res = await fetch(`/api/transactions/${currentUser.id}`);
             const txs = await res.json();
             document.getElementById('tx-list').innerHTML = txs.length ? txs.map(t => `
-                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex justify-between items-center">
+                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex justify-between items-center">
                     <div>
-                        <div class="font-extrabold text-emerald-600">+ ${t.amount.toLocaleString()} đ</div>
-                        <div class="text-xs text-slate-500">Nội dung CK: <b class="text-red-600 font-mono">${t.info}</b></div>
+                        <div class="font-extrabold text-emerald-600 font-mono-code">+ ${t.amount.toLocaleString()}đ</div>
+                        <div class="text-xs text-slate-500">Nội dung: <b class="text-indigo-600 font-mono-code">${t.info}</b></div>
                     </div>
-                    <span class="px-2.5 py-1 rounded-full text-xs font-bold ${t.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
-                        ${t.status === 'completed' ? '✓ Đã cộng tiền' : '⏳ Chờ thanh toán'}
+                    <span class="px-2.5 py-1 rounded-full text-xs font-bold ${t.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : t.status === 'cancelled' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}">
+                        ${t.status === 'completed' ? '✓ Thành công' : t.status === 'cancelled' ? '✕ Đã hủy' : '⏳ Đang chờ'}
                     </span>
                 </div>
             `).join('') : '<p class="text-slate-400 text-xs">Chưa có giao dịch nạp tiền nào.</p>';
         }
 
-        async function updatePrice() {
-            const price = document.getElementById('adm-price').value;
-            const res = await fetch('/api/admin/update-price', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ price })
+        // ================= CÁC CHỨC NĂNG QUẢN TRỊ ADMIN =================
+        function switchAdminSubTab(sub, btnEl) {
+            document.querySelectorAll('.adm-sub-panel').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`adm-sub-${sub}`).classList.remove('hidden');
+            document.querySelectorAll('.admin-nav-btn').forEach(b => {
+                b.classList.remove('active');
+                b.classList.add('text-slate-600');
             });
+            if (btnEl) {
+                btnEl.classList.add('active');
+                btnEl.classList.remove('text-slate-600');
+            }
+            if (sub === 'products') renderAdminProducts();
+            if (sub === 'inventory') loadAdminInventory();
+            if (sub === 'users') loadAdminUsers();
+            if (sub === 'txs') loadAdminTx();
+        }
+
+        async function loadAdminDashboard() {
+            if (!currentUser || currentUser.role !== 'admin') return;
+            const res = await fetch('/api/admin/stats', { headers: adminHeaders() });
+            if (res.ok) {
+                const st = await res.json();
+                document.getElementById('stat-revenue').innerText = (st.totalRevenue || 0).toLocaleString() + 'đ';
+                document.getElementById('stat-sold').innerText = st.totalSold || 0;
+                document.getElementById('stat-stock').innerText = st.totalStock || 0;
+                document.getElementById('stat-users').innerText = st.totalUsers || 0;
+                document.getElementById('stat-pending').innerText = st.pendingTx || 0;
+            }
+            await loadProducts();
+            renderAdminProducts();
+            populateStockProductSelect();
+        }
+
+        function encodeImageFileAsURL(element) {
+            const file = element.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                document.getElementById('prod-image').value = reader.result;
+                notify('Đã tải hình ảnh lên!');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function renderAdminProducts() {
+            const box = document.getElementById('adm-products-list');
+            box.innerHTML = allProducts.map(p => `
+                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                    <div class="flex items-center gap-3">
+                        <img src="${p.image}" class="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0">
+                        <div>
+                            <span class="text-[10px] font-extrabold text-indigo-600 uppercase">${p.category || 'Tài khoản AI'}</span>
+                            <h4 class="font-bold text-slate-900 text-sm">${p.name}</h4>
+                            <div class="text-xs text-slate-500 mt-0.5">
+                                Giá: <b class="text-emerald-600 font-mono-code">${p.price.toLocaleString()}đ</b> • 
+                                Tồn kho: <b class="text-indigo-600">${p.stock}</b> • Đã bán: <b>${p.sold || 0}</b>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="editProduct(${p.id})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-2 rounded-xl text-xs font-bold">
+                            <i class="fa-solid fa-pen"></i> Sửa
+                        </button>
+                        <button onclick="deleteProduct(${p.id})" class="bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-2 rounded-xl text-xs font-bold">
+                            <i class="fa-solid fa-trash"></i> Xóa
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function editProduct(id) {
+            const p = allProducts.find(x => x.id === id);
+            if (!p) return;
+            document.getElementById('prod-id').value = p.id;
+            document.getElementById('prod-name').value = p.name;
+            document.getElementById('prod-category').value = p.category || 'Tài khoản AI';
+            document.getElementById('prod-price').value = p.price;
+            document.getElementById('prod-old-price').value = p.old_price || '';
+            document.getElementById('prod-image').value = p.image || '';
+            document.getElementById('prod-desc').value = p.description || '';
+
+            document.getElementById('form-prod-title').innerHTML = `<i class="fa-solid fa-pen-to-square text-amber-500 mr-1"></i> Chỉnh Sửa Sản Phẩm #${p.id}`;
+            document.getElementById('btn-save-prod-text').innerText = 'Cập Nhật Sản Phẩm';
+            document.getElementById('btn-cancel-edit').classList.remove('hidden');
+        }
+
+        function resetProductForm() {
+            document.getElementById('prod-id').value = '';
+            document.getElementById('prod-name').value = '';
+            document.getElementById('prod-category').value = 'Tài khoản AI';
+            document.getElementById('prod-price').value = '';
+            document.getElementById('prod-old-price').value = '';
+            document.getElementById('prod-image').value = '';
+            document.getElementById('prod-desc').value = '';
+
+            document.getElementById('form-prod-title').innerHTML = `<i class="fa-solid fa-circle-plus text-indigo-600 mr-1"></i> Thêm Sản Phẩm Mới`;
+            document.getElementById('btn-save-prod-text').innerText = 'Lưu & Đăng Sản Phẩm';
+            document.getElementById('btn-cancel-edit').classList.add('hidden');
+        }
+
+        async function saveProduct() {
+            const id = document.getElementById('prod-id').value;
+            const payload = {
+                name: document.getElementById('prod-name').value,
+                category: document.getElementById('prod-category').value,
+                price: document.getElementById('prod-price').value,
+                old_price: document.getElementById('prod-old-price').value,
+                image: document.getElementById('prod-image').value,
+                description: document.getElementById('prod-desc').value
+            };
+
+            const url = id ? `/api/admin/products/${id}` : '/api/admin/products';
+            const method = id ? 'PUT' : 'POST';
+
+            const res = await fetch(url, { method, headers: adminHeaders(), body: JSON.stringify(payload) });
+            const data = await res.json();
+            if (!res.ok) return notify(data.error, true);
+
+            notify(data.message);
+            resetProductForm();
+            loadAdminDashboard();
+        }
+
+        async function deleteProduct(id) {
+            if (!confirm('Bạn có chắc muốn xóa sản phẩm này?')) return;
+            const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE', headers: adminHeaders() });
             const data = await res.json();
             notify(data.message);
-            loadProducts();
+            loadAdminDashboard();
+        }
+
+        function populateStockProductSelect() {
+            const sel = document.getElementById('adm-stock-product');
+            if (!sel) return;
+            sel.innerHTML = allProducts.map(p => `<option value="${p.id}">${p.name} (Tồn: ${p.stock})</option>`).join('');
         }
 
         async function addStock() {
+            const productId = document.getElementById('adm-stock-product').value;
             const accountsText = document.getElementById('adm-accounts').value;
-            if (!accountsText.trim()) return notify('Vui lòng dán ít nhất 1 tài khoản Muse AI!', true);
+            if (!accountsText.trim()) return notify('Vui lòng nhập ít nhất 1 dòng tài khoản!', true);
+
             const res = await fetch('/api/admin/add-stock', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ productId: 1, accountsText })
+                method: 'POST', headers: adminHeaders(),
+                body: JSON.stringify({ productId, accountsText })
             });
             const data = await res.json();
+            if (!res.ok) return notify(data.error, true);
             notify(data.message);
             document.getElementById('adm-accounts').value = '';
-            loadProducts();
+            loadAdminDashboard();
+            loadAdminInventory();
+        }
+
+        async function loadAdminInventory() {
+            const productId = document.getElementById('adm-stock-product')?.value || '';
+            const res = await fetch(`/api/admin/inventory?productId=${productId}`, { headers: adminHeaders() });
+            const items = await res.json();
+            const box = document.getElementById('adm-inventory-list');
+            box.innerHTML = items.length ? items.map(i => `
+                <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex justify-between items-center gap-2 text-xs">
+                    <div class="overflow-hidden flex-1">
+                        <div class="font-bold text-slate-700">${i.product_name || 'Sản phẩm'} 
+                            <span class="ml-1 px-2 py-0.5 rounded-full text-[10px] ${i.is_sold ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'}">
+                                ${i.is_sold ? `Đã bán cho ${i.buyer_name || 'khách'}` : 'Đang tồn kho'}
+                            </span>
+                        </div>
+                        <code class="text-indigo-600 font-mono-code block truncate mt-1">${i.account_data}</code>
+                    </div>
+                    <button onclick="deleteInventoryItem(${i.id})" class="text-rose-500 hover:bg-rose-50 p-2 rounded-xl font-bold shrink-0" title="Xóa dòng này">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            `).join('') : '<p class="text-slate-400 text-xs py-6 text-center">Chưa có tài khoản nào trong mục này.</p>';
+        }
+
+        async function deleteInventoryItem(id) {
+            await fetch(`/api/admin/inventory/${id}`, { method: 'DELETE', headers: adminHeaders() });
+            notify('Đã xóa tài khoản khỏi kho!');
+            loadAdminInventory();
+            loadAdminDashboard();
+        }
+
+        async function loadAdminUsers() {
+            const res = await fetch('/api/admin/users', { headers: adminHeaders() });
+            const users = await res.json();
+            document.getElementById('adm-users-list').innerHTML = users.map(u => `
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-wrap justify-between items-center gap-3">
+                    <div>
+                        <div class="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                            #${u.id} - ${u.username}
+                            <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${u.role === 'admin' ? 'bg-amber-500 text-slate-950' : 'bg-slate-200 text-slate-700'}">${u.role.toUpperCase()}</span>
+                        </div>
+                        <div class="text-xs text-slate-500 mt-1">
+                            Số dư: <b class="text-emerald-600 font-mono-code">${u.balance.toLocaleString()}đ</b> • Đã mua: <b>${u.orders_count} acc</b>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="adjustUserBalance(${u.id}, '${u.username}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold">
+                            <i class="fa-solid fa-coins mr-1"></i> Cộng/Trừ tiền
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function adjustUserBalance(userId, username) {
+            const amount = prompt(`Nhập số tiền muốn CỘNG hoặc TRỪ cho [${username}] (VD: 50000 hoặc -20000):`, '50000');
+            if (amount === null) return;
+            const res = await fetch('/api/admin/users/balance', {
+                method: 'POST', headers: adminHeaders(),
+                body: JSON.stringify({ userId, amount: parseInt(amount), mode: 'add' })
+            });
+            const data = await res.json();
+            if (!res.ok) return notify(data.error, true);
+            notify(data.message);
+            loadAdminUsers();
+            refreshUser();
         }
 
         async function loadAdminTx() {
-            const res = await fetch('/api/admin/transactions');
+            const res = await fetch('/api/admin/transactions', { headers: adminHeaders() });
             const txs = await res.json();
             document.getElementById('adm-tx-list').innerHTML = txs.length ? txs.map(t => `
-                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex justify-between items-center">
+                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-wrap justify-between items-center gap-3">
                     <div>
-                        <div class="font-bold text-slate-800">${t.username} nạp <span class="text-emerald-600">${t.amount.toLocaleString()}đ</span></div>
-                        <div class="text-xs text-red-600 font-mono">Mã: ${t.info}</div>
+                        <div class="font-bold text-slate-900 text-sm">${t.username} nạp <span class="text-emerald-600 font-mono-code">${t.amount.toLocaleString()}đ</span></div>
+                        <div class="text-xs text-slate-500">Nội dung: <b class="text-indigo-600 font-mono-code">${t.info}</b> • ${t.created_at}</div>
                     </div>
-                    ${t.status === 'pending'
-                        ? `<button onclick="approveTx(${t.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Duyệt Tay</button>`
-                        : `<span class="text-xs text-emerald-600 font-bold">✓ Đã duyệt</span>`}
+                    <div class="flex items-center gap-2">
+                        ${t.status === 'pending' ? `
+                            <button onclick="handleAdminTx(${t.id}, 'approve')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold">✓ Duyệt Cộng Tiền</button>
+                            <button onclick="handleAdminTx(${t.id}, 'cancel')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-1.5 rounded-xl text-xs font-bold">Hủy</button>
+                        ` : `<span class="text-xs font-bold ${t.status === 'completed' ? 'text-emerald-600' : 'text-rose-500'}">${t.status === 'completed' ? '✓ Đã duyệt' : '✕ Đã hủy'}</span>`}
+                    </div>
                 </div>
             `).join('') : '<p class="text-slate-400 text-xs">Chưa có giao dịch nào.</p>';
         }
 
-        async function approveTx(txId) {
+        async function handleAdminTx(txId, action) {
             await fetch('/api/admin/approve-tx', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ txId })
+                method: 'POST', headers: adminHeaders(),
+                body: JSON.stringify({ txId, action })
             });
-            notify('Đã duyệt cộng tiền!');
+            notify(action === 'approve' ? 'Đã duyệt cộng tiền thành công!' : 'Đã hủy giao dịch!');
             refreshUser();
             loadAdminTx();
+            loadAdminDashboard();
         }
 
+        // ================= ĐIỀU HƯỚNG TAB =================
         function switchTab(tab) {
             if ((tab === 'deposit' || tab === 'orders') && !currentUser) {
                 notify('Vui lòng đăng nhập tài khoản trước!', true);
                 tab = 'auth';
             }
+            if (tab === 'admin' && (!currentUser || currentUser.role !== 'admin')) {
+                notify('Khu vực chỉ dành riêng cho Quản trị viên!', true);
+                return;
+            }
+
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById(`tab-${tab}`).classList.remove('hidden');
+
+            // Đổi trạng thái nút bật/tắt Admin trên thanh Header
+            const txtToggle = document.getElementById('txt-admin-toggle');
+            const iconToggle = document.getElementById('icon-admin-toggle');
+            if (txtToggle && iconToggle) {
+                if (tab === 'admin') {
+                    txtToggle.innerText = 'Đóng Admin';
+                    iconToggle.className = 'fa-solid fa-xmark';
+                } else {
+                    txtToggle.innerText = 'Quản trị';
+                    iconToggle.className = 'fa-solid fa-sliders';
+                }
+            }
+
             if (tab === 'orders') loadOrders();
             if (tab === 'deposit') loadTransactions();
-            if (tab === 'admin') loadAdminTx();
+            if (tab === 'admin') loadAdminDashboard();
         }
 
         function initApp() {
