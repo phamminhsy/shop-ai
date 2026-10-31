@@ -3,127 +3,284 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Store - Hệ Thống Bán Tài Khoản AI Tự Động</title>
+    <title>AI PRO STORE - Hệ Thống Cung Cấp Tài Khoản AI Tự Động 24/7</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #090d16; }
+        .glass { background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .card-hover { transition: all 0.25s ease; }
+        .card-hover:hover { transform: translateY(-4px); border-color: rgba(99, 102, 241, 0.5); box-shadow: 0 12px 30px -10px rgba(99, 102, 241, 0.25); }
+        .gradient-text { background: linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #38bdf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .btn-gradient { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); }
+        .btn-gradient:hover { background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%); }
+    </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+<body class="text-slate-100 min-h-screen flex flex-col justify-between">
 
-    <!-- Thanh điều hướng -->
-    <nav class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
-        <div class="text-xl font-bold text-indigo-400">⚡ AI ACCOUNT SHOP</div>
-        <div id="nav-user" class="hidden flex items-center gap-4">
-            <span>Xin chào, <b id="lbl-username" class="text-white"></b></span>
-            <span class="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-sm font-semibold">
-                Số dư: <span id="lbl-balance">0</span> đ
-            </span>
-            <button onclick="logout()" class="text-sm text-rose-400 hover:underline">Đăng xuất</button>
+    <!-- Thông báo nổi góc phải (Toast) -->
+    <div id="toast-box" class="fixed top-5 right-5 z-50 space-y-2"></div>
+
+    <!-- Thanh điều hướng (Navbar) -->
+    <nav class="glass sticky top-0 z-40 border-b border-slate-800/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl btn-gradient flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-bolt text-white text-lg"></i>
+                </div>
+                <div>
+                    <span class="text-xl font-extrabold tracking-tight text-white">AI PRO <span class="gradient-text">STORE</span></span>
+                    <span class="block text-[11px] text-slate-400">Hệ Thống Giao Tài Khoản Tự Động 24/7</span>
+                </div>
+            </div>
+
+            <div id="nav-user" class="hidden flex items-center gap-3 sm:gap-4">
+                <div class="bg-slate-800/90 border border-slate-700 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
+                    <i class="fa-solid fa-wallet text-emerald-400 text-sm"></i>
+                    <span class="text-xs text-slate-400">Số dư:</span>
+                    <span id="lbl-balance" class="text-emerald-400 font-bold text-sm">0</span>
+                    <span class="text-xs text-emerald-400 font-bold">đ</span>
+                </div>
+                <div class="hidden sm:flex items-center gap-2 bg-slate-800/60 px-3 py-1.5 rounded-xl border border-slate-700/60">
+                    <i class="fa-solid fa-circle-user text-indigo-400"></i>
+                    <b id="lbl-username" class="text-sm text-white"></b>
+                </div>
+                <button onclick="logout()" class="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 px-3 py-1.5 rounded-xl text-xs font-semibold transition">
+                    <i class="fa-solid fa-right-from-bracket mr-1"></i> Thoát
+                </button>
+            </div>
         </div>
     </nav>
 
-    <div class="max-w-6xl mx-auto p-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">
 
-        <!-- KHUNG ĐĂNG NHẬP / ĐĂNG KÝ -->
-        <div id="auth-box" class="max-w-md mx-auto bg-slate-800 p-6 rounded-xl border border-slate-700 mt-10">
-            <h2 class="text-2xl font-bold text-center mb-6 text-indigo-400">Đăng Nhập / Đăng Ký</h2>
-            <input id="inp-user" type="text" placeholder="Tên tài khoản..." class="w-full mb-3 p-3 rounded bg-slate-900 border border-slate-700">
-            <input id="inp-pass" type="password" placeholder="Mật khẩu..." class="w-full mb-4 p-3 rounded bg-slate-900 border border-slate-700">
-            <div class="flex gap-3">
-                <button onclick="auth('login')" class="w-1/2 bg-indigo-600 hover:bg-indigo-500 py-3 rounded font-bold">Đăng Nhập</button>
-                <button onclick="auth('register')" class="w-1/2 bg-slate-700 hover:bg-slate-600 py-3 rounded font-bold">Tạo Tài Khoản</button>
+        <!-- ================= KHUNG ĐĂNG NHẬP / ĐĂNG KÝ ================= -->
+        <div id="auth-box" class="max-w-md mx-auto glass p-8 rounded-2xl shadow-2xl mt-8 relative overflow-hidden">
+            <div class="absolute -top-20 -right-20 w-40 h-40 bg-indigo-600/20 rounded-full blur-3xl"></div>
+            <div class="text-center mb-6">
+                <div class="w-14 h-14 rounded-2xl btn-gradient mx-auto flex items-center justify-center mb-3 shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-user-shield text-2xl text-white"></i>
+                </div>
+                <h2 class="text-2xl font-extrabold text-white">Chào Mừng Trở Lại</h2>
+                <p class="text-xs text-slate-400 mt-1">Đăng nhập hoặc tạo tài khoản mới chỉ trong 3 giây</p>
             </div>
-            <p class="text-xs text-slate-400 mt-4 text-center">💡 Admin mặc định: <b>admin</b> / Mật khẩu: <b>123456</b></p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs font-semibold text-slate-300 block mb-1.5">TÊN TÀI KHOẢN</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-3.5 top-3.5 text-slate-500 text-sm"></i>
+                        <input id="inp-user" type="text" placeholder="Nhập tên đăng nhập..." class="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-900/90 border border-slate-700/80 focus:border-indigo-500 focus:outline-none text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-slate-300 block mb-1.5">MẬT KHẨU</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-slate-500 text-sm"></i>
+                        <input id="inp-pass" type="password" placeholder="Nhập mật khẩu..." class="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-900/90 border border-slate-700/80 focus:border-indigo-500 focus:outline-none text-sm">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <button onclick="auth('login')" class="btn-gradient py-3 rounded-xl font-bold text-sm shadow-lg shadow-indigo-600/25 transition">
+                        <i class="fa-solid fa-right-to-bracket mr-1"></i> Đăng Nhập
+                    </button>
+                    <button onclick="auth('register')" class="bg-slate-800 hover:bg-slate-700 border border-slate-600/60 py-3 rounded-xl font-bold text-sm transition">
+                        <i class="fa-solid fa-user-plus mr-1"></i> Đăng Ký Mới
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <!-- KHUNG CHÍNH SAU KHI ĐĂNG NHẬP -->
-        <div id="main-app" class="hidden">
+        <!-- ================= GIAO DIỆN CHÍNH SAU KHI ĐĂNG NHẬP ================= -->
+        <div id="main-app" class="hidden space-y-6">
 
-            <!-- Menu Tabs -->
-            <div class="flex gap-2 mb-6 border-b border-slate-700 pb-3 flex-wrap">
-                <button onclick="switchTab('shop')" class="bg-indigo-600 px-4 py-2 rounded font-semibold text-sm">🛒 Mua Tài Khoản</button>
-                <button onclick="switchTab('orders')" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded font-semibold text-sm">📦 Kho Hàng Đã Mua</button>
-                <button onclick="switchTab('deposit')" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded font-semibold text-sm">💳 Nạp Tiền Tự Động</button>
-                <button onclick="switchTab('withdraw')" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded font-semibold text-sm">💸 Rút Tiền</button>
-                <button id="btn-admin" onclick="switchTab('admin')" class="hidden bg-amber-600 hover:bg-amber-500 px-4 py-2 rounded font-semibold text-sm">⚙️ Quản Trị (Admin)</button>
+            <!-- Banner giới thiệu & Thống kê -->
+            <div class="glass rounded-2xl p-6 border border-indigo-500/20 relative overflow-hidden">
+                <div class="absolute right-0 top-0 w-72 h-72 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="grid md:grid-cols-3 gap-6 items-center">
+                    <div class="md:col-span-2 space-y-2">
+                        <span class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold px-3 py-1 rounded-full">
+                            ⚡ HỆ THỐNG TỰ ĐỘNG HÓA 100%
+                        </span>
+                        <h1 class="text-2xl sm:text-3xl font-extrabold text-white pt-1">
+                            Kho Tài Khoản <span class="gradient-text">AI Cao Cấp & Chính Hãng</span>
+                        </h1>
+                        <p class="text-slate-400 text-sm">
+                            Nhận tài khoản, Cookie & 2FA ngay lập tức sau khi bấm mua. Bảo hành uy tín 1 đổi 1, hỗ trợ kỹ thuật trực tiếp qua Zalo 24/7.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl text-center">
+                            <div class="text-emerald-400 text-xl font-extrabold">Tức Thì</div>
+                            <div class="text-xs text-slate-400 mt-1">Tốc độ trả hàng</div>
+                        </div>
+                        <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl text-center">
+                            <div class="text-indigo-400 text-xl font-extrabold">1 Đổi 1</div>
+                            <div class="text-xs text-slate-400 mt-1">Chế độ bảo hành</div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- TAB 1: CỬA HÀNG -->
+            <!-- Thanh Menu Chức Năng (Đã bỏ Rút Tiền) -->
+            <div class="flex gap-2.5 border-b border-slate-800 pb-4 flex-wrap">
+                <button id="nav-btn-shop" onclick="switchTab('shop')" class="tab-btn btn-gradient px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-cart-shopping"></i> Cửa Hàng Tài Khoản
+                </button>
+                <button id="nav-btn-orders" onclick="switchTab('orders')" class="tab-btn bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-box-archive text-indigo-400"></i> Tài Khoản Đã Mua
+                </button>
+                <button id="nav-btn-deposit" onclick="switchTab('deposit')" class="tab-btn bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-qrcode text-emerald-400"></i> Nạp Tiền Ngân Hàng
+                </button>
+                <button id="btn-admin" onclick="switchTab('admin')" class="tab-btn hidden bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-screwdriver-wrench"></i> Quản Trị Viên (Admin)
+                </button>
+            </div>
+
+            <!-- TAB 1: CỬA HÀNG MUA TÀI KHOẢN -->
             <div id="tab-shop" class="tab-content grid md:grid-cols-3 gap-6"></div>
 
-            <!-- TAB 2: TÀI KHOẢN ĐÃ MUA -->
-            <div id="tab-orders" class="tab-content hidden bg-slate-800 p-6 rounded-xl border border-slate-700">
-                <h3 class="text-lg font-bold mb-4 text-indigo-400">Danh Sách Tài Khoản AI Đã Mua</h3>
+            <!-- TAB 2: KHO HÀNG ĐÃ MUA -->
+            <div id="tab-orders" class="tab-content hidden glass p-6 rounded-2xl">
+                <div class="flex justify-between items-center mb-5">
+                    <h3 class="text-lg font-extrabold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-check-double text-emerald-400"></i> Lịch Sử Mua & Nhận Tài Khoản
+                    </h3>
+                    <span class="text-xs text-slate-400">Bấm nút Copy để sao chép nhanh thông tin</span>
+                </div>
                 <div id="orders-list" class="space-y-3"></div>
             </div>
 
-            <!-- TAB 3: NẠP TIỀN VIETQR -->
-            <div id="tab-deposit" class="tab-content hidden grid md:grid-cols-2 gap-6">
-                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                    <h3 class="text-lg font-bold mb-4 text-emerald-400">Tạo Lệnh Nạp Tiền Ngân Hàng</h3>
-                    <label class="block text-sm mb-1">Số tiền cần nạp (VNĐ):</label>
-                    <input id="dep-amount" type="number" value="50000" class="w-full mb-4 p-3 rounded bg-slate-900 border border-slate-700">
-                    <button onclick="createDeposit()" class="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded font-bold">Lấy Mã QR & Xác Nhận Đã Chuyển</button>
-                    <div id="qr-box" class="mt-4 text-center hidden">
-                        <p class="text-sm text-amber-300 mb-2">Quét mã VietQR bên dưới để chuyển khoản:</p>
-                        <img id="qr-img" class="mx-auto rounded-lg max-w-xs border-4 border-white" src="" alt="VietQR">
+            <!-- TAB 3: NẠP TIỀN MB BANK -->
+            <div id="tab-deposit" class="tab-content hidden grid lg:grid-cols-5 gap-6">
+                <!-- Cột tạo mã QR -->
+                <div class="lg:col-span-3 glass p-6 rounded-2xl">
+                    <h3 class="text-lg font-extrabold mb-4 text-white flex items-center gap-2">
+                        <i class="fa-solid fa-building-columns text-emerald-400"></i> Chuyển Khoản Ngân Hàng Tự Động (VietQR)
+                    </h3>
+
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 mb-5 grid sm:grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <span class="text-xs text-slate-400 block">Ngân hàng thụ hưởng</span>
+                            <b class="text-indigo-400 text-base">MB BANK (Quân Đội)</b>
+                        </div>
+                        <div>
+                            <span class="text-xs text-slate-400 block">Số tài khoản</span>
+                            <div class="flex items-center gap-2">
+                                <b class="text-emerald-400 text-base font-mono">5428102008</b>
+                                <button onclick="navigator.clipboard.writeText('5428102008'); notify('Đã copy STK MB Bank!')" class="text-xs bg-slate-800 px-2 py-0.5 rounded hover:bg-slate-700">Copy</button>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-xs text-slate-400 block">Nội dung chuyển khoản</span>
+                            <b id="lbl-memo" class="text-amber-400 text-base font-mono">NAPTIEN</b>
+                        </div>
+                    </div>
+
+                    <label class="block text-xs font-bold text-slate-300 mb-2">NHẬP SỐ TIỀN MUỐN NẠP (VNĐ):</label>
+                    <div class="flex gap-3 mb-4">
+                        <input id="dep-amount" type="number" value="50000" min="10000" step="10000" class="w-full p-3.5 rounded-xl bg-slate-900 border border-slate-700 focus:border-emerald-500 focus:outline-none font-bold text-emerald-400">
+                        <button onclick="createDeposit()" class="bg-emerald-600 hover:bg-emerald-500 px-6 rounded-xl font-bold text-sm shrink-0 shadow-lg shadow-emerald-600/20 transition">
+                            <i class="fa-solid fa-qrcode mr-1"></i> Tạo Mã QR & Báo Nạp
+                        </button>
+                    </div>
+
+                    <!-- Khung hiển thị ảnh QR -->
+                    <div id="qr-box" class="mt-6 bg-slate-900/90 border border-emerald-500/30 rounded-2xl p-6 text-center hidden">
+                        <span class="bg-emerald-500/20 text-emerald-300 text-xs font-bold px-3 py-1 rounded-full">
+                            Quét mã bằng App Ngân hàng bất kỳ
+                        </span>
+                        <img id="qr-img" class="mx-auto my-4 rounded-xl max-w-[240px] border-4 border-white shadow-xl" src="" alt="VietQR MB Bank">
+                        <p class="text-xs text-slate-300">
+                            Hệ thống đã ghi nhận yêu cầu nạp. Sau khi bạn quét mã chuyển khoản thành công, số dư sẽ được cộng vào ví!
+                        </p>
                     </div>
                 </div>
-                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                    <h3 class="text-lg font-bold mb-4">Lịch Sử Nạp / Rút Của Bạn</h3>
-                    <div id="tx-list" class="space-y-2 text-sm"></div>
+
+                <!-- Cột lịch sử nạp tiền -->
+                <div class="lg:col-span-2 glass p-6 rounded-2xl">
+                    <h3 class="text-lg font-extrabold mb-4 text-white flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i> Trạng Thái Nạp Tiền
+                    </h3>
+                    <div id="tx-list" class="space-y-2.5 text-sm"></div>
                 </div>
             </div>
 
-            <!-- TAB 4: RÚT TIỀN -->
-            <div id="tab-withdraw" class="tab-content hidden max-w-lg bg-slate-800 p-6 rounded-xl border border-slate-700">
-                <h3 class="text-lg font-bold mb-4 text-rose-400">Yêu Cầu Rút Tiền Về Ngân Hàng</h3>
-                <input id="wd-amount" type="number" placeholder="Số tiền muốn rút (VD: 100000)" class="w-full mb-3 p-3 rounded bg-slate-900 border border-slate-700">
-                <input id="wd-info" type="text" placeholder="Tên Ngân hàng + Số TK + Tên Chủ TK" class="w-full mb-4 p-3 rounded bg-slate-900 border border-slate-700">
-                <button onclick="createWithdraw()" class="w-full bg-rose-600 hover:bg-rose-500 py-3 rounded font-bold">Gửi Lệnh Rút Tiền</button>
-            </div>
-
-            <!-- TAB 5: QUẢN TRỊ ADMIN -->
+            <!-- TAB 4: QUẢN TRỊ ADMIN -->
             <div id="tab-admin" class="tab-content hidden grid md:grid-cols-2 gap-6">
-                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                    <h3 class="text-lg font-bold mb-3 text-amber-400">1. Nạp Tài Khoản AI Vào Kho</h3>
-                    <select id="adm-prod" class="w-full mb-3 p-3 rounded bg-slate-900 border border-slate-700"></select>
-                    <textarea id="adm-accounts" rows="5" placeholder="Mỗi dòng 1 tài khoản. Ví dụ:&#10;acc1@gmail.com|pass123|cookie_xyz&#10;acc2@gmail.com|pass456|cookie_abc" class="w-full mb-3 p-3 rounded bg-slate-900 border border-slate-700 text-sm font-mono"></textarea>
-                    <button onclick="addStock()" class="w-full bg-amber-600 hover:bg-amber-500 py-3 rounded font-bold">Thêm Vào Kho Hàng</button>
+                <div class="glass p-6 rounded-2xl">
+                    <h3 class="text-lg font-extrabold mb-4 text-amber-400 flex items-center gap-2">
+                        <i class="fa-solid fa-plus-circle"></i> 1. Nạp Tài Khoản AI Vào Kho
+                    </h3>
+                    <label class="text-xs text-slate-400 block mb-1">Chọn danh mục sản phẩm:</label>
+                    <select id="adm-prod" class="w-full mb-3 p-3 rounded-xl bg-slate-900 border border-slate-700 text-sm font-semibold"></select>
+                    <label class="text-xs text-slate-400 block mb-1">Danh sách tài khoản (Mỗi dòng 1 tài khoản):</label>
+                    <textarea id="adm-accounts" rows="6" placeholder="acc1@gmail.com|pass123|cookie_xyz&#10;acc2@gmail.com|pass456|cookie_abc" class="w-full mb-4 p-3 rounded-xl bg-slate-900 border border-slate-700 text-sm font-mono"></textarea>
+                    <button onclick="addStock()" class="w-full bg-amber-600 hover:bg-amber-500 py-3 rounded-xl font-bold text-sm shadow-lg">
+                        <i class="fa-solid fa-cloud-arrow-up mr-1"></i> Đẩy Vào Kho Hàng Ngay
+                    </button>
                 </div>
-                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                    <h3 class="text-lg font-bold mb-3 text-amber-400">2. Duyệt Lệnh Nạp / Rút Tiền</h3>
-                    <div id="adm-tx-list" class="space-y-3 text-sm max-h-80 overflow-y-auto"></div>
+
+                <div class="glass p-6 rounded-2xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-extrabold text-amber-400 flex items-center gap-2">
+                            <i class="fa-solid fa-money-check-dollar"></i> 2. Kiểm Tra & Duyệt Nạp Tiền
+                        </h3>
+                        <button onclick="loadAdminTx()" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg">
+                            <i class="fa-solid fa-rotate"></i> Làm mới
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-3">
+                        💡 Khi App <b>MB Bank (5428102008)</b> trên điện thoại bạn báo nhận được tiền khớp với nội dung bên dưới, hãy bấm <b>Duyệt Cộng Tiền</b>:
+                    </p>
+                    <div id="adm-tx-list" class="space-y-3 text-sm max-h-96 overflow-y-auto pr-1"></div>
                 </div>
             </div>
 
         </div>
     </div>
 
-    <!-- Nút Zalo hỗ trợ -->
-    <a href="https://zalo.me/0982900374" target="_blank" class="fixed bottom-5 right-5 bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-full shadow-lg font-bold flex items-center gap-2">
-        💬 Hỗ trợ Zalo
+    <!-- Chân trang (Footer) -->
+    <footer class="border-t border-slate-800/80 py-6 text-center text-xs text-slate-500 mt-12">
+        © 2026 AI PRO STORE - Hệ thống cung cấp tài khoản AI tự động, uy tín & bảo mật.
+    </footer>
+
+    <!-- Nút Zalo nổi góc phải -->
+    <a href="https://zalo.me/0982900374" target="_blank" class="fixed bottom-5 right-5 bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-full shadow-xl shadow-blue-600/30 font-bold text-sm flex items-center gap-2 transition hover:scale-105 z-40">
+        <i class="fa-solid fa-headset"></i> Hỗ Trợ Zalo 24/7
     </a>
 
     <script>
-        // =========================================================
-        // SỬA NGÂN HÀNG VÀ SỐ TÀI KHOẢN CỦA BẠN Ở 2 DÒNG DƯỚI ĐÂY:
-        // =========================================================
-        const BANK_ID = 'VPB';          // Ví dụ: VPB (VPBank), MB (MBBank), VCB (Vietcombank)...
-        const ACCOUNT_NO = '0982900374'; // Điền số tài khoản ngân hàng nhận tiền của bạn vào đây
+        // CẤU HÌNH CỐ ĐỊNH MB BANK CỦA BẠN
+        const BANK_ID = 'MB';
+        const ACCOUNT_NO = '5428102008';
 
         let currentUser = JSON.parse(localStorage.getItem('user')) || null;
 
+        function notify(msg, isError = false) {
+            const box = document.getElementById('toast-box');
+            const el = document.createElement('div');
+            el.className = `${isError ? 'bg-rose-600' : 'bg-emerald-600'} text-white px-4 py-3 rounded-xl shadow-xl text-sm font-semibold flex items-center gap-2 transition`;
+            el.innerHTML = `<i class="fa-solid ${isError ? 'fa-circle-exclamation' : 'fa-circle-check'}"></i> <span>${msg}</span>`;
+            box.appendChild(el);
+            setTimeout(() => el.remove(), 3500);
+        }
+
         async function auth(type) {
-            const username = document.getElementById('inp-user').value;
-            const password = document.getElementById('inp-pass').value;
+            const username = document.getElementById('inp-user').value.trim();
+            const password = document.getElementById('inp-pass').value.trim();
             const res = await fetch(`/api/${type}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ username, password })
             });
             const data = await res.json();
-            if (!res.ok) return alert(data.error);
+            if (!res.ok) return notify(data.error, true);
             currentUser = data;
             localStorage.setItem('user', JSON.stringify(data));
+            notify('Đăng nhập hệ thống thành công!');
             initApp();
         }
 
@@ -139,6 +296,7 @@
             localStorage.setItem('user', JSON.stringify(currentUser));
             document.getElementById('lbl-username').innerText = currentUser.username;
             document.getElementById('lbl-balance').innerText = currentUser.balance.toLocaleString();
+            document.getElementById('lbl-memo').innerText = `NAPTIEN ${currentUser.username}`;
             if (currentUser.role === 'admin') {
                 document.getElementById('btn-admin').classList.remove('hidden');
             }
@@ -147,19 +305,28 @@
         async function loadProducts() {
             const res = await fetch('/api/products');
             const products = await res.json();
-            const shopHtml = products.map(p => `
-                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 flex flex-col justify-between">
+            const icons = ['fa-robot', 'fa-brain', 'fa-wand-magic-sparkles'];
+            const shopHtml = products.map((p, idx) => `
+                <div class="glass card-hover p-6 rounded-2xl flex flex-col justify-between relative overflow-hidden">
                     <div>
-                        <div class="flex justify-between items-start mb-2">
-                            <h3 class="text-lg font-bold text-white">${p.name}</h3>
-                            <span class="bg-indigo-600/30 text-indigo-300 text-xs px-2 py-1 rounded">Kho: ${p.stock}</span>
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-11 h-11 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-lg">
+                                <i class="fa-solid ${icons[idx % icons.length]}"></i>
+                            </div>
+                            <span class="${p.stock > 0 ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border-rose-500/30'} border text-xs font-bold px-3 py-1 rounded-full">
+                                ${p.stock > 0 ? `Còn hàng: ${p.stock}` : 'Tạm hết hàng'}
+                            </span>
                         </div>
-                        <p class="text-slate-400 text-sm mb-4">${p.description}</p>
+                        <h3 class="text-lg font-extrabold text-white mb-2">${p.name}</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed mb-6">${p.description}</p>
                     </div>
-                    <div>
-                        <div class="text-2xl font-bold text-emerald-400 mb-4">${p.price.toLocaleString()} đ</div>
-                        <button onclick="buyAccount(${p.id})" class="w-full ${p.stock > 0 ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-slate-700 cursor-not-allowed'} py-2.5 rounded font-bold">
-                            ${p.stock > 0 ? 'Mua Ngay' : 'Hết Hàng'}
+                    <div class="pt-4 border-t border-slate-800/80">
+                        <div class="flex justify-between items-baseline mb-4">
+                            <span class="text-xs text-slate-400">Giá bán ưu đãi:</span>
+                            <span class="text-2xl font-extrabold text-emerald-400">${p.price.toLocaleString()} <small class="text-xs">VNĐ</small></span>
+                        </div>
+                        <button onclick="buyAccount(${p.id})" class="w-full ${p.stock > 0 ? 'btn-gradient shadow-lg shadow-indigo-600/20' : 'bg-slate-800 text-slate-500 cursor-not-allowed'} py-3 rounded-xl font-bold text-sm transition">
+                            <i class="fa-solid fa-bolt mr-1"></i> ${p.stock > 0 ? 'Thanh Toán & Nhận Ngay' : 'Đang Chờ Nhập Kho'}
                         </button>
                     </div>
                 </div>
@@ -169,15 +336,15 @@
         }
 
         async function buyAccount(productId) {
-            if (!confirm('Xác nhận mua tài khoản này?')) return;
+            if (!confirm('Xác nhận thanh toán mua tài khoản AI này?')) return;
             const res = await fetch('/api/buy', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ userId: currentUser.id, productId })
             });
             const data = await res.json();
-            if (!res.ok) return alert(data.error);
-            alert(`MUA THÀNH CÔNG!\nThông tin tài khoản của bạn:\n\n${data.account}`);
+            if (!res.ok) return notify(data.error, true);
+            notify('Mua tài khoản thành công! Đã chuyển vào Kho hàng của bạn.');
             refreshUser();
             loadProducts();
             switchTab('orders');
@@ -187,14 +354,19 @@
             const res = await fetch(`/api/orders/${currentUser.id}`);
             const orders = await res.json();
             document.getElementById('orders-list').innerHTML = orders.length ? orders.map(o => `
-                <div class="bg-slate-900 p-4 rounded border border-slate-700 flex justify-between items-center gap-2">
+                <div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                     <div class="overflow-hidden">
-                        <div class="font-bold text-indigo-300">${o.name} <span class="text-xs text-slate-400">(${o.sold_at})</span></div>
-                        <code class="text-emerald-400 text-sm break-all">${o.account_data}</code>
+                        <div class="font-bold text-indigo-300 text-sm mb-1">
+                            <i class="fa-solid fa-key mr-1"></i> ${o.name}
+                            <span class="text-xs text-slate-500 font-normal ml-2">${o.sold_at}</span>
+                        </div>
+                        <code class="text-emerald-400 text-xs sm:text-sm break-all bg-slate-950 px-3 py-1.5 rounded-lg block border border-slate-800">${o.account_data}</code>
                     </div>
-                    <button onclick="navigator.clipboard.writeText('${o.account_data}'); alert('Đã copy!')" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-xs shrink-0">Copy</button>
+                    <button onclick="navigator.clipboard.writeText('${o.account_data}'); notify('Đã sao chép tài khoản!')" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-xl text-xs font-bold shrink-0">
+                        <i class="fa-regular fa-copy mr-1"></i> Sao Chép
+                    </button>
                 </div>
-            `).join('') : '<p class="text-slate-400">Bạn chưa mua tài khoản nào.</p>';
+            `).join('') : '<div class="text-center py-8 text-slate-500 text-sm">Bạn chưa mua tài khoản nào. Hãy chọn sản phẩm tại Cửa Hàng!</div>';
         }
 
         async function createDeposit() {
@@ -209,47 +381,38 @@
                 body: JSON.stringify({ userId: currentUser.id, type: 'deposit', amount, info: memo })
             });
             const data = await res.json();
-            alert(data.message);
+            if (!res.ok) return notify(data.error, true);
+            notify('Đã tạo mã QR! Vui lòng quét mã để chuyển khoản.');
             loadTransactions();
-        }
-
-        async function createWithdraw() {
-            const amount = document.getElementById('wd-amount').value;
-            const info = document.getElementById('wd-info').value;
-            if (!info) return alert('Vui lòng nhập số tài khoản nhận tiền!');
-            const res = await fetch('/api/transaction', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ userId: currentUser.id, type: 'withdraw', amount, info })
-            });
-            const data = await res.json();
-            if (!res.ok) return alert(data.error);
-            alert(data.message);
-            refreshUser();
-            switchTab('deposit');
         }
 
         async function loadTransactions() {
             const res = await fetch(`/api/transactions/${currentUser.id}`);
             const txs = await res.json();
-            document.getElementById('tx-list').innerHTML = txs.map(t => `
-                <div class="bg-slate-900 p-3 rounded flex justify-between">
-                    <span><b>${t.type === 'deposit' ? '+ Nạp' : '- Rút'}:</b> ${t.amount.toLocaleString()}đ (${t.info})</span>
-                    <span class="${t.status === 'completed' ? 'text-emerald-400' : 'text-amber-400'}">${t.status === 'completed' ? 'Hoàn thành' : 'Đang chờ'}</span>
+            document.getElementById('tx-list').innerHTML = txs.length ? txs.map(t => `
+                <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-emerald-400">+ ${t.amount.toLocaleString()} đ</div>
+                        <div class="text-xs text-slate-400">Nội dung: <b class="text-slate-300">${t.info}</b></div>
+                    </div>
+                    <span class="px-2.5 py-1 rounded-full text-xs font-bold ${t.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}">
+                        ${t.status === 'completed' ? '✓ Đã cộng tiền' : '⏳ Chờ kiểm tra'}
+                    </span>
                 </div>
-            `).join('');
+            `).join('') : '<p class="text-slate-500 text-xs">Chưa có giao dịch nạp tiền nào.</p>';
         }
 
         async function addStock() {
             const productId = document.getElementById('adm-prod').value;
             const accountsText = document.getElementById('adm-accounts').value;
+            if (!accountsText.trim()) return notify('Vui lòng dán ít nhất 1 tài khoản!', true);
             const res = await fetch('/api/admin/add-stock', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ productId, accountsText })
             });
             const data = await res.json();
-            alert(data.message);
+            notify(data.message);
             document.getElementById('adm-accounts').value = '';
             loadProducts();
         }
@@ -257,15 +420,18 @@
         async function loadAdminTx() {
             const res = await fetch('/api/admin/transactions');
             const txs = await res.json();
-            document.getElementById('adm-tx-list').innerHTML = txs.map(t => `
-                <div class="bg-slate-900 p-3 rounded border border-slate-700 flex justify-between items-center">
+            document.getElementById('adm-tx-list').innerHTML = txs.length ? txs.map(t => `
+                <div class="bg-slate-900 p-3.5 rounded-xl border border-slate-800 flex justify-between items-center">
                     <div>
-                        <div><b>${t.username}</b> yêu cầu <b>${t.type === 'deposit' ? 'NẠP' : 'RÚT'}</b>: <span class="text-emerald-400">${t.amount.toLocaleString()}đ</span></div>
-                        <div class="text-xs text-slate-400">${t.info}</div>
+                        <div class="font-bold text-white">Khách: <span class="text-indigo-400">${t.username}</span> nạp <span class="text-emerald-400">${t.amount.toLocaleString()}đ</span></div>
+                        <div class="text-xs text-amber-300 font-mono">Nội dung CK: ${t.info}</div>
+                        <div class="text-[11px] text-slate-500">${t.created_at}</div>
                     </div>
-                    ${t.status === 'pending' ? `<button onclick="approveTx(${t.id})" class="bg-emerald-600 px-3 py-1 rounded text-xs font-bold">Duyệt</button>` : `<span class="text-xs text-slate-500">Đã duyệt</span>`}
+                    ${t.status === 'pending'
+                        ? `<button onclick="approveTx(${t.id})" class="bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 rounded-xl text-xs font-bold shadow">✓ Duyệt Cộng Tiền</button>`
+                        : `<span class="text-xs text-emerald-400 font-semibold">Đã duyệt</span>`}
                 </div>
-            `).join('');
+            `).join('') : '<p class="text-slate-500 text-xs">Chưa có yêu cầu nạp tiền nào.</p>';
         }
 
         async function approveTx(txId) {
@@ -274,6 +440,7 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ txId })
             });
+            notify('Đã duyệt và cộng tiền cho khách!');
             refreshUser();
             loadAdminTx();
         }
