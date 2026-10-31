@@ -22,7 +22,7 @@ body { font-family: 'Be Vietnam Pro', sans-serif; background: #f4f6f9; color: #1
 <body class="min-h-screen flex flex-col justify-between">
 <div id="toast-box" class="fixed top-3 sm:top-5 right-3 sm:right-5 z-50 space-y-2 max-w-xs sm:max-w-sm w-full pointer-events-none"></div>
 
-<!-- Topbar trắng gốc (Tối ưu responsive điện thoại) -->
+<!-- Topbar trắng gốc -->
 <div class="bg-white border-b border-slate-200 text-[11px] sm:text-xs py-1.5 px-3 sm:px-4 shadow-xs">
   <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-1.5 sm:gap-2">
     <div class="flex flex-wrap items-center gap-2 sm:gap-4 font-semibold text-slate-700">
@@ -34,7 +34,7 @@ body { font-family: 'Be Vietnam Pro', sans-serif; background: #f4f6f9; color: #1
   </div>
 </div>
 
-<!-- Header xanh dương gốc (Tối ưu điện thoại) -->
+<!-- Header xanh dương gốc -->
 <header class="blue-header text-white py-2.5 sm:py-3.5 px-3 sm:px-4 shadow-md sticky top-0 z-40">
   <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2 sm:gap-3">
     <a href="javascript:void(0)" onclick="goHome()" class="flex items-center gap-2 cursor-pointer shrink-0">
@@ -47,8 +47,9 @@ body { font-family: 'Be Vietnam Pro', sans-serif; background: #f4f6f9; color: #1
     </a>
     <div class="order-3 sm:order-2 w-full sm:w-auto flex-1 max-w-md">
       <div class="relative">
-        <input id="search-input" oninput="filterProducts()" type="text" placeholder="Tìm tài khoản AI (ChatGPT, Claude, Muse...)..." class="w-full py-1.5 sm:py-2 pl-3 sm:pl-4 pr-8 sm:pr-10 rounded-full text-slate-800 text-xs sm:text-sm focus:outline-none shadow-inner border border-transparent focus:border-yellow-300 bg-white">
-        <button onclick="filterProducts()" class="absolute right-1 top-1 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] sm:text-xs shadow"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <input id="search-input" oninput="filterProducts()" type="search" name="search_product_q" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Tìm tài khoản AI (ChatGPT, Claude, Muse...)..." class="w-full py-1.5 sm:py-2 pl-3 sm:pl-4 pr-16 rounded-full text-slate-800 text-xs sm:text-sm focus:outline-none shadow-inner border border-transparent focus:border-yellow-300 bg-white">
+        <button id="btn-clear-search" onclick="clearSearch()" type="button" class="hidden absolute right-8 top-1.5 w-6 h-6 rounded-full text-slate-400 hover:text-slate-600 flex items-center justify-center text-xs" title="Xóa tìm kiếm"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="filterProducts()" type="button" class="absolute right-1 top-1 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] sm:text-xs shadow"><i class="fa-solid fa-magnifying-glass"></i></button>
       </div>
     </div>
     <div class="order-2 sm:order-3 flex items-center gap-1.5 sm:gap-2 shrink-0">
@@ -64,7 +65,7 @@ body { font-family: 'Be Vietnam Pro', sans-serif; background: #f4f6f9; color: #1
   </div>
 </header>
 
-<!-- Submenu cuộn mượt không lỗi giao diện trên điện thoại -->
+<!-- Submenu cuộn mượt -->
 <div class="bg-white border-b border-slate-200 px-3 sm:px-4 py-1.5 sm:py-2 shadow-sm text-xs font-semibold text-slate-700">
   <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
     <div class="flex items-center gap-3 sm:gap-5 overflow-x-auto no-scrollbar whitespace-nowrap py-0.5">
@@ -106,9 +107,8 @@ body { font-family: 'Be Vietnam Pro', sans-serif; background: #f4f6f9; color: #1
     <div id="product-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5"></div>
   </div>
 
-  <!-- TAB AUTH (ĐĂNG NHẬP / ĐĂNG KÝ HOÀN CHỈNH) -->
+  <!-- TAB AUTH (ĐĂNG NHẬP / ĐĂNG KÝ) -->
   <div id="tab-auth" class="tab-content hidden max-w-md mx-auto bg-white p-4 sm:p-6 rounded-2xl border shadow-sm space-y-4 my-4">
-    <!-- Header tabs chuyển Đăng Nhập / Đăng Ký -->
     <div class="flex border-b border-slate-200 text-xs sm:text-sm font-bold text-center">
       <button id="btn-tab-login" onclick="switchAuthMode('login')" class="auth-tab-btn active flex-1 py-2.5 rounded-t-xl border-b-2">Đăng Nhập</button>
       <button id="btn-tab-register" onclick="switchAuthMode('register')" class="auth-tab-btn flex-1 py-2.5 rounded-t-xl border-b-2 text-slate-500 hover:text-blue-600">Đăng Ký Tài Khoản</button>
@@ -128,7 +128,7 @@ body { font-family: 'Be Vietnam Pro', sans-serif; background: #f4f6f9; color: #1
       <p class="text-center text-[11px] text-slate-500 pt-1">Chưa có tài khoản? <a href="javascript:void(0)" onclick="switchAuthMode('register')" class="text-blue-600 font-bold hover:underline">Đăng ký thành viên mới tại đây</a></p>
     </div>
 
-    <!-- Form Đăng Ký Đầy Đủ Thông Tin -->
+    <!-- Form Đăng Ký -->
     <div id="form-register" class="hidden space-y-3 text-xs">
       <div>
         <label class="font-bold text-slate-700 block mb-1">TÊN ĐĂNG NHẬP * <span class="text-[10px] text-slate-400 font-normal">(Tối thiểu 3 ký tự, viết liền không dấu)</span></label>
@@ -157,7 +157,7 @@ body { font-family: 'Be Vietnam Pro', sans-serif; background: #f4f6f9; color: #1
     </div>
   </div>
 
-  <!-- TAB ORDERS (LỊCH SỬ ĐƠN HÀNG GỘP TẤT CẢ ACC) -->
+  <!-- TAB ORDERS -->
   <div id="tab-orders" class="tab-content hidden bg-white p-3.5 sm:p-5 rounded-2xl border space-y-3">
     <div class="flex flex-wrap justify-between items-center gap-2 border-b pb-2">
       <div class="flex items-center gap-2">
@@ -182,7 +182,7 @@ body { font-family: 'Be Vietnam Pro', sans-serif; background: #f4f6f9; color: #1
     <div id="lookup-result" class="hidden"></div>
   </div>
 
-  <!-- TAB DEPOSIT (NẠP TIỀN VIETQR) -->
+  <!-- TAB DEPOSIT -->
   <div id="tab-deposit" class="tab-content hidden grid lg:grid-cols-5 gap-4">
     <div class="lg:col-span-3 bg-white p-4 sm:p-5 rounded-2xl border space-y-3">
       <h3 class="font-black text-xs sm:text-sm border-b pb-1.5 text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-building-columns text-blue-600"></i>Nạp Tiền Tự Động Qua VietQR (<span id="lbl-dep-bank-title">MB Bank</span>)</h3>
@@ -229,7 +229,7 @@ body { font-family: 'Be Vietnam Pro', sans-serif; background: #f4f6f9; color: #1
       <div class="bg-white p-2.5 sm:p-3 rounded-xl border"><span class="text-slate-400 block text-[10px]">TỔNG ĐƠN HÀNG</span><b id="stat-orders" class="text-sm sm:text-base font-black text-slate-800">0</b></div>
       <div class="bg-white p-2.5 sm:p-3 rounded-xl border"><span class="text-slate-400 block text-[10px]">ĐƠN CHỜ DUYỆT</span><b id="stat-pending" class="text-sm sm:text-base font-black text-red-600">0</b></div>
     </div>
-    <!-- Tabs Admin tối ưu trượt ngang trên điện thoại -->
+    <!-- Tabs Admin -->
     <div class="flex gap-1.5 bg-white p-1.5 rounded-xl border text-xs overflow-x-auto no-scrollbar whitespace-nowrap">
       <button onclick="switchAdminSub('products', this)" class="admin-nav-btn active px-3 py-1.5 rounded-lg font-bold shrink-0">1. Sản Phẩm & Giá</button>
       <button onclick="switchAdminSub('inventory', this)" class="admin-nav-btn px-3 py-1.5 rounded-lg font-bold text-slate-600 shrink-0">2. Kho Acc (Chọn Xóa Hàng Loạt)</button>
@@ -238,7 +238,7 @@ body { font-family: 'Be Vietnam Pro', sans-serif; background: #f4f6f9; color: #1
       <button onclick="switchAdminSub('settings', this)" class="admin-nav-btn px-3 py-1.5 rounded-lg font-bold text-purple-700 border border-purple-200 shrink-0">5. Giao Diện & Logo</button>
     </div>
 
-    <!-- Sub 1: Quản lý sản phẩm & Hướng dẫn sử dụng -->
+    <!-- Sub 1: Quản lý sản phẩm -->
     <div id="adm-panel-products" class="adm-panel grid lg:grid-cols-5 gap-3 sm:gap-4">
       <div class="lg:col-span-2 bg-white p-3.5 sm:p-4 rounded-xl border space-y-2 text-xs h-fit">
         <div class="flex justify-between items-center border-b pb-1"><b id="adm-prod-title">Thêm Sản Phẩm Mới</b><button id="btn-cancel-edit" onclick="resetProductForm()" class="hidden text-red-600 font-bold">Hủy</button></div>
@@ -424,14 +424,14 @@ function downloadOrderTxt(content, orderCode = 'order') {
   notify('Đã tải tệp tài khoản về máy!');
 }
 function adminHeaders() { return { 'Content-Type': 'application/json', 'x-admin-id': currentUser ? currentUser.id : '' }; }
-function goHome() { switchTab('shop'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function goHome() { clearSearch(); switchTab('shop'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 function selectAmount(val, btnEl) {
   document.getElementById('dep-amount').value = val;
   document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
   if (btnEl) btnEl.classList.add('active');
 }
 
-// ================= HƯỚNG DẪN SỬ DỤNG POPUP =================
+// HƯỚNG DẪN SỬ DỤNG POPUP
 function openProductGuide(prodId, event) {
   if (event) event.stopPropagation();
   let p = null;
@@ -445,7 +445,7 @@ function openProductGuide(prodId, event) {
 }
 function closeGuideModal() { document.getElementById('guide-modal').classList.add('hidden'); }
 
-// ================= AUTH TABS: ĐĂNG NHẬP / ĐĂNG KÝ =================
+// AUTH TABS
 function switchAuthMode(mode) {
   const btnLogin = document.getElementById('btn-tab-login'), btnReg = document.getElementById('btn-tab-register');
   const formLogin = document.getElementById('form-login'), formReg = document.getElementById('form-register');
@@ -502,7 +502,7 @@ function updateUserState() {
 }
 async function loadOrderCount() { if (!currentUser) return; try { const res = await fetch(`/api/orders/${currentUser.id}`); if (res.ok) { const o = await res.json(); document.getElementById('lbl-order-count').innerText = o.length; } } catch (e) {} }
 
-// ================= CÀI ĐẶT GIAO DIỆN =================
+// CÀI ĐẶT GIAO DIỆN
 async function loadSiteSettings() {
   try { const res = await fetch('/api/settings'); if (res.ok) { const d = await res.json(); siteSettings = { ...siteSettings, ...d }; } } catch (e) {}
   applySiteSettings();
@@ -562,7 +562,7 @@ function populateSettingsForm() {
   document.getElementById('set-min-deposit').value = siteSettings.min_deposit || 20000;
 }
 
-// ================= SẢN PHẨM & MUA HÀNG =================
+// SẢN PHẨM & TÌM KIẾM
 async function loadProducts() {
   try { const res = await fetch('/api/products'); if (res.ok) allProducts = await res.json(); else allProducts = getFallbackProducts(); }
   catch (e) { allProducts = getFallbackProducts(); }
@@ -577,7 +577,19 @@ function setPriceFilter(f, btn) {
   if (btn) btn.className = 'btn-filter-price bg-white text-blue-700 px-2 py-0.5 rounded shadow';
   renderProductGrid();
 }
-function filterProducts() { renderProductGrid(); }
+function clearSearch() {
+  const inp = document.getElementById('search-input');
+  if (inp) inp.value = '';
+  const btn = document.getElementById('btn-clear-search');
+  if (btn) btn.classList.add('hidden');
+  renderProductGrid();
+}
+function filterProducts() {
+  const kw = (document.getElementById('search-input')?.value || '').trim();
+  const btn = document.getElementById('btn-clear-search');
+  if (btn) btn.classList.toggle('hidden', !kw);
+  renderProductGrid();
+}
 function renderProductGrid() {
   const kw = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
   const filtered = allProducts.filter(p => {
@@ -591,7 +603,19 @@ function renderProductGrid() {
   });
   document.getElementById('lbl-product-count').innerText = filtered.length;
   const grid = document.getElementById('product-grid');
-  if (!filtered.length) { grid.innerHTML = '<div class="col-span-full bg-white p-8 rounded-xl text-center text-slate-400 text-xs border">Chưa có sản phẩm phù hợp.</div>'; return; }
+  if (!filtered.length) {
+    if (kw) {
+      grid.innerHTML = `
+        <div class="col-span-full bg-white p-6 sm:p-8 rounded-2xl text-center border space-y-2.5 shadow-xs">
+          <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-full mx-auto flex items-center justify-center text-base"><i class="fa-solid fa-magnifying-glass"></i></div>
+          <p class="text-xs text-slate-700 font-semibold">Không tìm thấy sản phẩm nào khớp với từ khóa "<b class="text-red-600">${kw}</b>".</p>
+          <button onclick="clearSearch()" class="blue-header text-white px-3.5 py-1.5 rounded-xl text-xs font-bold shadow hover:opacity-90 inline-flex items-center gap-1.5"><i class="fa-solid fa-rotate-left"></i> Bấm vào đây để xóa tìm kiếm và hiện lại toàn bộ sản phẩm</button>
+        </div>`;
+    } else {
+      grid.innerHTML = '<div class="col-span-full bg-white p-8 rounded-xl text-center text-slate-400 text-xs border">Hiện chưa có sản phẩm nào trong hệ thống.</div>';
+    }
+    return;
+  }
   grid.innerHTML = filtered.map(p => {
     const stock = Number(p.total_stock || 0), minP = Number(p.min_price || 0), oldP = Number(p.old_price || minP * 2);
     const discount = oldP > minP && minP > 0 ? Math.round((1 - minP / oldP) * 100) : 0;
@@ -689,7 +713,7 @@ function showDeliveryModal(d) {
 function copyDeliveredAccounts() { if (currentDeliveredText) copyText(currentDeliveredText, 'Đã copy tất cả tài khoản!'); }
 function closeSuccessModal() { document.getElementById('success-modal').classList.add('hidden'); switchTab('orders'); }
 
-// ================= LỊCH SỬ ĐƠN HÀNG =================
+// LỊCH SỬ ĐƠN HÀNG
 async function loadOrders() {
   if (!currentUser) return switchTab('auth');
   try { const res = await fetch(`/api/orders/${currentUser.id}`); userOrders = await res.json(); renderOrdersList(); }
@@ -747,7 +771,7 @@ async function lookupOrder() {
   } catch (e) { notify('Lỗi tra cứu!', true); }
 }
 
-// ================= NẠP TIỀN =================
+// NẠP TIỀN
 async function createDeposit() {
   if (!currentUser) { notify('Vui lòng đăng nhập!', true); return switchTab('auth'); }
   const amount = parseInt(document.getElementById('dep-amount').value);
@@ -788,7 +812,7 @@ async function loadTransactions() {
   } catch (e) {}
 }
 
-// ================= ADMIN DASHBOARD & FIX SỬA SẢN PHẨM =================
+// ADMIN DASHBOARD
 function toggleAdminPanel() { if (!currentUser || currentUser.role !== 'admin') return; if (!document.getElementById('tab-admin').classList.contains('hidden')) goHome(); else switchTab('admin'); }
 function switchAdminSub(sub, btn) {
   document.querySelectorAll('.adm-panel').forEach(p => p.classList.add('hidden'));
@@ -817,7 +841,6 @@ async function loadAdminDashboard() {
   await loadProducts(); renderAdminProducts(); initVariantsForm(); populateAdminStockProducts();
 }
 
-// FORM TÙY CHỌN SẢN PHẨM (LƯU LẠI ID CŨ ĐỂ KHÔNG BỊ MẤT KHO)
 function initVariantsForm(vars = []) {
   const c = document.getElementById('variants-container'); c.innerHTML = '';
   if (vars.length) vars.forEach(v => addVariantRow(v.id || '', v.name, v.price));
@@ -901,7 +924,7 @@ function uploadImage(input, targetId) {
   const r = new FileReader(); r.onloadend = () => { document.getElementById(targetId).value = r.result; notify('Đã tải ảnh!'); if (targetId === 'set-site-logo') applySiteSettings(); }; r.readAsDataURL(f);
 }
 
-// ================= KHO ACC: CHỐNG TRÙNG & CHỌN NHIỀU XÓA HÀNG LOẠT =================
+// KHO ACC & CHỌN NHIỀU XÓA HÀNG LOẠT
 function populateAdminStockProducts() {
   document.getElementById('adm-stock-product').innerHTML = allProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
   onAdminSelectProductChange();
@@ -949,7 +972,6 @@ async function loadAdminInventory() {
   } catch (e) {}
 }
 
-// BULK CHECKBOX LOGIC (TÍCH CHỌN NHIỀU & XÓA HÀNG LOẠT)
 function toggleSelectAllInventory(checked) {
   document.querySelectorAll('.inv-chk').forEach(c => c.checked = checked);
   updateSelectedCount();
@@ -1030,7 +1052,7 @@ function switchTab(tab) {
   if (tab === 'shop') loadProducts(); if (tab === 'orders') loadOrders(); if (tab === 'deposit') loadTransactions(); if (tab === 'admin') loadAdminDashboard();
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeBuyModal(); closeSuccessModal(); closeGuideModal(); } });
-async function initApp() { await loadSiteSettings(); updateUserState(); loadProducts(); if (currentUser) refreshUser(); }
+async function initApp() { clearSearch(); await loadSiteSettings(); updateUserState(); loadProducts(); if (currentUser) refreshUser(); }
 initApp();
 </script>
 </body>
