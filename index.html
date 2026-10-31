@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Store - Hệ Thống Bán Tài Khoản AI Tự Động</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+
+    <!-- Thanh điều hướng -->
+    <nav class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+        <div class="text-xl font-bold text-indigo-400">⚡ AI ACCOUNT SHOP</div>
+        <div id="nav-user" class="hidden flex items-center gap-4">
+            <span>Xin chào, <b id="lbl-username" class="text-white"></b></span>
+            <span class="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-sm font-semibold">
+                Số dư: <span id="lbl-balance">0</span> đ
+            </span>
+            <button onclick="logout()" class="text-sm text-rose-400 hover:underline">Đăng xuất</button>
+        </div>
+    </nav>
+
+    <div class="max-w-6xl mx-auto p-6">
+
+        <!-- KHUNG ĐĂNG NHẬP / ĐĂNG KÝ -->
+        <div id="auth-box" class="max-w-md mx-auto bg-slate-800 p-6 rounded-xl border border-slate-700 mt-10">
+            <h2 class="text-2xl font-bold text-center mb-6 text-indigo-400">Đăng Nhập / Đăng Ký</h2>
+            <input id="inp-user" type="text" placeholder="Tên tài khoản..." class="w-full mb-3 p-3 rounded bg-slate-900 border border-slate-700">
+            <input id="inp-pass" type="password" placeholder="Mật khẩu..." class="w-full mb-4 p-3 rounded bg-slate-900 border border-slate-700">
+            <div class="flex gap-3">
+                <button onclick="auth('login')" class="w-1/2 bg-indigo-600 hover:bg-indigo-500 py-3 rounded font-bold">Đăng Nhập</button>
+                <button onclick="auth('register')" class="w-1/2 bg-slate-700 hover:bg-slate-600 py-3 rounded font-bold">Tạo Tài Khoản</button>
+            </div>
+            <p class="text-xs text-slate-400 mt-4 text-center">💡 Admin mặc định: <b>admin</b> / Mật khẩu: <b>123456</b></p>
+        </div>
+
+        <!-- KHUNG CHÍNH SAU KHI ĐĂNG NHẬP -->
+        <div id="main-app" class="hidden">
+
+            <!-- Menu Tabs -->
+            <div class="flex gap-2 mb-6 border-b border-slate-700 pb-3 flex-wrap">
+                <button onclick="switchTab('shop')" class="bg-indigo-600 px-4 py-2 rounded font-semibold text-sm">🛒 Mua Tài Khoản</button>
+                <button onclick="switchTab('orders')" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded font-semibold text-sm">📦 Kho Hàng Đã Mua</button>
+                <button onclick="switchTab('deposit')" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded font-semibold text-sm">💳 Nạp Tiền Tự Động</button>
+                <button onclick="switchTab('withdraw')" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded font-semibold text-sm">💸 Rút Tiền</button>
+                <button id="btn-admin" onclick="switchTab('admin')" class="hidden bg-amber-600 hover:bg-amber-500 px-4 py-2 rounded font-semibold text-sm">⚙️ Quản Trị (Admin)</button>
+            </div>
+
+            <!-- TAB 1: CỬA HÀNG -->
+            <div id="tab-shop" class="tab-content grid md:grid-cols-3 gap-6"></div>
+
+            <!-- TAB 2: TÀI KHOẢN ĐÃ MUA -->
+            <div id="tab-orders" class="tab-content hidden bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <h3 class="text-lg font-bold mb-4 text-indigo-400">Danh Sách Tài Khoản AI Đã Mua</h3>
+                <div id="orders-list" class="space-y-3"></div>
+            </div>
+
+            <!-- TAB 3: NẠP TIỀN VIETQR -->
+            <div id="tab-deposit" class="tab-content hidden grid md:grid-cols-2 gap-6">
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <h3 class="text-lg font-bold mb-4 text-emerald-400">Tạo Lệnh Nạp Tiền Ngân Hàng</h3>
+                    <label class="block text-sm mb-1">Số tiền cần nạp (VNĐ):</label>
+                    <input id="dep-amount" type="number" value="50000" class="w-full mb-4 p-3 rounded bg-slate-900 border border-slate-700">
+                    <button onclick="createDeposit()" class="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded font-bold">Lấy Mã QR & Xác Nhận Đã Chuyển</button>
+                    <div id="qr-box" class="mt-4 text-center hidden">
+                        <p class="text-sm text-amber-300 mb-2">Quét mã VietQR bên dưới để chuyển khoản:</p>
+                        <img id="qr-img" class="mx-auto rounded-lg max-w-xs border-4 border-white" src="" alt="VietQR">
+                    </div>
+                </div>
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <h3 class="text-lg font-bold mb-4">Lịch Sử Nạp / Rút Của Bạn</h3>
+                    <div id="tx-list" class="space-y-2 text-sm"></div>
+                </div>
+            </div>
+
+            <!-- TAB 4: RÚT TIỀN -->
+            <div id="tab-withdraw" class="tab-content hidden max-w-lg bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <h3 class="text-lg font-bold mb-4 text-rose-400">Yêu Cầu Rút Tiền Về Ngân Hàng</h3>
+                <input id="wd-amount" type="number" placeholder="Số tiền muốn rút (VD: 100000)" class="w-full mb-3 p-3 rounded bg-slate-900 border border-slate-700">
+                <input id="wd-info" type="text" placeholder="Tên Ngân hàng + Số TK + Tên Chủ TK" class="w-full mb-4 p-3 rounded bg-slate-900 border border-slate-700">
+                <button onclick="createWithdraw()" class="w-full bg-rose-600 hover:bg-rose-500 py-3 rounded font-bold">Gửi Lệnh Rút Tiền</button>
+            </div>
+
+            <!-- TAB 5: QUẢN TRỊ ADMIN -->
+            <div id="tab-admin" class="tab-content hidden grid md:grid-cols-2 gap-6">
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <h3 class="text-lg font-bold mb-3 text-amber-400">1. Nạp Tài Khoản AI Vào Kho</h3>
+                    <select id="adm-prod" class="w-full mb-3 p-3 rounded bg-slate-900 border border-slate-700"></select>
+                    <textarea id="adm-accounts" rows="5" placeholder="Mỗi dòng 1 tài khoản. Ví dụ:&#10;acc1@gmail.com|pass123|cookie_xyz&#10;acc2@gmail.com|pass456|cookie_abc" class="w-full mb-3 p-3 rounded bg-slate-900 border border-slate-700 text-sm font-mono"></textarea>
+                    <button onclick="addStock()" class="w-full bg-amber-600 hover:bg-amber-500 py-3 rounded font-bold">Thêm Vào Kho Hàng</button>
+                </div>
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <h3 class="text-lg font-bold mb-3 text-amber-400">2. Duyệt Lệnh Nạp / Rút Tiền</h3>
+                    <div id="adm-tx-list" class="space-y-3 text-sm max-h-80 overflow-y-auto"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Nút Zalo hỗ trợ -->
+    <a href="https://zalo.me/0982900374" target="_blank" class="fixed bottom-5 right-5 bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-full shadow-lg font-bold flex items-center gap-2">
+        💬 Hỗ trợ Zalo
+    </a>
+
+    <script>
+        // =========================================================
+        // SỬA NGÂN HÀNG VÀ SỐ TÀI KHOẢN CỦA BẠN Ở 2 DÒNG DƯỚI ĐÂY:
+        // =========================================================
+        const BANK_ID = 'VPB';          // Ví dụ: VPB (VPBank), MB (MBBank), VCB (Vietcombank)...
+        const ACCOUNT_NO = '0982900374'; // Điền số tài khoản ngân hàng nhận tiền của bạn vào đây
+
+        let currentUser = JSON.parse(localStorage.getItem('user')) || null;
+
+        async function auth(type) {
+            const username = document.getElementById('inp-user').value;
+            const password = document.getElementById('inp-pass').value;
+            const res = await fetch(`/api/${type}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (!res.ok) return alert(data.error);
+            currentUser = data;
+            localStorage.setItem('user', JSON.stringify(data));
+            initApp();
+        }
+
+        function logout() {
+            localStorage.removeItem('user');
+            location.reload();
+        }
+
+        async function refreshUser() {
+            if (!currentUser) return;
+            const res = await fetch(`/api/user/${currentUser.id}`);
+            currentUser = await res.json();
+            localStorage.setItem('user', JSON.stringify(currentUser));
+            document.getElementById('lbl-username').innerText = currentUser.username;
+            document.getElementById('lbl-balance').innerText = currentUser.balance.toLocaleString();
+            if (currentUser.role === 'admin') {
+                document.getElementById('btn-admin').classList.remove('hidden');
+            }
+        }
+
+        async function loadProducts() {
+            const res = await fetch('/api/products');
+            const products = await res.json();
+            const shopHtml = products.map(p => `
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="text-lg font-bold text-white">${p.name}</h3>
+                            <span class="bg-indigo-600/30 text-indigo-300 text-xs px-2 py-1 rounded">Kho: ${p.stock}</span>
+                        </div>
+                        <p class="text-slate-400 text-sm mb-4">${p.description}</p>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-emerald-400 mb-4">${p.price.toLocaleString()} đ</div>
+                        <button onclick="buyAccount(${p.id})" class="w-full ${p.stock > 0 ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-slate-700 cursor-not-allowed'} py-2.5 rounded font-bold">
+                            ${p.stock > 0 ? 'Mua Ngay' : 'Hết Hàng'}
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('tab-shop').innerHTML = shopHtml;
+            document.getElementById('adm-prod').innerHTML = products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        }
+
+        async function buyAccount(productId) {
+            if (!confirm('Xác nhận mua tài khoản này?')) return;
+            const res = await fetch('/api/buy', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ userId: currentUser.id, productId })
+            });
+            const data = await res.json();
+            if (!res.ok) return alert(data.error);
+            alert(`MUA THÀNH CÔNG!\nThông tin tài khoản của bạn:\n\n${data.account}`);
+            refreshUser();
+            loadProducts();
+            switchTab('orders');
+        }
+
+        async function loadOrders() {
+            const res = await fetch(`/api/orders/${currentUser.id}`);
+            const orders = await res.json();
+            document.getElementById('orders-list').innerHTML = orders.length ? orders.map(o => `
+                <div class="bg-slate-900 p-4 rounded border border-slate-700 flex justify-between items-center gap-2">
+                    <div class="overflow-hidden">
+                        <div class="font-bold text-indigo-300">${o.name} <span class="text-xs text-slate-400">(${o.sold_at})</span></div>
+                        <code class="text-emerald-400 text-sm break-all">${o.account_data}</code>
+                    </div>
+                    <button onclick="navigator.clipboard.writeText('${o.account_data}'); alert('Đã copy!')" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-xs shrink-0">Copy</button>
+                </div>
+            `).join('') : '<p class="text-slate-400">Bạn chưa mua tài khoản nào.</p>';
+        }
+
+        async function createDeposit() {
+            const amount = document.getElementById('dep-amount').value;
+            const memo = `NAPTIEN ${currentUser.username}`;
+            document.getElementById('qr-img').src = `https://img.vietqr.io/image/${BANK_ID}-${ACCOUNT_NO}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(memo)}`;
+            document.getElementById('qr-box').classList.remove('hidden');
+
+            const res = await fetch('/api/transaction', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ userId: currentUser.id, type: 'deposit', amount, info: memo })
+            });
+            const data = await res.json();
+            alert(data.message);
+            loadTransactions();
+        }
+
+        async function createWithdraw() {
+            const amount = document.getElementById('wd-amount').value;
+            const info = document.getElementById('wd-info').value;
+            if (!info) return alert('Vui lòng nhập số tài khoản nhận tiền!');
+            const res = await fetch('/api/transaction', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ userId: currentUser.id, type: 'withdraw', amount, info })
+            });
+            const data = await res.json();
+            if (!res.ok) return alert(data.error);
+            alert(data.message);
+            refreshUser();
+            switchTab('deposit');
+        }
+
+        async function loadTransactions() {
+            const res = await fetch(`/api/transactions/${currentUser.id}`);
+            const txs = await res.json();
+            document.getElementById('tx-list').innerHTML = txs.map(t => `
+                <div class="bg-slate-900 p-3 rounded flex justify-between">
+                    <span><b>${t.type === 'deposit' ? '+ Nạp' : '- Rút'}:</b> ${t.amount.toLocaleString()}đ (${t.info})</span>
+                    <span class="${t.status === 'completed' ? 'text-emerald-400' : 'text-amber-400'}">${t.status === 'completed' ? 'Hoàn thành' : 'Đang chờ'}</span>
+                </div>
+            `).join('');
+        }
+
+        async function addStock() {
+            const productId = document.getElementById('adm-prod').value;
+            const accountsText = document.getElementById('adm-accounts').value;
+            const res = await fetch('/api/admin/add-stock', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ productId, accountsText })
+            });
+            const data = await res.json();
+            alert(data.message);
+            document.getElementById('adm-accounts').value = '';
+            loadProducts();
+        }
+
+        async function loadAdminTx() {
+            const res = await fetch('/api/admin/transactions');
+            const txs = await res.json();
+            document.getElementById('adm-tx-list').innerHTML = txs.map(t => `
+                <div class="bg-slate-900 p-3 rounded border border-slate-700 flex justify-between items-center">
+                    <div>
+                        <div><b>${t.username}</b> yêu cầu <b>${t.type === 'deposit' ? 'NẠP' : 'RÚT'}</b>: <span class="text-emerald-400">${t.amount.toLocaleString()}đ</span></div>
+                        <div class="text-xs text-slate-400">${t.info}</div>
+                    </div>
+                    ${t.status === 'pending' ? `<button onclick="approveTx(${t.id})" class="bg-emerald-600 px-3 py-1 rounded text-xs font-bold">Duyệt</button>` : `<span class="text-xs text-slate-500">Đã duyệt</span>`}
+                </div>
+            `).join('');
+        }
+
+        async function approveTx(txId) {
+            await fetch('/api/admin/approve-tx', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ txId })
+            });
+            refreshUser();
+            loadAdminTx();
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tab}`).classList.remove('hidden');
+            if (tab === 'orders') loadOrders();
+            if (tab === 'deposit') loadTransactions();
+            if (tab === 'admin') loadAdminTx();
+        }
+
+        function initApp() {
+            if (!currentUser) return;
+            document.getElementById('auth-box').classList.add('hidden');
+            document.getElementById('nav-user').classList.remove('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            refreshUser();
+            loadProducts();
+        }
+
+        initApp();
+    </script>
+</body>
+</html>
