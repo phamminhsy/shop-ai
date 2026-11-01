@@ -461,6 +461,36 @@ body { font-family: 'Be Vietnam Pro', sans-serif; background: #f4f6f9; color: #1
           <div><button onclick="saveSiteSettings()" class="w-full bg-purple-600 text-white py-2 rounded-lg font-bold shadow mt-2">Lưu Cài Đặt Giao Diện Ngay</button></div>
         </div>
       </div>
+
+      <!-- BẢNG CẤU HÌNH WEBHOOK TỰ ĐỘNG NẠP TIỀN QUA SHOPEEPAY / SEPAY / CASSO -->
+      <div class="bg-blue-50 border-2 border-blue-300 p-4 rounded-xl space-y-2.5">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-bolt"></i></div>
+          <b class="text-sm text-blue-900">Liên Kết Tự Động Nạp Tiền (ShopeePay / SePay / Casso / Ngân Hàng)</b>
+        </div>
+        <p class="text-slate-600 text-[11px] leading-relaxed">
+          Hệ thống đã tích hợp sẵn các cổng Webhook tiếp nhận thanh toán tự động 24/7. Bạn chỉ cần sao chép liên kết phù hợp bên dưới và dán vào mục <b>Cấu hình Webhook</b> trên trang dịch vụ bạn đã liên kết:
+        </p>
+        <div class="grid sm:grid-cols-2 gap-2 text-xs">
+          <div class="bg-white p-2.5 rounded-lg border space-y-1">
+            <span class="text-slate-500 font-bold block text-[10px]">1. Dành cho SePay (sepay.vn):</span>
+            <div class="flex gap-1 items-center">
+              <input type="text" readonly value="https://shop-ai-t0nw.onrender.com/api/webhook/sepay" class="flex-1 p-1 bg-slate-50 border rounded font-mono text-[10px] select-all">
+              <button onclick="copyText('https://shop-ai-t0nw.onrender.com/api/webhook/sepay', 'Đã copy link Webhook SePay!')" class="bg-blue-600 text-white px-2 py-1 rounded text-[10px] font-bold">Copy</button>
+            </div>
+          </div>
+          <div class="bg-white p-2.5 rounded-lg border space-y-1">
+            <span class="text-slate-500 font-bold block text-[10px]">2. Dành cho ShopeePay / Web2M / Ví điện tử:</span>
+            <div class="flex gap-1 items-center">
+              <input type="text" readonly value="https://shop-ai-t0nw.onrender.com/api/webhook/shopeepay" class="flex-1 p-1 bg-slate-50 border rounded font-mono text-[10px] select-all">
+              <button onclick="copyText('https://shop-ai-t0nw.onrender.com/api/webhook/shopeepay', 'Đã copy link Webhook ShopeePay!')" class="bg-emerald-600 text-white px-2 py-1 rounded text-[10px] font-bold">Copy</button>
+            </div>
+          </div>
+        </div>
+        <div class="text-[10px] text-slate-500 italic">
+          * Ngay khi khách hàng quét mã QR chuyển khoản có chứa mã nạp (ví dụ <b>NAP1023</b>), cổng thanh toán sẽ tự động bắn tín hiệu đến link Webhook này. Website sẽ tự động phát chuông ting-ting và cộng tiền ngay trong 1-2 giây mà bạn không cần phải duyệt thủ công!
+        </div>
+      </div>
     </div>
   </div>
 </main>
@@ -1189,9 +1219,16 @@ function startDepositTimer(txId) {
   checkInterval = setInterval(async () => {
     try {
       const res = await fetch(`/api/deposit/check/${txId}`); const d = await res.json();
-      if (d.status === 'completed') { clearInterval(checkInterval); clearInterval(timerInterval); document.getElementById('qr-box').classList.add('hidden'); notify(`🎉 NẠP THÀNH CÔNG +${d.amount.toLocaleString()}đ!`); refreshUser(); loadTransactions(); }
+      if (d.status === 'completed') {
+        clearInterval(checkInterval); clearInterval(timerInterval);
+        document.getElementById('qr-box').classList.add('hidden');
+        playSuccessChime();
+        notify(`🎉 NẠP TIỀN THÀNH CÔNG! Đã tự động cộng +${d.amount.toLocaleString()}đ vào ví.`);
+        alert(`🎉 CHÚC MỪNG! Giao dịch chuyển khoản của bạn đã được hệ thống tự động xác nhận thành công!\n\nSố tiền nạp: +${d.amount.toLocaleString()}đ\nSố dư ví đã được cộng tự động tức thì.`);
+        refreshUser(); loadTransactions();
+      }
     } catch (e) {}
-  }, 3000);
+  }, 2500);
 }
 async function loadTransactions() {
   if (!currentUser) return;
@@ -1649,7 +1686,22 @@ async function loadAdminTx() {
 }
 async function handleAdminTx(txId, action) { try { await fetch('/api/admin/approve-tx', { method: 'POST', headers: adminHeaders(), body: JSON.stringify({ txId, action }) }); notify('Đã cập nhật!'); refreshUser(); loadAdminTx(); loadAdminDashboard(); } catch (e) {} }
 
-// THÔNG BÁO HOẠT ĐỘNG MUA HÀNG THỜI GIAN THỰC (LIVE TICKER)
+// ÂM THANH TING-TING KHI NẠP TIỀN THÀNH CÔNG (WEB AUDIO API)
+function playSuccessChime() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+    osc.start(); osc.stop(ctx.currentTime + 0.6);
+  } catch(e) {}
+}
+
+// THÔNG BÁO MUA HÀNG THỜI GIAN THỰC (TẦN SUẤT 25-50S TỰ NHIÊN NHƯ NGƯỜI THẬT)
 let liveTickerIndex = 0;
 let liveOrders = [];
 async function startLiveOrderTicker() {
@@ -1659,17 +1711,27 @@ async function startLiveOrderTicker() {
   } catch (e) {}
   if (!liveOrders.length) return;
 
-  setInterval(() => {
-    if (!liveOrders.length) return;
-    const item = liveOrders[liveTickerIndex % liveOrders.length];
-    liveTickerIndex++;
-    document.getElementById('live-user').innerText = item.masked_user || 'Khách';
-    document.getElementById('live-prod').innerText = `${item.quantity || 1}x ${item.product_name}`;
-    document.getElementById('live-time').innerText = item.time_ago || 'Vừa xong';
-    const box = document.getElementById('live-order-box');
-    box.classList.remove('hidden');
-    setTimeout(() => { box.classList.add('hidden'); }, 4000);
-  }, 10000);
+  function scheduleNextTicker() {
+    // Thời gian chờ ngẫu nhiên từ 25 giây đến 50 giây giống người thật mua
+    const randomDelay = Math.floor(25000 + Math.random() * 25000);
+    setTimeout(() => {
+      if (!liveOrders.length) return scheduleNextTicker();
+      const item = liveOrders[liveTickerIndex % liveOrders.length];
+      liveTickerIndex++;
+      document.getElementById('live-user').innerText = item.masked_user || 'Khách';
+      document.getElementById('live-prod').innerText = `${item.quantity || 1}x ${item.product_name}`;
+      document.getElementById('live-time').innerText = item.time_ago || 'Vừa xong';
+      const box = document.getElementById('live-order-box');
+      box.classList.remove('hidden');
+      setTimeout(() => {
+        box.classList.add('hidden');
+        scheduleNextTicker();
+      }, 4500);
+    }, randomDelay);
+  }
+
+  // Khởi động lượt đầu sau 8 giây
+  setTimeout(scheduleNextTicker, 8000);
 }
 
 function switchTab(tab) {
