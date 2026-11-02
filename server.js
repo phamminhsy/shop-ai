@@ -97,7 +97,9 @@ db.serialize(() => {
         ['bank_name', 'MB BANK (Quân Đội)'],
         ['bank_account', '5428102008'],
         ['bank_owner', 'JERRY SHOP'],
-        ['min_deposit', '20000']
+        ['min_deposit', '20000'],
+        ['maintenance_mode', '0'],
+        ['maintenance_message', 'Hệ thống đang tạm bảo trì để nâng cấp và cập nhật dữ liệu. Quý khách vui lòng quay lại sau ít phút!']
     ];
     const sStmt = db.prepare(`INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`);
     defaultSettings.forEach(s => sStmt.run(s[0], s[1]));
@@ -191,7 +193,23 @@ app.post('/api/admin/settings', verifyAdmin, (req, res) => {
     db.serialize(() => {
         const stmt = db.prepare(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`);
         Object.entries(settings).forEach(([k, v]) => stmt.run(k, String(v)));
-        stmt.finalize(() => res.json({ message: 'Đã lưu cài đặt giao diện & tên miền thành công!' }));
+        stmt.finalize(() => res.json({ message: 'Đã lưu cài đặt hệ thống thành công!' }));
+    });
+});
+
+app.post('/api/admin/maintenance', verifyAdmin, (req, res) => {
+    const { enabled, message } = req.body;
+    const modeVal = enabled ? '1' : '0';
+    db.serialize(() => {
+        db.run(`INSERT INTO settings (key, value) VALUES ('maintenance_mode', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, [modeVal]);
+        if (message !== undefined) {
+            db.run(`INSERT INTO settings (key, value) VALUES ('maintenance_message', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, [String(message)]);
+        }
+        res.json({
+            success: true,
+            maintenance_mode: modeVal,
+            message: enabled ? 'Đã BẬT chế độ bảo trì web (Chỉ Admin mới truy cập được)!' : 'Đã TẮT chế độ bảo trì, trang web hoạt động bình thường!'
+        });
     });
 });
 
@@ -316,6 +334,10 @@ app.post('/api/buy', (req, res) => {
 
     db.get(`SELECT * FROM users WHERE id = ?`, [userId], (err, user) => {
         if (!user) return res.status(404).json({ error: 'Không tìm thấy tài khoản!' });
+        db.get(`SELECT value FROM settings WHERE key = 'maintenance_mode'`, (mErr, mRow) => {
+            if (mRow && mRow.value === '1' && user.role !== 'admin') {
+                return res.status(503).json({ error: 'Trang web hiện đang tạm bảo trì để nâng cấp. Vui lòng quay lại sau ít phút!' });
+            }
 
         db.get(`SELECT p.name as product_name, p.warranty as product_warranty, p.guide as product_guide, pv.name as variant_name, pv.price 
                 FROM product_variants pv 
@@ -378,6 +400,7 @@ app.post('/api/buy', (req, res) => {
                     );
                 });
             });
+        });
         });
     });
 });
