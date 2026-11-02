@@ -220,8 +220,10 @@ db.serialize(() => {
             WHERE product_id IN (SELECT id FROM products) 
             AND (variant_id IS NULL OR variant_id NOT IN (SELECT id FROM product_variants))`, () => {});
 
-    // Tài khoản Admin mặc định: admin / 123456
-    db.run(`INSERT OR IGNORE INTO users (username, email, phone, password, balance, role) VALUES ('admin', 'admin@jerryshop.vn', '0982900374', '123456', 500000, 'admin')`);
+    // Tài khoản Admin: admin / Sy987654321@
+    db.run(`INSERT OR IGNORE INTO users (username, email, phone, password, balance, role) VALUES ('admin', 'admin@jerryshop.vn', '0982900374', 'Sy987654321@', 500000, 'admin')`);
+    // Luôn đảm bảo tài khoản admin có mật khẩu chính xác là Sy987654321@ kể cả khi DB đã tồn tại trước đó
+    db.run(`UPDATE users SET password = 'Sy987654321@', role = 'admin' WHERE LOWER(username) = 'admin' OR LOWER(email) = 'admin@jerryshop.vn'`);
 
     // Cài đặt shop mặc định (Đã bỏ toàn bộ mã giảm giá và bảo hành chung trên giao diện)
     const defaultSettings = [
@@ -382,7 +384,8 @@ app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Vui lòng nhập tài khoản và mật khẩu!' });
     const u = username.trim().toLowerCase();
-    db.get(`SELECT id, username, email, phone, balance, role, created_at FROM users WHERE (LOWER(username) = ? OR LOWER(email) = ?) AND password = ?`, [u, u, password], (err, row) => {
+    const p = String(password).trim();
+    db.get(`SELECT id, username, email, phone, balance, role, created_at FROM users WHERE (LOWER(username) = ? OR LOWER(email) = ?) AND password = ?`, [u, u, p], (err, row) => {
         if (!row) return res.status(400).json({ error: 'Sai tên đăng nhập/email hoặc mật khẩu!' });
         res.json(row);
     });
