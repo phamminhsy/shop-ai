@@ -734,6 +734,17 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
         <button onclick="saveSiteSettings()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-bold shadow text-xs">Lưu Cài Đặt</button>
       </div>
 
+      <!-- TRẠNG THÁI KẾT NỐI TURSO CLOUD (BẢO TOÀN DỮ LIỆU VĨNH VIỄN) -->
+      <div class="bg-blue-50/90 border-2 border-blue-300 p-3.5 rounded-xl flex flex-wrap justify-between items-center gap-2">
+        <div class="space-y-0.5">
+          <b class="text-blue-900 text-xs sm:text-sm flex items-center gap-1.5"><i class="fa-solid fa-cloud text-blue-600"></i> Cơ Sở Dữ Liệu Turso Cloud (shop-ai-db):</b>
+          <p id="lbl-turso-status-text" class="text-[11px] text-slate-600">Đang kiểm tra kết nối với Turso Cloud...</p>
+        </div>
+        <span id="badge-turso-status" class="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+          Đang kiểm tra...
+        </span>
+      </div>
+
       <div class="grid md:grid-cols-2 gap-4">
         <div class="bg-slate-50 p-3.5 rounded-xl border space-y-2.5">
           <b class="text-blue-900 block border-b pb-1">1. Thông Tin Shop & Logo</b>
@@ -2705,6 +2716,25 @@ async function loadAdminDashboard() {
 
       // Render bảng tách riêng số lượng acc đã bán theo từng sản phẩm & gói
       if (st.soldBreakdown) renderSoldBreakdown(st.soldBreakdown);
+    }
+  } catch (e) {}
+  try {
+    const dbRes = await fetch('/api/admin/db-status', { headers: adminHeaders() });
+    if (dbRes.ok) {
+      const d = await dbRes.json();
+      const badge = document.getElementById('badge-turso-status');
+      const desc = document.getElementById('lbl-turso-status-text');
+      if (badge && desc) {
+        if (d.isUsingTurso) {
+          badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300';
+          badge.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i>Đã Kết Nối Turso Cloud';
+          desc.innerHTML = `Đang lưu trên: <b class="text-blue-700 font-mono">${escapeHtml(d.databaseUrl)}</b>. Mọi tài khoản admin, khách hàng, số dư và đơn hàng được lưu vĩnh viễn trên đám mây, <b>không bao giờ bị mất khi sửa code trên GitHub!</b>`;
+        } else {
+          badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300';
+          badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-600 mr-1"></i>Đang Dùng CSDL Tạm (Local)';
+          desc.innerHTML = `Chưa gắn <b>TURSO_AUTH_TOKEN</b>. Dữ liệu sẽ bị reset khi Render deploy code mới từ GitHub. Hãy thêm biến <b>TURSO_AUTH_TOKEN</b> trên Render để kích hoạt Turso vĩnh viễn!`;
+        }
+      }
     }
   } catch (e) {}
   await loadProducts();
