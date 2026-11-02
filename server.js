@@ -56,15 +56,34 @@ db.serialize(() => {
     )`);
     db.run(`ALTER TABLE orders ADD COLUMN warranty TEXT`, () => {});
 
-    // 6. Kho hàng
+    // 6. Kho hàng (Có batch_code, batch_time, created_at để phân tách rõ từng lần nạp: ngày, giờ, phút)
     db.run(`CREATE TABLE IF NOT EXISTS inventory (
         id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER, variant_id INTEGER,
         variant_name TEXT, account_data TEXT, is_sold INTEGER DEFAULT 0,
-        order_id INTEGER, buyer_id INTEGER, sold_at DATETIME
+        order_id INTEGER, buyer_id INTEGER, sold_at DATETIME,
+        batch_code TEXT, batch_time TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
     db.run(`ALTER TABLE inventory ADD COLUMN order_id INTEGER`, () => {});
     db.run(`ALTER TABLE inventory ADD COLUMN buyer_id INTEGER`, () => {});
     db.run(`ALTER TABLE inventory ADD COLUMN sold_at DATETIME`, () => {});
+    db.run(`ALTER TABLE inventory ADD COLUMN batch_code TEXT`, () => {});
+    db.run(`ALTER TABLE inventory ADD COLUMN batch_time TEXT`, () => {});
+    db.run(`ALTER TABLE inventory ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`, () => {});
+
+    // Quản lý lần nạp kho (Batch)
+    db.run(`CREATE TABLE IF NOT EXISTS stock_batches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        batch_code TEXT UNIQUE,
+        batch_time TEXT,
+        product_id INTEGER,
+        variant_id INTEGER,
+        variant_name TEXT,
+        account_count INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    // Gán mã đợt ban đầu cho các acc cũ chưa có đợt
+    db.run(`UPDATE inventory SET batch_code = 'DOT-BAN-DAU', batch_time = 'Ban đầu' WHERE batch_code IS NULL OR batch_code = ''`, () => {});
 
     // 7. Giao dịch nạp tiền (Có expires_at để tự động hủy và xóa mã nạp sau 10 phút)
     db.run(`CREATE TABLE IF NOT EXISTS transactions (
@@ -564,7 +583,26 @@ app.get('/api/admin/stats', verifyAdmin, (req, res) => {
                         s.totalStock = r4 ? r4.totalStock : 0;
                         db.get(`SELECT COUNT(*) as pendingTx FROM transactions WHERE status = 'pending'`, (e5, r5) => {
                             s.pendingTx = r5 ? r5.pendingTx : 0;
-                            res.json(s);
+
+                            // TÁCH RIÊNG SỐ ACC ĐÃ BÁN THEO TỪNG SẢN PHẨM & TỪNG GÓI TÙY CHỌN (GÓI 1 TỶ, GÓI 31 TỶ...)
+                            const breakdownSql = `
+                                SELECT 
+                                    p.id as product_id, p.name as product_name, p.image as product_image,
+                                    pv.id as variant_id, pv.name as variant_name, pv.price as variant_price,
+                                    COUNT(CASE WHEN i.is_sold = 1 THEN 1 END) as sold_count,
+                                    COUNT(CASE WHEN i.is_sold = 0 THEN 1 END) as stock_count,
+                                    COUNT(i.id) as total_count,
+                                    COALESCE(SUM(CASE WHEN i.is_sold = 1 THEN pv.price ELSE 0 END), 0) as sold_revenue
+                                FROM products p
+                                JOIN product_variants pv ON pv.product_id = p.id
+                                LEFT JOIN inventory i ON i.product_id = p.id AND i.variant_id = pv.id
+                                GROUP BY p.id, pv.id
+                                ORDER BY p.id ASC, pv.id ASC
+                            `;
+                            db.all(breakdownSql, [], (e6, bRows) => {
+                                s.soldBreakdown = bRows || [];
+                                res.json(s);
+                            });
                         });
                     });
                 });
@@ -609,15 +647,20 @@ app.get('/api/admin/cashflow', verifyAdmin, (req, res) => {
 
 // LỊCH SỬ BÁN HÀNG DÀNH CHO ADMIN
 app.get('/api/admin/sales-orders', verifyAdmin, (req, res) => {
-    const sql = `
+    const { productId, variantId } = req.query;
+    let sql = `
         SELECT o.*, COALESCE(NULLIF(o.warranty, ''), p.warranty, '') as product_warranty,
                u.username as buyer_username, u.email as buyer_email, u.phone as buyer_phone
         FROM orders o 
         LEFT JOIN products p ON o.product_id = p.id
         LEFT JOIN users u ON o.user_id = u.id 
-        ORDER BY o.id DESC LIMIT 300
+        WHERE 1=1
     `;
-    db.all(sql, [], (err, orders) => {
+    const params = [];
+    if (productId) { sql += ` AND o.product_id = ?`; params.push(productId); }
+    if (variantId) { sql += ` AND o.variant_id = ?`; params.push(variantId); }
+    sql += ` ORDER BY o.id DESC LIMIT 300`;
+    db.all(sql, params, (err, orders) => {
         if (!orders || !orders.length) return res.json([]);
         const orderIds = orders.map(o => o.id);
         const placeholders = orderIds.map(() => '?').join(',');
@@ -730,50 +773,75 @@ app.delete('/api/admin/products/:id', verifyAdmin, (req, res) => {
     });
 });
 
-// NẠP KHO CHỐNG TRÙNG ACC
+// NẠP KHO CHỐNG TRÙNG ACC & TÁCH RIÊNG THEO LẦN NẠP (MẤY GIỜ, MẤY PHÚT, NGÀY NẠP)
 app.post('/api/admin/add-stock', verifyAdmin, (req, res) => {
     const { productId, variantId, accountsText } = req.body;
     if (!productId || !variantId || !accountsText || !accountsText.trim()) {
-        return res.status(400).json({ error: 'Vui lòng chọn tùy chọn và dán danh sách tài khoản!' });
+        return res.status(400).json({ error: 'Vui lòng chọn sản phẩm, tùy chọn gói và dán danh sách tài khoản!' });
     }
 
-    db.get(`SELECT * FROM product_variants WHERE id = ? AND product_id = ?`, [variantId, productId], (vErr, variant) => {
-        if (!variant) return res.status(400).json({ error: 'Tùy chọn không tồn tại!' });
+    db.get(`SELECT pv.*, p.name as product_name FROM product_variants pv JOIN products p ON pv.product_id = p.id WHERE pv.id = ? AND pv.product_id = ?`, [variantId, productId], (vErr, variant) => {
+        if (!variant) return res.status(400).json({ error: 'Tùy chọn gói sản phẩm không tồn tại!' });
 
         const rawLines = accountsText.split('\n').map(l => l.trim()).filter(Boolean);
-        if (!rawLines.length) return res.status(400).json({ error: 'Danh sách dán vào trống!' });
+        if (!rawLines.length) return res.status(400).json({ error: 'Danh sách tài khoản dán vào trống!' });
 
+        // 1. Lọc trùng nội bộ trong danh sách vừa dán vào
         const uniqueSet = new Set();
         const uniqueLines = [];
-        rawLines.forEach(l => { if (!uniqueSet.has(l)) { uniqueSet.add(l); uniqueLines.push(l); } });
+        rawLines.forEach(l => {
+            if (!uniqueSet.has(l)) {
+                uniqueSet.add(l);
+                uniqueLines.push(l);
+            }
+        });
 
-        db.all(`SELECT account_data FROM inventory WHERE product_id = ?`, [productId], (dbErr, existingItems) => {
-            const dbSet = new Set((existingItems || []).map(i => i.account_data));
+        // 2. Lọc trùng với database: Kiểm tra tất cả tài khoản đã tồn tại trong gói tùy chọn này của sản phẩm (kể cả chưa bán lẫn đã bán)
+        db.all(`SELECT account_data FROM inventory WHERE product_id = ? AND variant_id = ?`, [productId, variantId], (dbErr, existingItems) => {
+            const dbSet = new Set((existingItems || []).map(i => (i.account_data || '').trim()));
             const toInsert = uniqueLines.filter(l => !dbSet.has(l));
 
             if (!toInsert.length) {
-                return res.status(400).json({ error: `Tất cả ${rawLines.length} acc dán vào đều đã tồn tại trong kho hoặc bị trùng lặp! Không có acc mới nào được thêm.` });
+                return res.status(400).json({
+                    error: `Tất cả ${rawLines.length} tài khoản vừa nhập đều ĐÃ TỒN TẠI trong gói [${variant.name}] hoặc bị trùng lặp! Không có tài khoản mới nào được thêm.`
+                });
             }
 
-            const stmt = db.prepare(`INSERT INTO inventory (product_id, variant_id, variant_name, account_data, is_sold) VALUES (?, ?, ?, ?, 0)`);
-            toInsert.forEach(acc => stmt.run(productId, variantId, variant.name, acc));
-            stmt.finalize(() => {
-                const totalDup = rawLines.length - toInsert.length;
-                res.json({
-                    success: true,
-                    message: `Đã nạp thành công ${toInsert.length} tài khoản mới vào kho! (Đã tự động loại bỏ ${totalDup} tài khoản bị trùng lặp).`,
-                    addedCount: toInsert.length, duplicateCount: totalDup
+            // Tạo thông tin LẦN NẠP chuẩn xác: mấy giờ, mấy phút, ngày nạp
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} - ${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+            const dateCode = `${pad(now.getFullYear()).slice(-2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+            const batchCode = `DOT-${dateCode}-${Math.floor(100 + Math.random() * 900)}`;
+
+            db.serialize(() => {
+                db.run(`INSERT OR IGNORE INTO stock_batches (batch_code, batch_time, product_id, variant_id, variant_name, account_count) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [batchCode, timeStr, productId, variantId, variant.name, toInsert.length]);
+
+                const stmt = db.prepare(`INSERT INTO inventory (product_id, variant_id, variant_name, account_data, is_sold, batch_code, batch_time, created_at) VALUES (?, ?, ?, ?, 0, ?, ?, CURRENT_TIMESTAMP)`);
+                toInsert.forEach(acc => stmt.run(productId, variantId, variant.name, acc, batchCode, timeStr));
+                stmt.finalize(() => {
+                    const totalDup = rawLines.length - toInsert.length;
+                    res.json({
+                        success: true,
+                        message: `Đã nạp thành công ${toInsert.length} tài khoản mới vào Lần nạp [${timeStr}]! (Đã tự động loại bỏ ${totalDup} tài khoản bị trùng lặp).`,
+                        batchCode,
+                        batchTime: timeStr,
+                        addedCount: toInsert.length,
+                        duplicateCount: totalDup
+                    });
                 });
             });
         });
     });
 });
 
-// LẤY DANH SÁCH KHO TÀI KHOẢN
+// LẤY DANH SÁCH KHO TÀI KHOẢN (CÓ THÔNG TIN PHÂN THEO SẢN PHẨM, GÓI VÀ LẦN NẠP)
 app.get('/api/admin/inventory', verifyAdmin, (req, res) => {
-    const { productId, variantId, status, search } = req.query;
+    const { productId, variantId, batchCode, status, search } = req.query;
     let sql = `
-        SELECT i.*, p.name as product_name, u.username as buyer_name, u.email as buyer_email, o.order_code
+        SELECT i.*, p.name as product_name, p.image as product_image,
+               u.username as buyer_name, u.email as buyer_email, o.order_code
         FROM inventory i 
         LEFT JOIN products p ON i.product_id = p.id 
         LEFT JOIN users u ON i.buyer_id = u.id 
@@ -783,28 +851,56 @@ app.get('/api/admin/inventory', verifyAdmin, (req, res) => {
     const params = [];
     if (productId) { sql += ` AND i.product_id = ?`; params.push(productId); }
     if (variantId) { sql += ` AND i.variant_id = ?`; params.push(variantId); }
+    if (batchCode) { sql += ` AND i.batch_code = ?`; params.push(batchCode); }
     if (status === 'unsold') { sql += ` AND i.is_sold = 0`; }
     else if (status === 'sold') { sql += ` AND i.is_sold = 1`; }
     if (search && search.trim()) {
-        sql += ` AND (i.account_data LIKE ? OR o.order_code LIKE ? OR u.username LIKE ?)`;
+        sql += ` AND (i.account_data LIKE ? OR o.order_code LIKE ? OR u.username LIKE ? OR i.batch_code LIKE ? OR i.batch_time LIKE ?)`;
         const s = `%${search.trim()}%`;
-        params.push(s, s, s);
+        params.push(s, s, s, s, s);
     }
-    sql += ` ORDER BY i.is_sold ASC, i.id DESC LIMIT 600`;
+    sql += ` ORDER BY i.id DESC LIMIT 1500`;
     
     db.all(sql, params, (err, rows) => {
-        db.get(`SELECT 
+        let countSql = `SELECT 
                     COUNT(*) as total, 
                     SUM(CASE WHEN is_sold = 0 THEN 1 ELSE 0 END) as unsold,
                     SUM(CASE WHEN is_sold = 1 THEN 1 ELSE 0 END) as sold 
-                FROM inventory ${productId ? 'WHERE product_id = ' + parseInt(productId) : ''}`, [], (cErr, counts) => {
+                FROM inventory WHERE 1=1`;
+        const countParams = [];
+        if (productId) { countSql += ` AND product_id = ?`; countParams.push(parseInt(productId)); }
+        if (variantId) { countSql += ` AND variant_id = ?`; countParams.push(parseInt(variantId)); }
+
+        db.get(countSql, countParams, (cErr, counts) => {
             res.json({
                 items: rows || [],
                 counts: {
-                    total: counts ? counts.total : 0,
-                    unsold: counts ? counts.unsold : 0,
-                    sold: counts ? counts.sold : 0
+                    total: counts ? (counts.total || 0) : 0,
+                    unsold: counts ? (counts.unsold || 0) : 0,
+                    sold: counts ? (counts.sold || 0) : 0
                 }
+            });
+        });
+    });
+});
+
+// XÓA MỘT LẦN NẠP KHO (BATCH)
+app.delete('/api/admin/inventory/batch/:batchCode', verifyAdmin, (req, res) => {
+    const { batchCode } = req.params;
+    if (!batchCode) return res.status(400).json({ error: 'Thiếu mã lần nạp!' });
+    db.serialize(() => {
+        // Chỉ xóa tài khoản chưa bán trong lần nạp này để bảo toàn lịch sử đơn hàng
+        db.run(`DELETE FROM inventory WHERE batch_code = ? AND is_sold = 0`, [batchCode], function(err) {
+            const deletedCount = this.changes || 0;
+            db.get(`SELECT COUNT(*) as remaining FROM inventory WHERE batch_code = ?`, [batchCode], (err2, row) => {
+                const remaining = row ? row.remaining : 0;
+                if (remaining === 0) {
+                    db.run(`DELETE FROM stock_batches WHERE batch_code = ?`, [batchCode], () => {});
+                }
+                res.json({
+                    success: true,
+                    message: `Đã xóa ${deletedCount} tài khoản chưa bán trong lần nạp [${batchCode}]!${remaining > 0 ? ` (Giữ lại ${remaining} tài khoản đã bán để bảo vệ đơn hàng của khách).` : ''}`
+                });
             });
         });
     });
@@ -825,13 +921,15 @@ app.post('/api/admin/inventory/delete-bulk', verifyAdmin, (req, res) => {
 });
 
 app.get('/api/admin/export-stock', verifyAdmin, (req, res) => {
-    const { productId, status } = req.query;
+    const { productId, variantId, batchCode, status } = req.query;
     let sql = `SELECT account_data FROM inventory WHERE 1=1`;
     const params = [];
     if (status === 'sold') sql += ` AND is_sold = 1`;
     else if (status === 'all') {}
     else sql += ` AND is_sold = 0`;
     if (productId) { sql += ` AND product_id = ?`; params.push(productId); }
+    if (variantId) { sql += ` AND variant_id = ?`; params.push(variantId); }
+    if (batchCode) { sql += ` AND batch_code = ?`; params.push(batchCode); }
     db.all(sql, params, (err, rows) => res.type('text/plain').send((rows || []).map(r => r.account_data).join('\n')));
 });
 
