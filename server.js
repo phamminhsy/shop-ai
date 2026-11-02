@@ -385,6 +385,8 @@ app.post('/api/login', (req, res) => {
     if (!username || !password) return res.status(400).json({ error: 'Vui lòng nhập tài khoản và mật khẩu!' });
     const u = username.trim().toLowerCase();
     const p = String(password).trim();
+
+    // Xác thực bảo mật trực tiếp từ Cơ sở dữ liệu (Database)
     db.get(`SELECT id, username, email, phone, balance, role, created_at FROM users WHERE (LOWER(username) = ? OR LOWER(email) = ?) AND password = ?`, [u, u, p], (err, row) => {
         if (!row) return res.status(400).json({ error: 'Sai tên đăng nhập/email hoặc mật khẩu!' });
         res.json(row);
