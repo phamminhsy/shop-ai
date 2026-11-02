@@ -264,7 +264,12 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
           <label class="font-bold text-slate-700">MẬT KHẨU *</label>
           <a href="javascript:void(0)" onclick="switchAuthMode('forgot')" class="text-blue-600 font-bold hover:underline text-[11px]">Quên mật khẩu?</a>
         </div>
-        <input id="inp-login-pass" type="password" placeholder="Nhập mật khẩu..." onkeydown="if(event.key==='Enter') submitLogin()" class="w-full p-2.5 bg-slate-50 border rounded-xl focus:outline-none focus:border-blue-600 text-slate-800">
+        <div class="relative">
+          <input id="inp-login-pass" type="password" placeholder="Nhập mật khẩu của bạn..." onkeydown="if(event.key==='Enter') submitLogin()" class="w-full p-2.5 pr-10 bg-slate-50 border rounded-xl focus:outline-none focus:border-blue-600 text-slate-800 font-semibold">
+          <button type="button" onclick="togglePasswordVisibility('inp-login-pass', this)" class="absolute right-3 top-2.5 text-slate-400 hover:text-blue-600 text-sm focus:outline-none" title="Bấm để Hiện / Ẩn mật khẩu">
+            <i class="fa-regular fa-eye"></i>
+          </button>
+        </div>
       </div>
       <button onclick="submitLogin()" class="w-full blue-header text-white py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow">ĐĂNG NHẬP NGAY</button>
       <p class="text-center text-[11px] text-slate-500 pt-1">Chưa có tài khoản? <a href="javascript:void(0)" onclick="switchAuthMode('register')" class="text-blue-600 font-bold hover:underline">Đăng ký thành viên mới tại đây</a></p>
@@ -287,11 +292,21 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
           <label class="font-bold text-slate-700 block mb-1">MẬT KHẨU *</label>
-          <input id="inp-reg-pass" type="password" placeholder="Tối thiểu 4 ký tự..." class="w-full p-2.5 bg-slate-50 border rounded-xl focus:outline-none focus:border-blue-600 text-slate-800">
+          <div class="relative">
+            <input id="inp-reg-pass" type="password" placeholder="Tối thiểu 4 ký tự..." class="w-full p-2.5 pr-10 bg-slate-50 border rounded-xl focus:outline-none focus:border-blue-600 text-slate-800">
+            <button type="button" onclick="togglePasswordVisibility('inp-reg-pass', this)" class="absolute right-3 top-2.5 text-slate-400 hover:text-blue-600 text-sm focus:outline-none" title="Bấm để Hiện / Ẩn mật khẩu">
+              <i class="fa-regular fa-eye"></i>
+            </button>
+          </div>
         </div>
         <div>
           <label class="font-bold text-slate-700 block mb-1">NHẬP LẠI MẬT KHẨU *</label>
-          <input id="inp-reg-pass2" type="password" placeholder="Nhập lại mật khẩu..." onkeydown="if(event.key==='Enter') submitRegister()" class="w-full p-2.5 bg-slate-50 border rounded-xl focus:outline-none focus:border-blue-600 text-slate-800">
+          <div class="relative">
+            <input id="inp-reg-pass2" type="password" placeholder="Nhập lại mật khẩu..." onkeydown="if(event.key==='Enter') submitRegister()" class="w-full p-2.5 pr-10 bg-slate-50 border rounded-xl focus:outline-none focus:border-blue-600 text-slate-800">
+            <button type="button" onclick="togglePasswordVisibility('inp-reg-pass2', this)" class="absolute right-3 top-2.5 text-slate-400 hover:text-blue-600 text-sm focus:outline-none" title="Bấm để Hiện / Ẩn mật khẩu">
+              <i class="fa-regular fa-eye"></i>
+            </button>
+          </div>
         </div>
       </div>
       <button onclick="submitRegister()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow">TẠO TÀI KHOẢN MỚI</button>
@@ -1536,29 +1551,44 @@ function switchAuthMode(mode) {
   }
 }
 
+// HÀM HIỆN / ẨN MẬT KHẨU
+function togglePasswordVisibility(inputId, btnEl) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  const isPass = el.type === 'password';
+  el.type = isPass ? 'text' : 'password';
+  if (btnEl) {
+    const icon = btnEl.querySelector('i');
+    if (icon) {
+      if (isPass) {
+        icon.className = 'fa-regular fa-eye-slash text-blue-600 font-bold';
+      } else {
+        icon.className = 'fa-regular fa-eye text-slate-400';
+      }
+    }
+  }
+}
+
 async function submitLogin() {
-  const username = document.getElementById('inp-login-user').value.trim(), password = document.getElementById('inp-login-pass').value.trim();
+  const username = document.getElementById('inp-login-user').value.trim();
+  const password = document.getElementById('inp-login-pass').value.trim();
   if (!username || !password) return notify('Vui lòng nhập tên đăng nhập/email và mật khẩu!', true);
   try {
-    const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+    const res = await fetch('/api/login', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify({ username, password }) 
+    });
     const d = await res.json();
-    if (!res.ok) return notify(d.error || 'Sai thông tin đăng nhập!', true);
+    if (!res.ok) return notify(d.error || 'Sai tên đăng nhập hoặc mật khẩu!', true);
+    
     currentUser = d;
     safeSetStorage('jerry_user', d);
-    notify('Đăng nhập thành công!');
+    notify(d.role === 'admin' ? 'Đăng nhập Quản trị viên (Admin) thành công!' : 'Đăng nhập thành công!');
     updateUserState();
     goHome();
   } catch (e) {
-    // Fallback cho chế độ xem thử trực tiếp
-    if (username.toLowerCase() === 'admin' && (password === 'Sy987654321@' || password === '123456')) {
-      currentUser = { id: 1, username: 'admin', email: 'admin@jerryshop.vn', phone: '0982900374', balance: 500000, role: 'admin' };
-    } else {
-      currentUser = { id: 2, username: username, email: username.includes('@') ? username : `${username}@gmail.com`, phone: '0982900374', balance: 150000, role: 'user' };
-    }
-    safeSetStorage('jerry_user', currentUser);
-    notify('Đăng nhập thành công!');
-    updateUserState();
-    goHome();
+    notify('Không thể kết nối đến máy chủ! Vui lòng thử lại.', true);
   }
 }
 
@@ -3642,8 +3672,8 @@ async function loadAdminCashFlow() {
 
 // 6 & 7. KHÁCH HÀNG (TÌM KIẾM THÔNG TIN KHÁCH & ĐỔI MẬT KHẨU CHO KHÁCH) & ĐƠN NẠP
 let cachedAdminUsers = [
-  { id: 1, username: 'admin', email: 'admin@jerryshop.vn', phone: '0982900374', password: 'Sy987654321@', balance: 500000, role: 'admin', orders_count: 2 },
-  { id: 2, username: 'nguyenvana', email: 'nguyenvana@gmail.com', phone: '0912345678', password: '123456', balance: 120000, role: 'user', orders_count: 1 }
+  { id: 1, username: 'admin', email: 'admin@jerryshop.vn', phone: '0982900374', password: '******', balance: 500000, role: 'admin', orders_count: 2 },
+  { id: 2, username: 'nguyenvana', email: 'nguyenvana@gmail.com', phone: '0912345678', password: '******', balance: 120000, role: 'user', orders_count: 1 }
 ];
 
 async function loadAdminUsers() {
