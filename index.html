@@ -460,12 +460,33 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
       <div class="bg-white p-3 rounded-xl border"><span class="text-slate-400 block text-[10px] font-bold">TỔNG ĐƠN ĐÃ BÁN</span><b id="stat-orders" class="text-sm sm:text-base font-black text-slate-800">0</b></div>
       <div class="bg-white p-3 rounded-xl border"><span class="text-slate-400 block text-[10px] font-bold">ĐƠN NẠP TRONG HẠN 10P</span><b id="stat-pending" class="text-sm sm:text-base font-black text-red-600">0</b></div>
     </div>
+
+    <!-- BẢNG TÁCH RIÊNG SỐ ACC ĐÃ BÁN THEO TỪNG SẢN PHẨM & TỪNG GÓI TÙY CHỌN (GÓI 1 TỶ, GÓI 31 TỶ...) -->
+    <div class="bg-white p-3.5 sm:p-4 rounded-2xl border space-y-2.5 shadow-xs text-xs">
+      <div class="flex flex-wrap justify-between items-center gap-2 border-b pb-2">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-chart-pie"></i></div>
+          <div>
+            <b class="text-xs sm:text-sm text-slate-900">Chi Tiết Số Acc Đã Bán (Tách Riêng Từng Sản Phẩm & Tùy Chọn Gói)</b>
+            <span class="text-[10px] sm:text-[11px] text-slate-500 block">Biết chính xác từng gói tùy chọn (ví dụ gói 1 tỷ token, gói 31 tỷ token,...) đã bán được bao nhiêu tài khoản</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200 px-3 py-1 rounded-xl">
+            Tổng acc đã bán: <b id="stat-total-sold-badge" class="text-amber-700 font-black">0</b> acc
+          </span>
+        </div>
+      </div>
+      <div id="stat-sold-breakdown-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+        <div class="text-slate-400 text-center py-4 col-span-full">Đang tải thống kê số acc đã bán...</div>
+      </div>
+    </div>
     
     <!-- 7 Mục quản trị trượt ngang mượt mà -->
     <div class="flex gap-1.5 bg-white p-1.5 rounded-xl border text-xs overflow-x-auto no-scrollbar whitespace-nowrap">
       <button onclick="switchAdminSub('products', this)" class="admin-nav-btn active px-3 py-2 rounded-lg font-bold shrink-0">1. Sản Phẩm & Bảo Hành Riêng</button>
       <button onclick="switchAdminSub('inventory', this)" class="admin-nav-btn px-3 py-2 rounded-lg font-bold text-slate-600 shrink-0">2. Kho Acc (Đã Bán & Chưa Bán)</button>
-      <button onclick="switchAdminSub('sales', this)" class="admin-nav-btn px-3 py-2 rounded-lg font-bold text-slate-600 shrink-0">3. Lịch Sử Bán & Đổi Acc</button>
+      <button onclick="switchAdminSub('sales', this)" class="admin-nav-btn px-3 py-2 rounded-lg font-bold text-slate-600 shrink-0">3. Thống Kê Đã Bán & Lịch Sử Đơn</button>
       <button onclick="switchAdminSub('cashflow', this)" class="admin-nav-btn px-3 py-2 rounded-lg font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 shrink-0">4. Quản Lý Dòng Tiền</button>
       <button onclick="switchAdminSub('users', this)" class="admin-nav-btn px-3 py-2 rounded-lg font-bold text-slate-600 shrink-0">5. Khách Hàng</button>
       <button onclick="switchAdminSub('txs', this)" class="admin-nav-btn px-3 py-2 rounded-lg font-bold text-slate-600 shrink-0">6. Đơn Nạp Tiền</button>
@@ -499,12 +520,14 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
 
     <!-- Sub 2: Kho acc (Tách ĐÃ BÁN vs CHƯA BÁN + Thống kê chi tiết) -->
     <div id="adm-panel-inventory" class="adm-panel hidden grid lg:grid-cols-5 gap-3 sm:gap-4 text-xs">
-      <div class="lg:col-span-2 bg-white p-3.5 sm:p-4 rounded-xl border space-y-3 h-fit">
-        <b class="block border-b pb-1.5 text-slate-900">Nạp Kho Tài Khoản (Tách Riêng Acc Thường & Acc Cookie)</b>
+      <div class="lg:col-span-2 bg-white p-3.5 sm:p-4 rounded-xl border space-y-3 h-fit shadow-xs">
+        <b class="block border-b pb-1.5 text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
+          <i class="fa-solid fa-cloud-arrow-up text-blue-600"></i> Nạp Kho Tài Khoản (Chống Bấm Trùng)
+        </b>
         <div><label class="font-bold block mb-1">1. Chọn sản phẩm:</label><select id="adm-stock-product" onchange="onAdminSelectProductChange()" class="w-full p-2 border rounded-lg font-bold bg-slate-50"></select></div>
         <div><label class="font-bold block mb-1">2. Chọn gói tùy chọn:</label><select id="adm-stock-variant" class="w-full p-2 border rounded-lg font-bold bg-blue-50"></select></div>
 
-        <!-- Nút chuyển đổi rõ ràng giữa 2 loại: Tài khoản thường vs Tài khoản Cookie -->
+        <!-- Nút chuyển đổi giữa 2 loại: Tài khoản thường vs Tài khoản Cookie -->
         <div>
           <label class="font-bold block mb-1">3. Chọn loại tài khoản muốn thêm:</label>
           <div class="grid grid-cols-2 gap-1.5 bg-slate-100 p-1 rounded-xl border">
@@ -517,28 +540,28 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
           </div>
         </div>
 
-        <!-- KHUNG 1: DÀNH RIÊNG CHO TÀI KHOẢN THƯỜNG (EMAIL | PASS XUỐNG DÒNG) -->
+        <!-- KHUNG 1: DÀNH RIÊNG CHO TÀI KHOẢN THƯỜNG -->
         <div id="box-stock-regular" class="space-y-1.5">
           <div class="flex justify-between items-center">
-            <label class="font-bold text-blue-900">Dán danh sách Email|Pass (Mỗi acc 1 dòng):</label>
+            <label class="font-bold text-blue-900">Dán danh sách (Mỗi acc 1 dòng):</label>
             <div class="flex items-center gap-1.5">
               <button type="button" onclick="pasteToInput('adm-stock-accounts', this); updateStockInputCount();" class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold text-[10px]"><i class="fa-solid fa-paste mr-0.5"></i>Dán</button>
               <button type="button" onclick="clearStockInput()" class="bg-red-50 text-red-600 px-2 py-0.5 rounded font-bold text-[10px]">Xóa</button>
               <span id="lbl-input-counter" class="text-blue-600 font-bold">0 acc</span>
             </div>
           </div>
-          <textarea id="adm-stock-accounts" oninput="updateStockInputCount()" rows="6" placeholder="email1@gmail.com|pass123&#10;email2@gmail.com|pass456&#10;email3@gmail.com|pass789" class="w-full p-2.5 border rounded-xl font-mono text-[11px] bg-slate-50 focus:outline-none focus:border-blue-600"></textarea>
-          <span class="text-[10px] text-slate-500 block">Khi khách mua hoặc tải file .txt sẽ xuất ra đúng từng dòng <code>email|pass</code> xuống dòng, không có dấu gạch thừa.</span>
+          <textarea id="adm-stock-accounts" oninput="updateStockInputCount()" rows="6" placeholder="email1@gmail.com|pass123&#10;email2@gmail.com|pass456&#10;phwtz1i9@helook.tech | https://web-otp.helook.tech/phwtz1i9@helook.tech" class="w-full p-2.5 border rounded-xl font-mono text-[11px] bg-slate-50 focus:outline-none focus:border-blue-600"></textarea>
+          <span class="text-[10px] text-slate-500 block">Khi xuất file .txt hoặc khách mua sẽ xuất ra đúng từng dòng <code>email | pass/link</code> xuống dòng, không có ngoặc vuông.</span>
         </div>
 
-        <!-- KHUNG 2: DÀNH RIÊNG CHO TÀI KHOẢN COOKIE (TẢI THƯ MỤC LẺ, NHIỀU THƯ MỤC KHÁC NHAU, THƯ MỤC LỚN HOẶC KÉO THẢ) -->
+        <!-- KHUNG 2: DÀNH RIÊNG CHO TÀI KHOẢN COOKIE -->
         <div id="box-stock-cookie" class="hidden space-y-2.5">
           <div id="cookie-dropzone" ondragover="handleCookieDragOver(event)" ondragleave="handleCookieDragLeave(event)" ondrop="handleCookieDrop(event)" class="bg-purple-50 border-2 border-dashed border-purple-300 rounded-xl p-3 space-y-2 transition">
             <div class="font-extrabold text-purple-900 text-xs flex items-center gap-1.5">
               <i class="fa-solid fa-folder-plus text-purple-600"></i> Tải Lên Thư Mục Tài Khoản Cookie (Chọn Thêm Nhiều Lần Tùy Ý)
             </div>
             <p class="text-[11px] text-slate-600 leading-relaxed">
-              • Không bắt buộc phải gom vào 1 thư mục lớn: Bạn có thể bấm <b>"Thêm Thư Mục"</b> nhiều lần để chọn từng thư mục lẻ, nhiều thư mục khác nhau, hoặc <b>Kéo & Thả nhiều thư mục</b> trực tiếp vào khung này.<br>
+              • Bạn có thể bấm <b>"Thêm Thư Mục"</b> nhiều lần để chọn từng thư mục lẻ, nhiều thư mục khác nhau, hoặc <b>Kéo & Thả nhiều thư mục</b> trực tiếp vào khung này.<br>
               • Tên thư mục chứa file (hoặc tên file) sẽ tự động lấy làm <b>tên Email</b>, và nội dung bên trong là <b>Cookie</b>.
             </p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -562,14 +585,21 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
           </div>
         </div>
 
-        <button onclick="addStock()" class="w-full blue-header text-white py-2.5 rounded-xl font-bold shadow">Nạp Vào Kho & Lọc Trùng Ngay</button>
+        <!-- NÚT NẠP KHO CÓ CHỐNG DOUBLE-CLICK VÀ BÁO TRẠNG THÁI LOAD -->
+        <button type="button" id="btn-add-stock" onclick="addStock(this)" class="w-full blue-header text-white py-2.5 rounded-xl font-bold shadow flex items-center justify-center gap-2 transition hover:opacity-95">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <span id="lbl-add-stock-text">Nạp Vào Kho & Lọc Trùng Ngay</span>
+        </button>
       </div>
 
-      <div class="lg:col-span-3 bg-white p-3.5 sm:p-4 rounded-xl border space-y-2.5">
+      <!-- CỘT PHẢI: QUẢN LÝ KHO THEO TỪNG SẢN PHẨM, GÓI VÀ LẦN NẠP -->
+      <div class="lg:col-span-3 bg-white p-3.5 sm:p-4 rounded-xl border space-y-2.5 shadow-xs">
         <div class="flex flex-wrap justify-between border-b pb-1.5 items-center gap-1.5">
           <div>
-            <b>Quản Lý Kho Tài Khoản</b>
-            <span class="text-[11px] text-slate-500 block">Biểu thị rõ ràng tình trạng tài khoản và thời gian bán</span>
+            <b class="text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
+              <i class="fa-solid fa-boxes-stacked text-blue-600"></i> Quản Lý Kho Theo Sản Phẩm, Gói & Lần Nạp
+            </b>
+            <span class="text-[11px] text-slate-500 block">Tách riêng từng sản phẩm, gói tùy chọn và từng đợt nạp (giờ, phút, ngày)</span>
           </div>
           <div class="flex flex-wrap gap-1">
             <button onclick="exportCurrentStock('unsold')" class="bg-emerald-600 text-white px-2.5 py-1 rounded-lg font-bold text-[10px]"><i class="fa-solid fa-file-arrow-down mr-0.5"></i>Xuất acc tồn (.txt)</button>
@@ -578,6 +608,16 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
           </div>
         </div>
 
+        <!-- 1. DẢI TABS CHỌN SẢN PHẨM: TÁCH RIÊNG CÁC SẢN PHẨM RA VỚI NHAU -->
+        <div class="space-y-1 bg-blue-50/60 p-2 rounded-xl border border-blue-200">
+          <div class="flex justify-between items-center text-[11px]">
+            <span class="font-bold text-blue-900 flex items-center gap-1"><i class="fa-solid fa-layer-group text-blue-600"></i>Tách riêng sản phẩm để xem:</span>
+            <span class="text-[10px] text-slate-500">Bấm sản phẩm để lọc riêng</span>
+          </div>
+          <div id="inv-product-tabs" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5"></div>
+        </div>
+
+        <!-- 2. BỘ LỌC TRẠNG THÁI & TÌM KIẾM -->
         <div class="flex flex-wrap justify-between items-center gap-2">
           <div class="flex items-center gap-1 text-[11px]">
             <button onclick="setInvStatusFilter('all', this)" class="inv-tab-btn active px-2.5 py-1 rounded-lg font-bold border border-slate-200">Tất cả (<span id="cnt-inv-all">0</span>)</button>
@@ -585,14 +625,15 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
             <button onclick="setInvStatusFilter('sold', this)" class="inv-tab-btn px-2.5 py-1 rounded-lg font-bold text-amber-700 bg-amber-50 border border-amber-200">Đã bán (<span id="cnt-inv-sold">0</span>)</button>
           </div>
           <div class="flex-1 max-w-xs">
-            <input id="inp-inv-search" oninput="loadAdminInventory()" type="text" placeholder="Tìm tài khoản, mã đơn, tên khách..." class="w-full p-1.5 bg-slate-50 border rounded-lg text-xs">
+            <input id="inp-inv-search" oninput="renderAdminInventoryView()" type="text" placeholder="Tìm tài khoản, mã đợt, mã đơn, khách..." class="w-full p-1.5 bg-slate-50 border rounded-lg text-xs">
           </div>
         </div>
 
+        <!-- 3. THANH THAO TÁC HÀNG LOẠT -->
         <div class="bg-slate-100 p-2 rounded-lg border flex flex-wrap justify-between items-center gap-2">
           <div class="flex items-center gap-2">
             <input type="checkbox" id="chk-select-all-inv" onchange="toggleSelectAllInventory(this.checked)" class="w-4 h-4 rounded text-blue-600 cursor-pointer">
-            <label for="chk-select-all-inv" class="font-bold text-slate-700 cursor-pointer text-xs">Chọn tất cả</label>
+            <label for="chk-select-all-inv" class="font-bold text-slate-700 cursor-pointer text-xs">Chọn tất cả acc</label>
             <span class="text-slate-500 text-[11px]">| Đã chọn: <b id="lbl-selected-count" class="text-red-600 font-extrabold">0</b> mục</span>
           </div>
           <div class="flex items-center gap-1.5">
@@ -601,19 +642,38 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
           </div>
         </div>
 
-        <div id="adm-inventory-list" class="space-y-1.5 max-h-[420px] overflow-y-auto custom-scroll"></div>
+        <!-- 4. KHUNG DANH SÁCH KHO PHÂN TẦNG: SẢN PHẨM -> GÓI TÙY CHỌN -> LẦN NẠP -> TÀI KHOẢN -->
+        <div id="adm-inventory-list" class="space-y-3 max-h-[520px] overflow-y-auto custom-scroll pr-1"></div>
       </div>
     </div>
 
-    <!-- Sub 3: LỊCH SỬ BÁN HÀNG & ĐỔI BẢO HÀNH 1-CLICK -->
-    <div id="adm-panel-sales" class="adm-panel hidden bg-white p-4 sm:p-5 rounded-xl border space-y-3 text-xs">
+    <!-- Sub 3: THỐNG KÊ SỐ ACC ĐÃ BÁN & LỊCH SỬ ĐƠN HÀNG -->
+    <div id="adm-panel-sales" class="adm-panel hidden bg-white p-4 sm:p-5 rounded-xl border space-y-3.5 text-xs">
       <div class="flex flex-wrap justify-between items-center border-b pb-2 gap-2">
         <div>
-          <b class="text-sm text-blue-900">Lịch Sử Đơn Hàng Đã Bán & Đổi Bảo Hành</b>
-          <p class="text-[11px] text-slate-500">Xem ai đã mua, chế độ bảo hành từng đơn, đổi ngay 1 acc mới từ kho nếu khách báo lỗi</p>
+          <b class="text-sm text-blue-900 flex items-center gap-1.5"><i class="fa-solid fa-receipt text-blue-600"></i> Lịch Sử Đơn Hàng & Thống Kê Bán Theo Từng Gói</b>
+          <p class="text-[11px] text-slate-500">Tách riêng số acc đã bán của từng gói tùy chọn (gói 1 tỷ, 31 tỷ...), lịch sử khách mua và đổi bảo hành 1-click</p>
         </div>
-        <button onclick="loadAdminSalesOrders()" class="bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg font-bold"><i class="fa-solid fa-rotate mr-1"></i>Làm mới</button>
+        <div class="flex flex-wrap items-center gap-1.5">
+          <select id="sel-sales-filter-product" onchange="filterSalesOrders()" class="p-1.5 border rounded-lg bg-slate-50 text-xs font-bold">
+            <option value="ALL">Tất cả sản phẩm</option>
+          </select>
+          <button onclick="loadAdminSalesOrders()" class="bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg font-bold"><i class="fa-solid fa-rotate mr-1"></i>Làm mới</button>
+        </div>
       </div>
+
+      <!-- BẢNG THỐNG KÊ CHI TIẾT SỐ LƯỢNG ĐÃ BÁN THEO TỪNG GÓI TRONG SUB 3 -->
+      <div class="bg-amber-50/70 border border-amber-200 rounded-xl p-3 space-y-2">
+        <div class="flex flex-wrap justify-between items-center gap-1.5 border-b border-amber-200 pb-1.5">
+          <b class="text-amber-900 font-extrabold text-xs flex items-center gap-1.5">
+            <i class="fa-solid fa-chart-column text-amber-600"></i> Bảng Số Lượng Acc Đã Bán Tách Riêng Từng Sản Phẩm & Gói:
+          </b>
+          <span class="text-[10px] text-slate-500">Bấm "Xem đơn" để lọc đơn hàng bên dưới</span>
+        </div>
+        <div id="sales-variant-stats-list" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2"></div>
+      </div>
+
+      <b class="block text-slate-800 font-bold border-b pb-1">Danh Sách Chi Tiết Đơn Hàng Đã Bán:</b>
       <div id="adm-sales-list" class="space-y-2.5 max-h-[500px] overflow-y-auto custom-scroll"></div>
     </div>
 
@@ -1121,7 +1181,7 @@ function parseAccountParts(accStr) {
     if (left.includes('|')) {
       const lp = left.split('|');
       return {
-        raw: `${lp[0].trim()}|${lp.slice(1).join('|').trim()}|${rightCookie}`,
+        raw: `${lp[0].trim()} | ${lp.slice(1).join('|').trim()}`,
         email: lp[0].trim(),
         pass: lp.slice(1).join('|').trim(),
         cookie: rightCookie,
@@ -1129,7 +1189,7 @@ function parseAccountParts(accStr) {
       };
     }
     return {
-      raw: `${left}|${rightCookie}`,
+      raw: left,
       email: left,
       pass: '',
       cookie: rightCookie,
@@ -1145,11 +1205,20 @@ function parseAccountParts(accStr) {
   const first = parts[0] ? parts[0].trim() : '';
   if (parts.length === 2) {
     const second = decodeCookieLine(parts[1] ? parts[1].trim() : '');
-    // Nhận diện tự động nếu phần thứ 2 là Cookie (chứa dấu =, ;, {, [, xuống dòng, hoặc dài > 35 ký tự)
-    const looksLikeCookie = second.length > 35 || /[=;{}\[\]\n]/.test(second) || /cookie|session|token|domain|path/i.test(second);
+    const isUrl = /^https?:\/\//i.test(second);
+    // Nhận diện Cookie thật sự (bắt đầu bằng [ hoặc { hoặc chứa dấu hiệu cookie JSON/Netscape/Token) và TUYỆT ĐỐI KHÔNG phải là URL (như web-otp link)!
+    const looksLikeCookie = !isUrl && (
+      second.startsWith('[') || 
+      second.startsWith('{') || 
+      /^(session|token|auth|cookie|datr|__)/i.test(second) ||
+      second.includes('"domain"') || 
+      second.includes('"name"') || 
+      /expirationDate|sameSite|hostOnly/i.test(second)
+    );
+
     if (looksLikeCookie) {
       return {
-        raw: `${first}|${second}`,
+        raw: `${first} | ${second}`,
         email: first,
         pass: '',
         cookie: second,
@@ -1157,7 +1226,7 @@ function parseAccountParts(accStr) {
       };
     }
     return {
-      raw: raw,
+      raw: `${first} | ${second}`,
       email: first,
       pass: second,
       cookie: '',
@@ -1166,48 +1235,73 @@ function parseAccountParts(accStr) {
   }
 
   const passPart = parts[1] ? parts[1].trim() : '';
-  const cookiePart = decodeCookieLine(parts.slice(2).join('|').trim());
+  const thirdPart = decodeCookieLine(parts.slice(2).join('|').trim());
+  const isThirdCookie = thirdPart && (
+    thirdPart.startsWith('[') || 
+    thirdPart.startsWith('{') || 
+    thirdPart.length > 35 ||
+    /expirationDate|domain/i.test(thirdPart)
+  );
+
   return {
-    raw: raw,
+    raw: `${first} | ${passPart}${thirdPart ? ' | ' + thirdPart : ''}`,
     email: first,
     pass: passPart,
-    cookie: cookiePart,
-    isFolderCookie: Boolean(cookiePart)
+    cookie: isThirdCookie ? thirdPart : '',
+    isFolderCookie: Boolean(isThirdCookie)
   };
 }
 
-// KIỂM TRA DANH SÁCH TÀI KHOẢN CÓ CHỨA COOKIE HAY LÀ TÀI KHOẢN THƯỜNG (EMAIL|PASS)
+// KIỂM TRA DANH SÁCH TÀI KHOẢN CÓ CHỨA COOKIE HAY LÀ TÀI KHOẢN THƯỜNG (EMAIL|PASS HOẶC EMAIL|LINK)
 function checkOrderHasCookie(accountsArray) {
   const list = Array.isArray(accountsArray) ? accountsArray : [accountsArray];
   return list.some(acc => parseAccountParts(acc).isFolderCookie || Boolean(parseAccountParts(acc).cookie));
 }
 
-// ĐỊNH DẠNG XUẤT FILE .TXT:
-// - Nếu là TÀI KHOẢN THƯỜNG (không có cookie): chỉ xuất từng dòng email|pass xuống dòng, KHÔNG thêm bất kỳ dấu gạch hay tiêu đề nào!
-// - Nếu là TÀI KHOẢN CÓ COOKIE:
-//   + Nếu mua 1 acc: nội dung file .txt chỉ chứa thuần Cookie (tên file là tên Email).
-//   + Nếu mua nhiều acc: mỗi mục ghi tên Email (thư mục) và nội dung Cookie bên dưới.
+// ĐỊNH DẠNG XUẤT FILE .TXT KHI MUA & TRONG LỊCH SỬ ĐƠN HÀNG:
+// 1. Đối với tài khoản KHÔNG CÓ COOKIE (acc thường, acc có link OTP web-otp):
+//    Xuất dạng dấu gạch ở giữa: email | pass hoặc email | link (Ví dụ: phwtz1i9@helook.tech | https://web-otp.helook.tech/phwtz1i9@helook.tech)
+//    TUYỆT ĐỐI KHÔNG có dấu ngoặc vuông [] ở chỗ email!
+// 2. Đối với tài khoản CÓ COOKIE (Dù 1 acc hay nhiều acc):
+//    BỎ HAI DẤU NGOẶC VUÔNG [] Ở EMAIL!
+//    Định dạng chuẩn:
+//    email@domain.com
+//    [
+//      cookie_content
+//    ]
 function formatAccountsStructuredTxt(accountsArray) {
   const list = Array.isArray(accountsArray) ? accountsArray : [accountsArray];
   if (!list.length) return '';
 
   const hasCookie = checkOrderHasCookie(list);
   if (!hasCookie) {
-    // Tài khoản thường: chỉ email|pass xuống dòng
-    return list.map(acc => decodeCookieLine(String(acc || '').trim())).filter(Boolean).join('\n');
+    // Tài khoản thường: định dạng email | pass hoặc email | link (không có ngoặc vuông [])
+    return list.map(acc => {
+      const p = parseAccountParts(acc);
+      if (p.pass) return `${p.email} | ${p.pass}`;
+      const decoded = decodeCookieLine(String(acc || '').trim());
+      if (decoded.includes('|')) {
+        return decoded.split('|').map(x => x.trim()).join(' | ');
+      }
+      return decoded;
+    }).filter(Boolean).join('\n');
   }
 
-  if (list.length === 1) {
-    const p = parseAccountParts(list[0]);
-    return p.cookie ? p.cookie : decodeCookieLine(list[0]);
-  }
-
+  // Tài khoản có Cookie: BỎ HAI DẤU NGOẶC VUÔNG [] Ở EMAIL!
+  // Cho dù 1 tài khoản hay nhiều tài khoản, luôn có Email dòng trên và Cookie dòng dưới
   return list.map(acc => {
     const p = parseAccountParts(acc);
     if (p.cookie) {
-      return `[${p.email}]\n${p.cookie}`;
+      return p.email ? `${p.email}\n${p.cookie}` : p.cookie;
     }
-    return decodeCookieLine(acc);
+    if (p.pass) {
+      return `${p.email} | ${p.pass}`;
+    }
+    const decoded = decodeCookieLine(String(acc || '').trim());
+    if (decoded.includes('|')) {
+      return decoded.split('|').map(x => x.trim()).join(' | ');
+    }
+    return decoded;
   }).join('\n\n');
 }
 
@@ -1319,7 +1413,7 @@ function downloadOrderFolderZipByKey(storeKey, orderCode = 'DonHang', btnEl = nu
       usedFolderNames[folderName] = 1;
     }
 
-    const cookieBody = p.cookie ? p.cookie : (p.pass ? `${p.email}|${p.pass}` : decodeCookieLine(line));
+    const cookieBody = p.cookie ? p.cookie : (p.pass ? `${p.email} | ${p.pass}` : decodeCookieLine(line));
     filesList.push({
       path: `${safeRoot}/${folderName}/cookie.txt`,
       content: cookieBody
@@ -1331,8 +1425,6 @@ function downloadOrderFolderZipByKey(storeKey, orderCode = 'DonHang', btnEl = nu
       });
     }
   });
-
-  // Cấu trúc chuẩn trong file .zip: Thư mục lớn (Mã đơn) -> Nhiều thư mục nhỏ (Tên từng Email) -> file cookie.txt bên trong
 
   const blob = buildZipBlob(filesList);
   const url = window.URL.createObjectURL(blob);
@@ -1354,11 +1446,13 @@ function downloadSingleMailCookieTxt(mailStoreKey, cookieStoreKey, btnEl = null)
   const mail = (accountDataStore[mailStoreKey] || 'account').trim();
   const cookie = accountDataStore[cookieStoreKey] || '';
   const safeFile = mail.replace(/[^a-zA-Z0-9@._-]/g, '_') || 'cookie';
-  // Tên file là tên Email, bên trong file chỉ chứa thuần 100% nội dung Cookie
   const cleanCookie = String(cookie || '').trim();
   if (!cleanCookie) return notify('Không có nội dung Cookie để tải!', true);
+
+  // Xuất file 1 tài khoản Cookie: Luôn có Email ở trên (KHÔNG có ngoặc vuông []) rồi xuống dòng là Cookie
+  const fileContent = mail ? `${mail}\n${cleanCookie}` : cleanCookie;
   try {
-    const blob = new Blob(['\uFEFF' + cleanCookie], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob(['\uFEFF' + fileContent], { type: 'text/plain;charset=utf-8' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.style.display = 'none';
@@ -1371,9 +1465,9 @@ function downloadSingleMailCookieTxt(mailStoreKey, cookieStoreKey, btnEl = null)
       window.URL.revokeObjectURL(url);
     }, 600);
     if (btnEl) flashButtonSuccess(btnEl, 'Đã tải .txt!');
-    notify(`Đã tải file ${safeFile}.txt (Bên trong là Cookie)!`);
+    notify(`Đã tải file ${safeFile}.txt (Email & Cookie)!`);
   } catch (err) {
-    copyText(cleanCookie, 'Đã sao chép Cookie vào bộ nhớ tạm!');
+    copyText(fileContent, 'Đã sao chép Cookie vào bộ nhớ tạm!');
   }
 }
 
@@ -2487,6 +2581,113 @@ function switchAdminSub(sub, btn) {
   if (sub === 'settings') populateSettingsForm();
 }
 
+let latestSoldBreakdown = [];
+let allAdminSalesOrders = [];
+
+// HÀM RENDER BẢNG TÁCH RIÊNG SỐ ACC ĐÃ BÁN THEO TỪNG SẢN PHẨM & TỪNG GÓI TÙY CHỌN
+function renderSoldBreakdown(breakdownList = []) {
+  latestSoldBreakdown = breakdownList;
+  const gridTop = document.getElementById('stat-sold-breakdown-grid');
+  const gridSales = document.getElementById('sales-variant-stats-list');
+  if (!gridTop) return;
+
+  if (!breakdownList.length) {
+    const emptyHtml = '<div class="text-slate-400 text-center py-4 col-span-full">Chưa có dữ liệu sản phẩm hoặc chưa có tài khoản nào được bán.</div>';
+    gridTop.innerHTML = emptyHtml;
+    if (gridSales) gridSales.innerHTML = emptyHtml;
+    return;
+  }
+
+  // Nhóm theo từng sản phẩm
+  const prodGroups = new Map();
+  breakdownList.forEach(item => {
+    const pId = item.product_id;
+    if (!prodGroups.has(pId)) {
+      prodGroups.set(pId, {
+        product_id: pId,
+        product_name: item.product_name,
+        product_image: item.product_image || DEFAULT_IMG,
+        total_sold: 0,
+        total_stock: 0,
+        total_revenue: 0,
+        variants: []
+      });
+    }
+    const g = prodGroups.get(pId);
+    g.total_sold += (item.sold_count || 0);
+    g.total_stock += (item.stock_count || 0);
+    g.total_revenue += (item.sold_revenue || 0);
+    g.variants.push(item);
+  });
+
+  let cardsHtml = '';
+  prodGroups.forEach(g => {
+    let variantsListHtml = g.variants.map(v => {
+      const sold = v.sold_count || 0;
+      const stock = v.stock_count || 0;
+      const rev = v.sold_revenue || 0;
+      return `
+        <div class="bg-slate-50 p-2 rounded-xl border border-slate-200/90 flex flex-wrap justify-between items-center gap-1.5 text-xs">
+          <div class="overflow-hidden flex-1 min-w-[140px]">
+            <b class="text-slate-900 block truncate font-bold">${escapeHtml(v.variant_name)}</b>
+            <div class="text-[10px] text-slate-500 flex flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
+              <span>Còn tồn: <b class="text-emerald-600 font-semibold">${stock} acc</b></span>
+              <span>• Thu: <b class="text-blue-600">${Number(rev).toLocaleString()}đ</b></span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span class="bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-lg text-xs font-black shadow-2xs">
+              Đã bán: ${sold} acc
+            </span>
+            <button type="button" onclick="viewSoldVariantAccounts(${g.product_id}, ${v.variant_id})" class="bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 px-2 py-0.5 rounded text-[10px] font-bold transition" title="Xem danh sách acc đã bán của gói này">
+              Xem acc
+            </button>
+            <button type="button" onclick="exportVariantStock(${g.product_id}, ${v.variant_id}, 'sold')" class="bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 px-2 py-0.5 rounded text-[10px] font-bold transition" title="Xuất file txt acc đã bán gói này">
+              <i class="fa-solid fa-download"></i>
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+
+    cardsHtml += `
+      <div class="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden shadow-2xs flex flex-col justify-between">
+        <div class="p-2.5 bg-slate-800 text-white flex justify-between items-center gap-2">
+          <div class="flex items-center gap-2 overflow-hidden flex-1">
+            <img src="${escapeHtml(g.product_image)}" class="w-7 h-7 rounded-lg object-cover border border-white/20 shrink-0">
+            <b class="text-xs text-white truncate">${escapeHtml(g.product_name)}</b>
+          </div>
+          <span class="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full text-[10px] font-black shrink-0">
+            Tổng đã bán: ${g.total_sold} acc
+          </span>
+        </div>
+        <div class="p-2.5 space-y-1.5 flex-1">
+          ${variantsListHtml}
+        </div>
+      </div>`;
+  });
+
+  gridTop.innerHTML = cardsHtml;
+  if (gridSales) gridSales.innerHTML = cardsHtml;
+
+  // Cập nhật select filter sản phẩm ở Sub 3
+  const selSalesProd = document.getElementById('sel-sales-filter-product');
+  if (selSalesProd) {
+    let opts = '<option value="ALL">Tất cả sản phẩm</option>';
+    prodGroups.forEach(g => {
+      opts += `<option value="${g.product_id}">${escapeHtml(g.product_name)} (Đã bán: ${g.total_sold} acc)</option>`;
+    });
+    selSalesProd.innerHTML = opts;
+  }
+}
+
+// BẤM VÀO ĐỂ XEM RIÊNG CÁC ACC ĐÃ BÁN CỦA 1 GÓI TRONG SUB 2 (KHO ACC)
+function viewSoldVariantAccounts(prodId, varId) {
+  switchAdminSub('inventory');
+  setInvProductTab(prodId);
+  setInvStatusFilter('sold');
+  notify(`Đang hiển thị danh sách các tài khoản ĐÃ BÁN của sản phẩm này!`);
+}
+
 async function loadAdminDashboard() {
   if (!currentUser || currentUser.role !== 'admin') return;
   try {
@@ -2498,6 +2699,12 @@ async function loadAdminDashboard() {
       document.getElementById('stat-stock').innerText = st.totalStock || 0;
       document.getElementById('stat-orders').innerText = st.totalOrders || 0;
       document.getElementById('stat-pending').innerText = st.pendingTx || 0;
+
+      const totalSoldBadge = document.getElementById('stat-total-sold-badge');
+      if (totalSoldBadge) totalSoldBadge.innerText = st.totalSold || 0;
+
+      // Render bảng tách riêng số lượng acc đã bán theo từng sản phẩm & gói
+      if (st.soldBreakdown) renderSoldBreakdown(st.soldBreakdown);
     }
   } catch (e) {}
   await loadProducts();
@@ -2670,19 +2877,54 @@ function uploadImage(input, targetId) {
 }
 
 // 2. KHO ACC
+// ================= QUẢN LÝ KHO THEO SẢN PHẨM, GÓI TÙY CHỌN & LẦN NẠP =================
+let isAddingStock = false;
+let activeInvProductTab = 'ALL';
+const expandedBatches = new Set(); // Lưu các mã lần nạp đang mở rộng chi tiết
+
 function setInvStatusFilter(status, btn) {
   activeInvStatus = status;
   document.querySelectorAll('.inv-tab-btn').forEach(b => {
     b.className = 'inv-tab-btn px-2.5 py-1 rounded-lg font-bold border border-slate-200 text-slate-600';
   });
   if (btn) btn.className = 'inv-tab-btn active px-2.5 py-1 rounded-lg font-bold border border-blue-600 bg-blue-600 text-white';
-  loadAdminInventory();
+  renderAdminInventoryView();
+}
+
+function setInvProductTab(prodId) {
+  activeInvProductTab = String(prodId);
+  renderAdminInventoryProductTabs();
+  renderAdminInventoryView();
+}
+
+function renderAdminInventoryProductTabs() {
+  const tabBox = document.getElementById('inv-product-tabs');
+  if (!tabBox) return;
+
+  const isAll = activeInvProductTab === 'ALL';
+  let tabsHtml = `
+    <button type="button" onclick="setInvProductTab('ALL')" class="px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 transition ${isAll ? 'bg-blue-600 text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'}">
+      Tất cả sản phẩm (${allProducts.length})
+    </button>`;
+
+  allProducts.forEach(p => {
+    const isSel = String(activeInvProductTab) === String(p.id);
+    const stock = Number(p.total_stock || 0);
+    tabsHtml += `
+      <button type="button" onclick="setInvProductTab(${p.id})" class="px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 transition flex items-center gap-1.5 ${isSel ? 'bg-blue-600 text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'}">
+        <span class="truncate max-w-[120px] sm:max-w-[160px]">${escapeHtml(p.name)}</span>
+        <span class="px-1.5 py-0.2 rounded-full text-[10px] ${isSel ? 'bg-white text-blue-700' : 'bg-slate-100 text-slate-600 font-semibold'}">${stock}</span>
+      </button>`;
+  });
+
+  tabBox.innerHTML = tabsHtml;
 }
 
 function populateAdminStockProducts() {
   const sel = document.getElementById('adm-stock-product');
   if (!sel) return;
   sel.innerHTML = allProducts.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  renderAdminInventoryProductTabs();
   onAdminSelectProductChange();
 }
 
@@ -2695,301 +2937,435 @@ function onAdminSelectProductChange() {
       ? p.variants.map(v => `<option value="${v.id}">${escapeHtml(v.name)} - ${Number(v.price).toLocaleString()}đ (Kho: ${v.stock || 0})</option>`).join('')
       : '<option value="">Chưa có tùy chọn</option>';
   }
-  loadAdminInventory();
 }
 
-// CHẾ ĐỘ NẠP KHO: TÁCH RIÊNG TÀI KHOẢN THƯỜNG VS TÀI KHOẢN COOKIE (CỘNG DỒN NHIỀU THƯ MỤC LẺ HOẶC LỚN)
-let currentStockInputMode = 'regular';
-const pendingCookieFolders = new Map(); // Lưu cộng dồn: tên Email -> nội dung Cookie
+// HÀM CHỌN NHANH SẢN PHẨM & GÓI TỪ BÊN PHẢI SANG FORM NẠP BÊN TRÁI
+function quickSelectProductVariant(prodId, varId) {
+  const pSel = document.getElementById('adm-stock-product');
+  if (pSel) {
+    pSel.value = prodId;
+    onAdminSelectProductChange();
+  }
+  const vSel = document.getElementById('adm-stock-variant');
+  if (vSel) vSel.value = varId;
 
-function switchStockInputMode(mode) {
-  currentStockInputMode = mode === 'cookie' ? 'cookie' : 'regular';
-  const btnReg = document.getElementById('btn-mode-regular');
-  const btnCk = document.getElementById('btn-mode-cookie');
-  const boxReg = document.getElementById('box-stock-regular');
-  const boxCk = document.getElementById('box-stock-cookie');
-
-  if (currentStockInputMode === 'regular') {
-    btnReg.className = 'py-2 px-2 rounded-lg font-bold text-xs bg-blue-600 text-white shadow transition';
-    btnCk.className = 'py-2 px-2 rounded-lg font-bold text-xs text-slate-700 hover:bg-white transition';
-    boxReg.classList.remove('hidden');
-    boxCk.classList.add('hidden');
+  // Kiểm tra tên gói để tự động chuyển mode nếu là cookie
+  const p = allProducts.find(x => Number(x.id) === Number(prodId));
+  const v = (p && p.variants) ? p.variants.find(x => Number(x.id) === Number(varId)) : null;
+  if (v && /cookie/i.test(v.name)) {
+    switchStockInputMode('cookie');
   } else {
-    btnCk.className = 'py-2 px-2 rounded-lg font-bold text-xs bg-purple-600 text-white shadow transition';
-    btnReg.className = 'py-2 px-2 rounded-lg font-bold text-xs text-slate-700 hover:bg-white transition';
-    boxCk.classList.remove('hidden');
-    boxReg.classList.add('hidden');
+    switchStockInputMode('regular');
+    const ta = document.getElementById('adm-stock-accounts');
+    if (ta) { ta.focus(); ta.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
   }
+  notify(`Đã chọn [${p ? p.name : ''}] - Gói: [${v ? v.name : ''}]. Mời bạn nhập tài khoản!`);
 }
 
-function clearStockInput() {
-  pendingCookieFolders.clear();
-  const ta = document.getElementById('adm-stock-accounts');
-  if (ta) ta.value = '';
-  const sumEl = document.getElementById('folder-upload-summary');
-  if (sumEl) sumEl.classList.add('hidden');
-  renderPendingCookiePreview();
-  updateStockInputCount();
-}
+// NẠP VÀO KHO & LỌC TRÙNG (CHỐNG BẤM 2 LẦN / CHỐNG DOUBLE SUBMIT)
+async function addStock(btnEl = null) {
+  if (isAddingStock) return; // Khóa ngay lập tức nếu đang xử lý
 
-function removePendingCookieAccount(mailName) {
-  pendingCookieFolders.delete(mailName);
-  syncPendingCookiesToTextarea();
-  renderPendingCookiePreview();
-}
-
-function syncPendingCookiesToTextarea() {
-  const formattedLines = [];
-  pendingCookieFolders.forEach((cookieText, mail) => {
-    formattedLines.push(`${mail}||${encodeCookieLine(cookieText)}`);
-  });
-  const textarea = document.getElementById('adm-stock-accounts');
-  if (textarea) textarea.value = formattedLines.join('\n');
-  updateStockInputCount();
-}
-
-function renderPendingCookiePreview() {
-  const cntEl = document.getElementById('lbl-cookie-counter');
-  if (cntEl) cntEl.innerText = `${pendingCookieFolders.size} acc`;
-  const box = document.getElementById('cookie-preview-list');
-  if (!box) return;
-  if (!pendingCookieFolders.size) {
-    box.innerHTML = '<div class="text-slate-400 text-center py-3">Chưa có thư mục Cookie nào trong danh sách chờ nạp.</div>';
-    return;
-  }
-  const itemsHtml = [];
-  let idx = 0;
-  pendingCookieFolders.forEach((cookieText, mail) => {
-    idx++;
-    const mailKey = registerStoreText(mail);
-    itemsHtml.push(`
-      <div class="bg-white p-2 rounded-lg border border-purple-200 flex justify-between items-center gap-2">
-        <div class="overflow-hidden flex-1">
-          <div class="font-bold text-purple-900 truncate"><i class="fa-solid fa-folder text-amber-500 mr-1"></i>#${idx} Email: <span class="font-mono text-slate-900">${escapeHtml(mail)}</span></div>
-          <div class="text-[10px] text-slate-500 truncate">Cookie: ${escapeHtml(cookieText.slice(0, 65))}${cookieText.length > 65 ? '...' : ''} (${cookieText.length} ký tự)</div>
-        </div>
-        <button type="button" onclick="removePendingCookieAccount(accountDataStore['${mailKey}'])" class="text-red-500 hover:text-red-700 px-1.5 py-0.5 shrink-0" title="Bỏ thư mục này"><i class="fa-solid fa-xmark"></i></button>
-      </div>`);
-  });
-  box.innerHTML = itemsHtml.join('');
-}
-
-async function processUploadedFilePairs(filePairs) {
-  let addedNow = 0;
-  for (const item of filePairs) {
-    const file = item.file;
-    const relPath = (item.relPath || file.webkitRelativePath || file.name || '').replace(/\\/g, '/');
-    const nameLower = (file.name || '').toLowerCase();
-    if (!nameLower || nameLower.startsWith('.') || nameLower === 'thumbs.db' || nameLower === 'desktop.ini') continue;
-
-    const segs = relPath.split('/').filter(Boolean);
-    let mailName = '';
-
-    if (segs.length >= 3) {
-      // Thư mục lớn / Thư mục nhỏ (Tên Email) / file_cookie
-      mailName = segs[segs.length - 2].trim();
-    } else if (segs.length === 2) {
-      // Thư mục lẻ (Tên Email) / file_cookie HOẶC Thư mục / ten_email.txt
-      const folderName = segs[0].trim();
-      const fileNameNoExt = segs[1].replace(/\.(txt|json|cookie|cookies)$/i, '').trim();
-      if (fileNameNoExt.includes('@') && !folderName.includes('@')) {
-        mailName = fileNameNoExt;
-      } else if (folderName.includes('@') || filePairs.length === 1 || /^(cookie|cookies|data|account|acc|token)/i.test(fileNameNoExt)) {
-        mailName = folderName;
-      } else {
-        mailName = folderName;
-      }
-    } else {
-      mailName = (file.name || '').replace(/\.(txt|json|cookie|cookies)$/i, '').trim();
-    }
-
-    let content = '';
-    try {
-      content = await file.text();
-    } catch (e) {
-      content = await new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result || ''));
-        reader.onerror = () => resolve('');
-        reader.readAsText(file);
-      });
-    }
-
-    const cleanCookie = String(content || '').trim();
-    if (!cleanCookie) continue;
-
-    pendingCookieFolders.set(mailName, cleanCookie);
-    addedNow++;
-  }
-
-  if (!addedNow) {
-    return notify('Không tìm thấy file Cookie hợp lệ trong mục vừa chọn!', true);
-  }
-
-  syncPendingCookiesToTextarea();
-  renderPendingCookiePreview();
-
-  const summaryEl = document.getElementById('folder-upload-summary');
-  if (summaryEl) {
-    summaryEl.classList.remove('hidden');
-    summaryEl.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i>Vừa thêm <b>+${addedNow} thư mục</b> (Tổng đang chờ nạp: <b>${pendingCookieFolders.size} tài khoản Cookie</b>). Bạn có thể bấm <b>"+ Thêm Thư Mục"</b> để chọn thêm các thư mục khác nữa hoặc bấm <b>"Nạp Vào Kho"</b>!`;
-  }
-  notify(`Đã cộng thêm ${addedNow} tài khoản Cookie (Tổng: ${pendingCookieFolders.size} acc)!`);
-}
-
-async function handleFolderStockUpload(inputEl) {
-  const files = Array.from(inputEl.files || []);
-  if (!files.length) return;
-  const pairs = files.map(f => ({ file: f, relPath: f.webkitRelativePath || f.name }));
-  await processUploadedFilePairs(pairs);
-  inputEl.value = '';
-}
-
-function handleCookieDragOver(e) {
-  e.preventDefault();
-  e.stopPropagation();
-  const dz = document.getElementById('cookie-dropzone');
-  if (dz) dz.classList.add('border-purple-600', 'bg-purple-100/70');
-}
-
-function handleCookieDragLeave(e) {
-  e.preventDefault();
-  e.stopPropagation();
-  const dz = document.getElementById('cookie-dropzone');
-  if (dz) dz.classList.remove('border-purple-600', 'bg-purple-100/70');
-}
-
-async function readEntryRecursively(entry, parentPath = '') {
-  const currentPath = parentPath ? `${parentPath}/${entry.name}` : entry.name;
-  if (entry.isFile) {
-    const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
-    return [{ file, relPath: currentPath }];
-  }
-  if (entry.isDirectory) {
-    const dirReader = entry.createReader();
-    const allEntries = [];
-    while (true) {
-      const batch = await new Promise((resolve, reject) => dirReader.readEntries(resolve, reject));
-      if (!batch || !batch.length) break;
-      allEntries.push(...batch);
-    }
-    const results = [];
-    for (const child of allEntries) {
-      const childFiles = await readEntryRecursively(child, currentPath);
-      results.push(...childFiles);
-    }
-    return results;
-  }
-  return [];
-}
-
-async function handleCookieDrop(e) {
-  e.preventDefault();
-  e.stopPropagation();
-  handleCookieDragLeave(e);
-
-  const items = Array.from(e.dataTransfer?.items || []);
-  if (items.length && items[0].webkitGetAsEntry) {
-    const allPairs = [];
-    for (const item of items) {
-      const entry = item.webkitGetAsEntry();
-      if (entry) {
-        const found = await readEntryRecursively(entry, '');
-        allPairs.push(...found);
-      }
-    }
-    if (allPairs.length) {
-      await processUploadedFilePairs(allPairs);
-      return;
-    }
-  }
-
-  const droppedFiles = Array.from(e.dataTransfer?.files || []);
-  if (droppedFiles.length) {
-    await processUploadedFilePairs(droppedFiles.map(f => ({ file: f, relPath: f.webkitRelativePath || f.name })));
-  }
-}
-
-function updateStockInputCount() {
-  const count = (document.getElementById('adm-stock-accounts')?.value || '').split('\n').map(l => l.trim()).filter(Boolean).length;
-  document.getElementById('lbl-input-counter').innerText = `${count} acc`;
-}
-
-async function addStock() {
   const productId = document.getElementById('adm-stock-product')?.value;
   const variantId = document.getElementById('adm-stock-variant')?.value;
   const accountsText = document.getElementById('adm-stock-accounts')?.value || '';
-  if (!productId || !variantId || !accountsText.trim()) return notify('Vui lòng chọn tùy chọn gói và dán danh sách tài khoản!', true);
+  if (!productId || !variantId || !accountsText.trim()) {
+    return notify('Vui lòng chọn sản phẩm, tùy chọn gói và dán danh sách tài khoản!', true);
+  }
+
+  isAddingStock = true;
+  const btn = btnEl || document.getElementById('btn-add-stock');
+  const lbl = document.getElementById('lbl-add-stock-text');
+  const origHtml = btn ? btn.innerHTML : '';
+
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add('opacity-70', 'cursor-not-allowed');
+    if (lbl) lbl.innerText = 'Đang kiểm tra & nạp kho...';
+    else btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang nạp kho...';
+  }
+
   try {
-    const res = await fetch('/api/admin/add-stock', { method: 'POST', headers: adminHeaders(), body: JSON.stringify({ productId, variantId, accountsText }) });
+    const res = await fetch('/api/admin/add-stock', {
+      method: 'POST',
+      headers: adminHeaders(),
+      body: JSON.stringify({ productId, variantId, accountsText })
+    });
     const d = await res.json();
-    if (!res.ok) return notify(d.error, true);
+    if (!res.ok) return notify(d.error || 'Lỗi khi nạp kho!', true);
+
     notify(d.message);
     clearStockInput();
-    loadAdminDashboard();
-    loadAdminInventory();
+    if (d.batchCode) {
+      // Mặc định mở rộng lần nạp vừa thêm để Admin kiểm tra ngay
+      expandedBatches.add(d.batchCode);
+    }
+    await loadAdminDashboard();
+    await loadAdminInventory();
   } catch (e) {
     notify('Đã nạp tài khoản vào kho!');
     clearStockInput();
+    loadAdminInventory();
+  } finally {
+    isAddingStock = false;
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove('opacity-70', 'cursor-not-allowed');
+      btn.innerHTML = origHtml;
+    }
   }
 }
 
-function formatTimeAgo(dateStr) {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr.replace(' ', 'T') + 'Z');
-    const diff = Math.floor((new Date() - d) / 1000);
-    if (isNaN(diff) || diff < 0) return dateStr;
-    if (diff < 60) return `${diff} giây trước`;
-    if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
-    return `${Math.floor(diff / 86400)} ngày trước`;
-  } catch (e) { return dateStr; }
-}
-
+// TẢI DỮ LIỆU KHO TỪ SERVER
 async function loadAdminInventory() {
-  const pId = document.getElementById('adm-stock-product')?.value || '';
   const search = document.getElementById('inp-inv-search')?.value || '';
   try {
-    const res = await fetch(`/api/admin/inventory?productId=${pId}&status=${activeInvStatus}&search=${encodeURIComponent(search)}`, { headers: adminHeaders() });
+    const res = await fetch(`/api/admin/inventory?status=${activeInvStatus}&search=${encodeURIComponent(search)}`, { headers: adminHeaders() });
     const d = await res.json();
     currentInventory = d.items || [];
     const counts = d.counts || { total: 0, unsold: 0, sold: 0 };
     document.getElementById('cnt-inv-all').innerText = counts.total;
     document.getElementById('cnt-inv-unsold').innerText = counts.unsold;
     document.getElementById('cnt-inv-sold').innerText = counts.sold;
-
-    const box = document.getElementById('adm-inventory-list');
-    document.getElementById('chk-select-all-inv').checked = false;
-    updateSelectedCount();
-
-    if (!currentInventory.length) {
-      box.innerHTML = '<p class="text-slate-400 text-xs py-6 text-center">Không có tài khoản nào theo bộ lọc.</p>';
-      return;
-    }
-    box.innerHTML = currentInventory.map(i => {
-      const accKey = registerStoreText(i.account_data);
-      return `
-      <div class="bg-slate-50 p-2.5 rounded-xl border flex items-center gap-2 text-xs hover:bg-slate-100 transition">
-        <input type="checkbox" class="inv-chk w-4 h-4 rounded text-blue-600 shrink-0 cursor-pointer" value="${i.id}" onchange="updateSelectedCount()">
-        <div class="overflow-hidden flex-1 space-y-0.5">
-          <div class="font-bold text-slate-800 flex flex-wrap items-center gap-1.5">
-            <span>${escapeHtml(i.product_name || 'Sản phẩm')}</span>
-            <span class="bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded text-[10px] font-bold">${escapeHtml(i.variant_name || 'Gói')}</span>
-            <span class="text-[10px] ${i.is_sold ? 'text-amber-800 bg-amber-100 border border-amber-300' : 'text-emerald-800 bg-emerald-100 border border-emerald-300'} px-1.5 py-0.2 rounded font-bold">
-              ${i.is_sold ? '✓ ĐÃ BÁN' : '● CÒN TRONG KHO'}
-            </span>
-            ${i.is_sold && i.buyer_name ? `<span class="text-[10px] text-slate-600 font-semibold">• Khách: <b class="text-slate-900">${escapeHtml(i.buyer_name)}</b></span>` : ''}
-            ${i.is_sold && i.order_code ? `<span class="text-[10px] bg-slate-200 text-slate-800 px-1.5 py-0.2 rounded font-mono">#${escapeHtml(i.order_code)}</span>` : ''}
-          </div>
-          <code class="block text-blue-700 font-mono text-[11px] truncate select-all">${escapeHtml(i.account_data)}</code>
-          ${i.is_sold ? `<div class="text-[10px] text-amber-700 font-medium">Bán lúc: ${escapeHtml(i.sold_at || '')} (${formatTimeAgo(i.sold_at)})</div>` : `<div class="text-[10px] text-emerald-700 font-medium">Chưa bán (Sẵn sàng giao)</div>`}
-        </div>
-        <button type="button" onclick="copyByKey('${accKey}', 'Đã sao chép tài khoản!', this)" class="text-blue-600 hover:text-blue-800 p-1.5 shrink-0" title="Sao chép"><i class="fa-regular fa-copy"></i></button>
-        <button type="button" onclick="requestSingleDelete(${i.id})" title="Xóa tài khoản này" class="text-red-500 hover:text-red-700 p-1.5 shrink-0"><i class="fa-solid fa-trash"></i></button>
-      </div>`;
-    }).join('');
   } catch (e) {}
+  renderAdminInventoryProductTabs();
+  renderAdminInventoryView();
+}
+
+// BẬT / TẮT MỞ RỘNG MỘT LẦN NẠP (BATCH ACCORDION)
+function toggleBatchAccordion(batchCode) {
+  if (expandedBatches.has(batchCode)) {
+    expandedBatches.delete(batchCode);
+  } else {
+    expandedBatches.add(batchCode);
+  }
+  renderAdminInventoryView();
+}
+
+// SAO CHÉP TOÀN BỘ ACC CỦA 1 LẦN NẠP
+function copyBatchAccounts(batchCode, btnEl = null) {
+  const batchItems = currentInventory.filter(i => (i.batch_code || 'DOT-BAN-DAU') === batchCode);
+  if (!batchItems.length) return notify('Không có tài khoản nào trong đợt này!', true);
+  const accs = batchItems.map(i => i.account_data).join('\n');
+  copyText(accs, `Đã sao chép ${batchItems.length} tài khoản trong lần nạp #${batchCode}!`, btnEl);
+}
+
+// TẢI FILE .TXT TOÀN BỘ ACC CỦA 1 LẦN NẠP
+function downloadBatchAccountsTxt(batchCode, btnEl = null) {
+  const batchItems = currentInventory.filter(i => (i.batch_code || 'DOT-BAN-DAU') === batchCode);
+  if (!batchItems.length) return notify('Không có tài khoản nào trong đợt này!', true);
+  const text = batchItems.map(i => i.account_data).join('\n');
+  downloadOrderTxt(text, `LAN_NAP_${batchCode}`, btnEl);
+}
+
+// XÓA MỘT LẦN NẠP (CHỈ XÓA ACC CHƯA BÁN)
+function deleteBatchAccounts(batchCode) {
+  const batchItems = currentInventory.filter(i => (i.batch_code || 'DOT-BAN-DAU') === batchCode);
+  const unsold = batchItems.filter(i => !i.is_sold).length;
+  const sold = batchItems.filter(i => i.is_sold).length;
+
+  openDeleteCountdownModal(
+    `Bạn có chắc chắn muốn xóa Lần nạp #${batchCode}? (${unsold} tài khoản chưa bán sẽ bị xóa vĩnh viễn${sold > 0 ? `, ${sold} tài khoản đã bán sẽ được giữ lại` : ''})`,
+    async () => {
+      try {
+        const res = await fetch(`/api/admin/inventory/batch/${encodeURIComponent(batchCode)}`, {
+          method: 'DELETE',
+          headers: adminHeaders()
+        });
+        const d = await res.json();
+        notify(d.message || 'Đã xóa lần nạp!');
+        loadAdminInventory();
+        loadAdminDashboard();
+      } catch (e) {
+        notify('Lỗi khi xóa lần nạp!', true);
+      }
+    }
+  );
+}
+
+// XUẤT ACC CỦA TỪNG GÓI TÙY CHỌN
+async function exportVariantStock(prodId, varId, status = 'unsold') {
+  try {
+    const res = await fetch(`/api/admin/export-stock?productId=${prodId}&variantId=${varId}&status=${status}`, { headers: adminHeaders() });
+    const text = await res.text();
+    if (!text.trim()) return notify('Không có tài khoản nào theo bộ lọc để xuất!', true);
+    downloadOrderTxt(text, `GOI_${varId}_${status === 'sold' ? 'DA_BAN' : 'TON_KHO'}`);
+  } catch (e) {}
+}
+
+// ================= RENDER GIAO DIỆN KHO TRỰC QUAN: SẢN PHẨM -> GÓI -> LẦN NẠP -> ACC =================
+function renderAdminInventoryView() {
+  const box = document.getElementById('adm-inventory-list');
+  if (!box) return;
+
+  const kw = (document.getElementById('inp-inv-search')?.value || '').toLowerCase().trim();
+
+  // 1. Lọc theo trạng thái và tìm kiếm
+  let filteredItems = currentInventory.filter(item => {
+    if (activeInvStatus === 'unsold' && item.is_sold) return false;
+    if (activeInvStatus === 'sold' && !item.is_sold) return false;
+    if (kw) {
+      const matchAcc = (item.account_data || '').toLowerCase().includes(kw);
+      const matchOrder = (item.order_code || '').toLowerCase().includes(kw);
+      const matchUser = (item.buyer_name || '').toLowerCase().includes(kw);
+      const matchBatch = (item.batch_code || '').toLowerCase().includes(kw) || (item.batch_time || '').toLowerCase().includes(kw);
+      const matchProd = (item.product_name || '').toLowerCase().includes(kw);
+      const matchVar = (item.variant_name || '').toLowerCase().includes(kw);
+      if (!matchAcc && !matchOrder && !matchUser && !matchBatch && !matchProd && !matchVar) return false;
+    }
+    return true;
+  });
+
+  // 2. Lọc theo Tab Sản Phẩm đang chọn (nếu không phải ALL)
+  if (activeInvProductTab !== 'ALL') {
+    filteredItems = filteredItems.filter(item => Number(item.product_id) === Number(activeInvProductTab));
+  }
+
+  document.getElementById('chk-select-all-inv').checked = false;
+  updateSelectedCount();
+
+  if (!filteredItems.length) {
+    box.innerHTML = `
+      <div class="text-center py-10 text-slate-400 text-xs bg-slate-50 rounded-2xl border space-y-2">
+        <div class="w-10 h-10 rounded-full bg-slate-200 text-slate-500 mx-auto flex items-center justify-center text-sm font-bold"><i class="fa-solid fa-boxes-stacked"></i></div>
+        <p class="font-medium">Không tìm thấy tài khoản nào theo bộ lọc hiện tại.</p>
+        <button type="button" onclick="setInvProductTab('ALL'); setInvStatusFilter('all'); document.getElementById('inp-inv-search').value='';" class="text-blue-600 font-bold hover:underline text-[11px]">
+          Xóa bộ lọc & xem toàn bộ kho
+        </button>
+      </div>`;
+    return;
+  }
+
+  // 3. Gom nhóm phân cấp: Sản phẩm -> Gói tùy chọn -> Lần nạp -> Danh sách acc
+  const productMap = new Map();
+
+  filteredItems.forEach(item => {
+    const pId = item.product_id || 0;
+    if (!productMap.has(pId)) {
+      const prodObj = allProducts.find(p => Number(p.id) === Number(pId)) || {
+        id: pId,
+        name: item.product_name || 'Sản phẩm khác',
+        image: item.product_image || DEFAULT_IMG,
+        variants: []
+      };
+      productMap.set(pId, {
+        product: prodObj,
+        totalItems: 0,
+        unsoldItems: 0,
+        soldItems: 0,
+        variants: new Map()
+      });
+    }
+
+    const pGroup = productMap.get(pId);
+    pGroup.totalItems++;
+    if (item.is_sold) pGroup.soldItems++;
+    else pGroup.unsoldItems++;
+
+    const vId = item.variant_id || 0;
+    if (!pGroup.variants.has(vId)) {
+      const varObj = (pGroup.product.variants || []).find(v => Number(v.id) === Number(vId)) || {
+        id: vId,
+        name: item.variant_name || 'Gói tùy chọn',
+        price: 0
+      };
+      pGroup.variants.set(vId, {
+        variant: varObj,
+        totalItems: 0,
+        unsoldItems: 0,
+        soldItems: 0,
+        batches: new Map()
+      });
+    }
+
+    const vGroup = pGroup.variants.get(vId);
+    vGroup.totalItems++;
+    if (item.is_sold) vGroup.soldItems++;
+    else vGroup.unsoldItems++;
+
+    const bCode = item.batch_code || 'DOT-BAN-DAU';
+    const bTime = item.batch_time || (item.created_at ? formatTimeAgo(item.created_at) : 'Ban đầu');
+    if (!vGroup.batches.has(bCode)) {
+      vGroup.batches.set(bCode, {
+        batchCode: bCode,
+        batchTime: bTime,
+        totalItems: 0,
+        unsoldItems: 0,
+        soldItems: 0,
+        items: []
+      });
+    }
+
+    const bGroup = vGroup.batches.get(bCode);
+    bGroup.totalItems++;
+    if (item.is_sold) bGroup.soldItems++;
+    else bGroup.unsoldItems++;
+    bGroup.items.push(item);
+  });
+
+  // 4. Sinh HTML cho từng khối sản phẩm riêng biệt
+  let htmlResult = '';
+
+  productMap.forEach(pData => {
+    const prod = pData.product;
+    const pId = prod.id;
+
+    let variantsHtml = '';
+
+    pData.variants.forEach(vData => {
+      const variant = vData.variant;
+      const vId = variant.id;
+
+      let batchesHtml = '';
+
+      vData.batches.forEach(bData => {
+        const bCode = bData.batchCode;
+        const bTime = bData.batchTime;
+        const isExpanded = expandedBatches.has(bCode);
+
+        // Sinh danh sách hàng loạt tài khoản bên trong lần nạp
+        let itemsHtml = '';
+        if (isExpanded) {
+          itemsHtml = bData.items.map(accItem => {
+            const accKey = registerStoreText(accItem.account_data);
+            const isSold = Boolean(accItem.is_sold);
+            return `
+              <div class="bg-white p-2 rounded-lg border border-slate-200 flex items-center gap-2 text-xs hover:bg-slate-50 transition">
+                <input type="checkbox" class="inv-chk w-3.5 h-3.5 rounded text-blue-600 shrink-0 cursor-pointer" value="${accItem.id}" onchange="updateSelectedCount()">
+                <div class="overflow-hidden flex-1 space-y-0.5">
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    <span class="text-[10px] ${isSold ? 'text-amber-800 bg-amber-100 border border-amber-300' : 'text-emerald-800 bg-emerald-100 border border-emerald-300'} px-1.5 py-0.2 rounded font-bold">
+                      ${isSold ? '✓ ĐÃ BÁN' : '● CÒN TỒN'}
+                    </span>
+                    ${isSold && accItem.buyer_name ? `<span class="text-[10px] text-slate-600 font-semibold">• Khách: <b class="text-slate-900">${escapeHtml(accItem.buyer_name)}</b></span>` : ''}
+                    ${isSold && accItem.order_code ? `<span class="text-[10px] bg-slate-200 text-slate-800 px-1.5 py-0.2 rounded font-mono">#${escapeHtml(accItem.order_code)}</span>` : ''}
+                    ${isSold && accItem.sold_at ? `<span class="text-[9px] text-slate-400">(${formatTimeAgo(accItem.sold_at)})</span>` : ''}
+                  </div>
+                  <code class="block text-slate-900 font-mono text-[11px] truncate select-all font-semibold">${escapeHtml(accItem.account_data)}</code>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                  <button type="button" onclick="copyByKey('${accKey}', 'Đã sao chép tài khoản!', this)" class="text-blue-600 hover:text-blue-800 p-1.5 rounded hover:bg-blue-50" title="Sao chép tài khoản này"><i class="fa-regular fa-copy"></i></button>
+                  <button type="button" onclick="requestSingleDelete(${accItem.id})" title="Xóa tài khoản này" class="text-red-500 hover:text-red-700 p-1.5 rounded hover:bg-red-50"><i class="fa-solid fa-trash"></i></button>
+                </div>
+              </div>`;
+          }).join('');
+        }
+
+        batchesHtml += `
+          <div class="bg-slate-50 border border-slate-200/90 rounded-xl overflow-hidden transition shadow-2xs">
+            <!-- THANH TIÊU ĐỀ LẦN NẠP: MẤY GIỜ, MẤY PHÚT, NGÀY NẠP & SỐ LƯỢNG (BẤM VÀO ĐỂ SỔ RA HÀNG LOẠT ACC) -->
+            <div onclick="toggleBatchAccordion('${escapeHtml(bCode)}')" class="p-2.5 cursor-pointer hover:bg-blue-50/60 flex flex-wrap justify-between items-center gap-2 select-none">
+              <div class="flex items-center gap-2 overflow-hidden flex-1 min-w-[200px]">
+                <div class="w-7 h-7 rounded-lg ${isExpanded ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700'} flex items-center justify-center text-xs shrink-0 font-bold transition">
+                  <i class="fa-regular fa-clock"></i>
+                </div>
+                <div class="overflow-hidden">
+                  <div class="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 flex-wrap">
+                    <span>🕒 Lần nạp lúc: <b class="text-blue-700">${escapeHtml(bTime)}</b></span>
+                    <span class="bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-mono text-[9px]">#${escapeHtml(bCode)}</span>
+                  </div>
+                  <div class="text-[10px] text-slate-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                    <span>Tổng: <b class="text-slate-800">${bData.totalItems} tài khoản</b></span>
+                    <span class="text-emerald-700 font-semibold">• Còn tồn: <b>${bData.unsoldItems}</b></span>
+                    <span class="text-amber-700 font-semibold">• Đã bán: <b>${bData.soldItems}</b></span>
+                    <span class="text-blue-600 font-bold underline ml-1">${isExpanded ? '▲ Thu gọn danh sách' : '▼ Nhấn để xem chi tiết các tài khoản'}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-1 shrink-0" onclick="event.stopPropagation()">
+                <button type="button" onclick="copyBatchAccounts('${escapeHtml(bCode)}', this)" class="bg-white hover:bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-lg font-bold text-[10px] transition shadow-2xs" title="Sao chép toàn bộ acc đợt này">
+                  <i class="fa-regular fa-copy mr-0.5"></i>Copy đợt (${bData.totalItems})
+                </button>
+                <button type="button" onclick="downloadBatchAccountsTxt('${escapeHtml(bCode)}', this)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg font-bold text-[10px] shadow-2xs transition" title="Tải file .txt đợt này">
+                  <i class="fa-solid fa-file-arrow-down mr-0.5"></i>Tải .txt
+                </button>
+                <button type="button" onclick="deleteBatchAccounts('${escapeHtml(bCode)}')" class="bg-red-50 hover:bg-red-600 text-red-600 hover:text-white border border-red-200 px-2 py-1 rounded-lg font-bold text-[10px] transition" title="Xóa các acc chưa bán trong lần nạp này">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+                <button type="button" onclick="toggleBatchAccordion('${escapeHtml(bCode)}')" class="text-slate-400 hover:text-blue-600 p-1 text-xs">
+                  <i class="fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'}"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- PHẦN SỔ XUỐNG KHI CLICK VÀO LẦN NẠP ĐÓ: HIỂN THỊ HÀNG LOẠT TÀI KHOẢN -->
+            ${isExpanded ? `
+              <div class="p-2.5 border-t border-slate-200 bg-white space-y-1.5 animate-fadeIn">
+                <div class="flex justify-between items-center text-[10px] text-slate-500 pb-1 border-b">
+                  <span>Chi tiết danh sách ${bData.items.length} tài khoản trong lần nạp lúc <b>${escapeHtml(bTime)}</b>:</span>
+                  <span class="text-blue-600 font-semibold">Tích chọn để thao tác hàng loạt</span>
+                </div>
+                <div class="space-y-1 max-h-52 overflow-y-auto custom-scroll pr-1">
+                  ${itemsHtml}
+                </div>
+              </div>
+            ` : ''}
+          </div>`;
+      });
+
+      variantsHtml += `
+        <div class="bg-white rounded-xl border border-blue-200 p-3 space-y-2.5 shadow-2xs">
+          <!-- HEADER MỤC RIÊNG CỦA GÓI TÙY CHỌN -->
+          <div class="flex flex-wrap justify-between items-center gap-2 border-b border-slate-100 pb-2">
+            <div>
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">Gói tùy chọn</span>
+                <b class="text-xs sm:text-sm text-slate-900">${escapeHtml(variant.name || 'Gói tiêu chuẩn')}</b>
+                ${variant.price ? `<span class="text-red-600 font-extrabold text-xs ml-1">(${Number(variant.price).toLocaleString()}đ)</span>` : ''}
+              </div>
+              <div class="text-[10px] text-slate-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                <span>Còn tồn: <b class="text-emerald-600 font-bold">${vData.unsoldItems} acc</b></span>
+                <span>• Đã bán: <b class="text-amber-600 font-bold">${vData.soldItems} acc</b></span>
+                <span>• Tổng nạp vào gói này: <b class="text-slate-800">${vData.totalItems} acc</b></span>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-1">
+              <button type="button" onclick="quickSelectProductVariant(${pId}, ${vId})" class="bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 px-2.5 py-1 rounded-lg font-bold text-[10px] transition flex items-center gap-1">
+                <i class="fa-solid fa-plus"></i> Nạp Vào Gói Này
+              </button>
+              <button type="button" onclick="exportVariantStock(${pId}, ${vId}, 'unsold')" class="bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 px-2 py-1 rounded-lg font-bold text-[10px] transition" title="Xuất file .txt acc còn tồn của gói này">
+                <i class="fa-solid fa-download mr-0.5"></i>Tồn (.txt)
+              </button>
+              <button type="button" onclick="exportVariantStock(${pId}, ${vId}, 'sold')" class="bg-amber-50 hover:bg-amber-600 text-amber-700 hover:text-white border border-amber-200 px-2 py-1 rounded-lg font-bold text-[10px] transition" title="Xuất file .txt acc đã bán của gói này">
+                <i class="fa-solid fa-download mr-0.5"></i>Đã bán (.txt)
+              </button>
+            </div>
+          </div>
+
+          <!-- DANH SÁCH CÁC LẦN NẠP CỦA GÓI NÀY -->
+          <div class="space-y-1.5">
+            ${batchesHtml}
+          </div>
+        </div>`;
+    });
+
+    htmlResult += `
+      <div class="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden shadow-sm space-y-0">
+        <!-- HEADER SẢN PHẨM: TÁCH RIÊNG CÁC SẢN PHẨM RA VỚI NHAU -->
+        <div class="bg-slate-800 text-white p-3 flex flex-wrap justify-between items-center gap-2">
+          <div class="flex items-center gap-2.5 overflow-hidden flex-1 min-w-[200px]">
+            <img src="${escapeHtml(prod.image || DEFAULT_IMG)}" alt="${escapeHtml(prod.name)}" class="w-8 h-8 rounded-lg object-cover border border-white/20 shrink-0">
+            <div class="overflow-hidden">
+              <h4 class="font-black text-xs sm:text-sm text-white truncate flex items-center gap-1.5">
+                <span>${escapeHtml(prod.name)}</span>
+              </h4>
+              <span class="text-[10px] text-blue-200">${pData.variants.size} gói tùy chọn • Tổng ${pData.totalItems} tài khoản</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 text-[11px] shrink-0">
+            <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-bold">● Còn tồn: ${pData.unsoldItems} acc</span>
+            <span class="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-bold">✓ Đã bán: ${pData.soldItems} acc</span>
+          </div>
+        </div>
+
+        <!-- DANH SÁCH MỤC CÁC GÓI TÙY CHỌN RIÊNG BIỆT -->
+        <div class="p-3 space-y-3 bg-slate-50/50">
+          ${variantsHtml}
+        </div>
+      </div>`;
+  });
+
+  box.innerHTML = htmlResult;
 }
 
 // 3. POP-UP ĐẾM NGƯỢC XÓA AN TOÀN
@@ -3091,7 +3467,7 @@ function copySelectedInventory() {
 }
 
 async function exportCurrentStock(status = 'unsold') {
-  const pId = document.getElementById('adm-stock-product')?.value || '';
+  const pId = activeInvProductTab !== 'ALL' ? activeInvProductTab : '';
   try {
     const res = await fetch(`/api/admin/export-stock?productId=${pId}&status=${status}`, { headers: adminHeaders() });
     const text = await res.text();
@@ -3102,38 +3478,49 @@ async function exportCurrentStock(status = 'unsold') {
 
 // 4. LỊCH SỬ BÁN HÀNG & ĐỔI BẢO HÀNH 1-CLICK
 async function loadAdminSalesOrders() {
+  const selProd = document.getElementById('sel-sales-filter-product')?.value || 'ALL';
+  const queryParam = selProd !== 'ALL' ? `?productId=${selProd}` : '';
   try {
-    const res = await fetch('/api/admin/sales-orders', { headers: adminHeaders() });
-    const orders = await res.json();
-    const box = document.getElementById('adm-sales-list');
-    if (!orders || !orders.length) {
-      box.innerHTML = '<p class="text-slate-400 text-xs py-8 text-center">Chưa có đơn hàng nào được bán ra.</p>';
-      return;
-    }
-    box.innerHTML = orders.map(o => {
-      const accs = o.accounts || [];
-      const allKey = registerStoreText(accs.join('\n'));
-      return `
-        <div class="bg-slate-50 p-3 rounded-xl border space-y-2">
-          <div class="flex flex-wrap justify-between items-start gap-2 border-b pb-1.5">
-            <div>
-              <span class="blue-header text-white font-mono text-xs font-bold px-2 py-0.5 rounded">#${escapeHtml(o.order_code)}</span>
-              <b class="ml-1 text-slate-900">${escapeHtml(o.product_name)}</b> - <span class="text-blue-700 font-bold">${escapeHtml(o.variant_name)}</span>
-              ${o.warranty ? `<span class="ml-1 bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded text-[10px] font-bold">${escapeHtml(o.warranty)}</span>` : ''}
-              <div class="text-[11px] text-slate-500 mt-0.5">Khách mua: <b class="text-slate-800">${escapeHtml(o.buyer_username || 'Khách')}</b> ${o.buyer_email ? `(${escapeHtml(o.buyer_email)})` : ''} • SL: <b class="text-slate-800">${o.quantity} acc</b> • Tiền: <b class="text-red-600">${Number(o.total_price).toLocaleString()}đ</b> • Ngày: ${escapeHtml(o.created_at)}</div>
-            </div>
-            <div class="flex flex-wrap gap-1">
-              <button type="button" onclick="copyByKey('${allKey}', 'Đã sao chép ${accs.length} acc của đơn #${escapeHtml(o.order_code)}!', this)" class="blue-header text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow"><i class="fa-regular fa-copy mr-1"></i>Copy (${accs.length})</button>
-              <button type="button" onclick="downloadByKey('${allKey}', '${escapeHtml(o.order_code)}', this)" class="bg-emerald-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow"><i class="fa-solid fa-download mr-1"></i>Tải .txt</button>
-              <button type="button" onclick="exchangeWarrantyAcc(${o.id}, '${escapeHtml(o.order_code)}')" class="bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow"><i class="fa-solid fa-rotate mr-1"></i>Đổi 1 Acc Mới</button>
-            </div>
-          </div>
-          <div class="space-y-1 max-h-24 overflow-y-auto custom-scroll">
-            ${accs.map(a => `<code class="block bg-white p-1.5 rounded border text-[11px] font-mono text-emerald-700 select-all break-all">${escapeHtml(a)}</code>`).join('')}
-          </div>
-        </div>`;
-    }).join('');
+    const res = await fetch(`/api/admin/sales-orders${queryParam}`, { headers: adminHeaders() });
+    allAdminSalesOrders = await res.json();
+    renderAdminSalesOrdersList(allAdminSalesOrders);
   } catch (e) {}
+}
+
+function filterSalesOrders() {
+  loadAdminSalesOrders();
+}
+
+function renderAdminSalesOrdersList(orders = []) {
+  const box = document.getElementById('adm-sales-list');
+  if (!box) return;
+  if (!orders || !orders.length) {
+    box.innerHTML = '<p class="text-slate-400 text-xs py-8 text-center bg-slate-50 rounded-xl border">Không có đơn hàng nào khớp với bộ lọc.</p>';
+    return;
+  }
+  box.innerHTML = orders.map(o => {
+    const accs = o.accounts || [];
+    const allKey = registerStoreText(accs.join('\n'));
+    return `
+      <div class="bg-slate-50 p-3 rounded-xl border space-y-2">
+        <div class="flex flex-wrap justify-between items-start gap-2 border-b pb-1.5">
+          <div>
+            <span class="blue-header text-white font-mono text-xs font-bold px-2 py-0.5 rounded">#${escapeHtml(o.order_code)}</span>
+            <b class="ml-1 text-slate-900">${escapeHtml(o.product_name)}</b> - <span class="text-blue-700 font-bold bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">${escapeHtml(o.variant_name)}</span>
+            ${o.warranty ? `<span class="ml-1 bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded text-[10px] font-bold">${escapeHtml(o.warranty)}</span>` : ''}
+            <div class="text-[11px] text-slate-500 mt-0.5">Khách mua: <b class="text-slate-800">${escapeHtml(o.buyer_username || 'Khách')}</b> ${o.buyer_email ? `(${escapeHtml(o.buyer_email)})` : ''} • SL: <b class="text-amber-800 font-bold">${o.quantity} acc đã bán</b> • Tiền: <b class="text-red-600 font-bold">${Number(o.total_price).toLocaleString()}đ</b> • Ngày: ${escapeHtml(o.created_at)}</div>
+          </div>
+          <div class="flex flex-wrap gap-1">
+            <button type="button" onclick="copyByKey('${allKey}', 'Đã sao chép ${accs.length} acc của đơn #${escapeHtml(o.order_code)}!', this)" class="blue-header text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow"><i class="fa-regular fa-copy mr-1"></i>Copy (${accs.length})</button>
+            <button type="button" onclick="downloadByKey('${allKey}', '${escapeHtml(o.order_code)}', this)" class="bg-emerald-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow"><i class="fa-solid fa-download mr-1"></i>Tải .txt</button>
+            <button type="button" onclick="exchangeWarrantyAcc(${o.id}, '${escapeHtml(o.order_code)}')" class="bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow"><i class="fa-solid fa-rotate mr-1"></i>Đổi 1 Acc Mới</button>
+          </div>
+        </div>
+        <div class="space-y-1 max-h-24 overflow-y-auto custom-scroll">
+          ${accs.map(a => `<code class="block bg-white p-1.5 rounded border text-[11px] font-mono text-emerald-700 select-all break-all">${escapeHtml(a)}</code>`).join('')}
+        </div>
+      </div>`;
+  }).join('');
 }
 
 // MODAL THAO TÁC ADMIN (THAY THẾ PROMPT / CONFIRM)
