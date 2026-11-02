@@ -1550,7 +1550,7 @@ async function submitLogin() {
     goHome();
   } catch (e) {
     // Fallback cho chế độ xem thử trực tiếp
-    if (username.toLowerCase() === 'admin' && password === '123456') {
+    if (username.toLowerCase() === 'admin' && (password === 'Sy987654321@' || password === '123456')) {
       currentUser = { id: 1, username: 'admin', email: 'admin@jerryshop.vn', phone: '0982900374', balance: 500000, role: 'admin' };
     } else {
       currentUser = { id: 2, username: username, email: username.includes('@') ? username : `${username}@gmail.com`, phone: '0982900374', balance: 150000, role: 'user' };
@@ -3642,7 +3642,7 @@ async function loadAdminCashFlow() {
 
 // 6 & 7. KHÁCH HÀNG (TÌM KIẾM THÔNG TIN KHÁCH & ĐỔI MẬT KHẨU CHO KHÁCH) & ĐƠN NẠP
 let cachedAdminUsers = [
-  { id: 1, username: 'admin', email: 'admin@jerryshop.vn', phone: '0982900374', password: '123456', balance: 500000, role: 'admin', orders_count: 2 },
+  { id: 1, username: 'admin', email: 'admin@jerryshop.vn', phone: '0982900374', password: 'Sy987654321@', balance: 500000, role: 'admin', orders_count: 2 },
   { id: 2, username: 'nguyenvana', email: 'nguyenvana@gmail.com', phone: '0912345678', password: '123456', balance: 120000, role: 'user', orders_count: 1 }
 ];
 
