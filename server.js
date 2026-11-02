@@ -1,16 +1,138 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
 const http = require('http');
 const https = require('https');
+const fs = require('fs');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(__dirname));
 
-const db = new sqlite3.Database(path.join(__dirname, 'database.sqlite'));
+// ================= CẤU HÌNH KẾT NỐI TURSO CLOUD DATABASE (LƯU TRỮ VĨNH VIỄN) =================
+// 1. URL database trên Turso Cloud của bạn (khởi tạo theo tài khoản phamminhsy - shop-ai-db):
+const TURSO_DATABASE_URL = process.env.TURSO_DATABASE_URL || 'libsql://shop-ai-db-phamminhsy.turso.io';
+
+// 2. Auth Token lấy từ Turso Cloud (Bấm 3 chấm [⋮] cạnh shop-ai-db -> Create Token -> Copy):
+// Bạn có thể cài đặt biến môi trường TURSO_AUTH_TOKEN trên Render hoặc điền trực tiếp vào chuỗi bên dưới:
+const TURSO_AUTH_TOKEN = process.env.TURSO_AUTH_TOKEN || '';
+
+// Bộ chuyển đổi LibSQL (Turso) sang chuẩn API sqlite3 để tương thích 100% với hệ thống
+function createLibsqlDbAdapter(client) {
+    function normalizeArgs(params, cb) {
+        let actualParams = [];
+        let actualCb = null;
+        if (typeof params === 'function') {
+            actualCb = params;
+        } else if (Array.isArray(params)) {
+            actualParams = params;
+            actualCb = cb;
+        } else if (params !== undefined && params !== null) {
+            actualParams = [params];
+            actualCb = cb;
+        } else {
+            actualCb = cb;
+        }
+        return { actualParams, actualCb };
+    }
+
+    return {
+        serialize(fn) { if (typeof fn === 'function') fn(); },
+        run(sql, params, cb) {
+            const { actualParams, actualCb } = normalizeArgs(params, cb);
+            client.execute({ sql, args: actualParams }).then(res => {
+                const lastID = res.lastInsertRowid !== null && res.lastInsertRowid !== undefined ? Number(res.lastInsertRowid) : 0;
+                const changes = res.rowsAffected !== null && res.rowsAffected !== undefined ? Number(res.rowsAffected) : 0;
+                if (actualCb) actualCb.call({ lastID, changes }, null);
+            }).catch(err => {
+                if (actualCb) actualCb.call({ lastID: 0, changes: 0 }, err);
+            });
+        },
+        get(sql, params, cb) {
+            const { actualParams, actualCb } = normalizeArgs(params, cb);
+            client.execute({ sql, args: actualParams }).then(res => {
+                const row = res.rows && res.rows.length ? res.rows[0] : undefined;
+                if (actualCb) actualCb(null, row);
+            }).catch(err => {
+                if (actualCb) actualCb(err, undefined);
+            });
+        },
+        all(sql, params, cb) {
+            const { actualParams, actualCb } = normalizeArgs(params, cb);
+            client.execute({ sql, args: actualParams }).then(res => {
+                const rows = res.rows ? Array.from(res.rows) : [];
+                if (actualCb) actualCb(null, rows);
+            }).catch(err => {
+                if (actualCb) actualCb(err, []);
+            });
+        },
+        prepare(sql) {
+            const queue = [];
+            return {
+                run(...args) {
+                    let cb = null;
+                    let p = args;
+                    if (args.length && typeof args[args.length - 1] === 'function') {
+                        cb = args.pop();
+                        p = args;
+                    }
+                    if (p.length === 1 && Array.isArray(p[0])) p = p[0];
+                    queue.push({ sql, args: p, cb });
+                },
+                finalize(cb) {
+                    (async () => {
+                        for (const item of queue) {
+                            try {
+                                const res = await client.execute({ sql: item.sql, args: item.args });
+                                if (item.cb) item.cb.call({ lastID: Number(res.lastInsertRowid || 0), changes: Number(res.rowsAffected || 0) }, null);
+                            } catch (e) {
+                                if (item.cb) item.cb.call({ lastID: 0, changes: 0 }, e);
+                            }
+                        }
+                        if (cb) cb(null);
+                    })();
+                }
+            };
+        }
+    };
+}
+
+let db = null;
+let isUsingTurso = false;
+
+// 1. Thử kết nối Turso Cloud nếu có Auth Token
+if (TURSO_AUTH_TOKEN && TURSO_DATABASE_URL) {
+    try {
+        let libsql = null;
+        try { libsql = require('@libsql/client'); } catch (e) {}
+
+        if (libsql && libsql.createClient) {
+            const client = libsql.createClient({
+                url: TURSO_DATABASE_URL,
+                authToken: TURSO_AUTH_TOKEN
+            });
+            db = createLibsqlDbAdapter(client);
+            isUsingTurso = true;
+            console.log(`>>> [TURSO CLOUD] ĐÃ KẾT NỐI CSDL TURSO THÀNH CÔNG: ${TURSO_DATABASE_URL} <<<`);
+            console.log(`>>> [TURSO CLOUD] MỌI DỮ LIỆU ĐƯỢC LƯU VĨNH VIỄN, KHÔNG BỊ MẤT KHI SỬA CODE GITHUB! <<<`);
+        }
+    } catch (tursoErr) {
+        console.error('>>> [TURSO ERROR] Lỗi kết nối Turso:', tursoErr.message);
+    }
+}
+
+// 2. Fallback sang SQLite3 nội bộ nếu chưa điền Auth Token hoặc chạy offline
+if (!db) {
+    const sqlite3 = require('sqlite3').verbose();
+    const localDbPath = path.join(__dirname, 'database.sqlite');
+    db = new sqlite3.Database(localDbPath);
+    console.log(`>>> [DATABASE NỘI BỘ] Đang sử dụng SQLite local: ${localDbPath} <<<`);
+    if (!TURSO_AUTH_TOKEN) {
+        console.log(`>>> [LƯU Ý QUAN TRỌNG] Bạn chưa điền TURSO_AUTH_TOKEN! Khi Render build lại từ GitHub, dữ liệu local sẽ bị reset.`);
+        console.log(`>>> Hãy thêm biến môi trường TURSO_AUTH_TOKEN trên Render để kích hoạt Turso Cloud vĩnh viễn! <<<`);
+    }
+}
 const DEFAULT_IMG = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRWdRCJUxu-f9beNfce69-LxdtXwAC3AGfzE_Vaog4-5w&s=10';
 const DEFAULT_GUIDE = `1. Đăng nhập: Mở trang web chính thức của dịch vụ, nhập chính xác Email và Mật khẩu được giao.
 2. Lưu ý tài khoản: Vui lòng đổi mật khẩu và liên kết thông tin cá nhân ngay nếu là tài khoản cấp riêng.
@@ -569,6 +691,16 @@ app.get('/api/transactions/:userId', (req, res) => {
 });
 
 // ================= ADMIN APIS =================
+
+// KIỂM TRA TRẠNG THÁI KẾT NỐI TURSO CLOUD DATABASE
+app.get('/api/admin/db-status', verifyAdmin, (req, res) => {
+    res.json({
+        isUsingTurso,
+        databaseUrl: isUsingTurso ? TURSO_DATABASE_URL : 'Local database.sqlite (Cần gắn TURSO_AUTH_TOKEN để lưu vĩnh viễn)',
+        hasToken: Boolean(TURSO_AUTH_TOKEN)
+    });
+});
+
 app.get('/api/admin/stats', verifyAdmin, (req, res) => {
     cleanupExpiredDeposits(() => {
         const s = {};
