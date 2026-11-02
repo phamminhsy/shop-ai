@@ -2,6 +2,8 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
+const http = require('http');
+const https = require('https');
 
 const app = express();
 app.use(cors());
@@ -13,7 +15,9 @@ const DEFAULT_IMG = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRWdRC
 const DEFAULT_GUIDE = `1. Đăng nhập: Mở trang web chính thức của dịch vụ, nhập chính xác Email và Mật khẩu được giao.
 2. Lưu ý tài khoản: Vui lòng đổi mật khẩu và liên kết thông tin cá nhân ngay nếu là tài khoản cấp riêng.
 3. Tài khoản Cookie: Nếu định dạng dạng Cookie (json/string), dùng tiện ích Cookie Editor hoặc J2Team Cookies trên Chrome để Import rồi F5 tải lại trang.
-4. Chính sách bảo hành: Jerry Shop bảo hành login và bảo hành tạo video trong vòng 12h kể từ lúc nhận tài khoản. Hỗ trợ 1 đổi 1 nhanh chóng qua Zalo 0982.900.374 nếu lỗi phát sinh trong thời gian bảo hành.`;
+4. Hỗ trợ bảo hành: Liên hệ trực tiếp Zalo hỗ trợ của shop kèm mã đơn hàng nếu tài khoản phát sinh lỗi trong thời gian bảo hành của sản phẩm.`;
+
+const DEPOSIT_TIMEOUT_MS = 10 * 60 * 1000; // Đúng 10 phút (600.000ms)
 
 // Khởi tạo Database
 db.serialize(() => {
@@ -28,25 +32,14 @@ db.serialize(() => {
     db.run(`ALTER TABLE users ADD COLUMN email TEXT`, () => {});
     db.run(`ALTER TABLE users ADD COLUMN phone TEXT`, () => {});
 
-    // Bảng lưu mã OTP quên mật khẩu (hạn 5 phút)
-    db.run(`CREATE TABLE IF NOT EXISTS password_resets (
-        email TEXT PRIMARY KEY, otp TEXT, expires_at DATETIME
-    )`);
-
-    // Bảng mã giảm giá (Coupons / Voucher)
-    db.run(`CREATE TABLE IF NOT EXISTS coupons (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE,
-        discount_type TEXT DEFAULT 'percent', discount_value INTEGER DEFAULT 10,
-        min_order INTEGER DEFAULT 0, max_uses INTEGER DEFAULT 500, used_count INTEGER DEFAULT 0,
-        is_active INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
-
-    // 3. Sản phẩm
+    // 3. Sản phẩm (Có cột warranty riêng cho từng sản phẩm để Admin tùy chỉnh)
     db.run(`CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, old_price INTEGER DEFAULT 0,
-        image TEXT, description TEXT, guide TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        image TEXT, warranty TEXT DEFAULT 'Bảo hành 12h', description TEXT, guide TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
     db.run(`ALTER TABLE products ADD COLUMN guide TEXT`, () => {});
+    db.run(`ALTER TABLE products ADD COLUMN warranty TEXT DEFAULT 'Bảo hành 12h'`, () => {});
 
     // 4. Tùy chọn sản phẩm động
     db.run(`CREATE TABLE IF NOT EXISTS product_variants (
@@ -58,11 +51,10 @@ db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT, order_code TEXT UNIQUE, user_id INTEGER,
         product_id INTEGER, variant_id INTEGER, product_name TEXT, variant_name TEXT,
-        quantity INTEGER DEFAULT 1, total_price INTEGER DEFAULT 0, discount_amount INTEGER DEFAULT 0,
-        coupon_code TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        warranty TEXT, quantity INTEGER DEFAULT 1, total_price INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
-    db.run(`ALTER TABLE orders ADD COLUMN discount_amount INTEGER DEFAULT 0`, () => {});
-    db.run(`ALTER TABLE orders ADD COLUMN coupon_code TEXT`, () => {});
+    db.run(`ALTER TABLE orders ADD COLUMN warranty TEXT`, () => {});
 
     // 6. Kho hàng
     db.run(`CREATE TABLE IF NOT EXISTS inventory (
@@ -74,52 +66,52 @@ db.serialize(() => {
     db.run(`ALTER TABLE inventory ADD COLUMN buyer_id INTEGER`, () => {});
     db.run(`ALTER TABLE inventory ADD COLUMN sold_at DATETIME`, () => {});
 
-    // 7. Giao dịch nạp tiền
+    // 7. Giao dịch nạp tiền (Có expires_at để tự động hủy và xóa mã nạp sau 10 phút)
     db.run(`CREATE TABLE IF NOT EXISTS transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT DEFAULT 'deposit',
-        amount INTEGER, info TEXT, status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        amount INTEGER, info TEXT, status TEXT DEFAULT 'pending',
+        expires_at INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+    db.run(`ALTER TABLE transactions ADD COLUMN expires_at INTEGER`, () => {});
 
-    // Tự động bảo vệ và chữa lành kho inventory: Nếu có acc nào bị mất variant_id do lần sửa cũ, nối lại ngay với variant đầu tiên
+    // Tự động bảo vệ và chữa lành kho inventory
     db.run(`UPDATE inventory SET variant_id = (SELECT id FROM product_variants pv WHERE pv.product_id = inventory.product_id ORDER BY pv.id ASC LIMIT 1) 
             WHERE product_id IN (SELECT id FROM products) 
             AND (variant_id IS NULL OR variant_id NOT IN (SELECT id FROM product_variants))`, () => {});
 
     // Tài khoản Admin mặc định: admin / 123456
-    db.run(`INSERT OR IGNORE INTO users (username, password, balance, role) VALUES ('admin', '123456', 500000, 'admin')`);
+    db.run(`INSERT OR IGNORE INTO users (username, email, phone, password, balance, role) VALUES ('admin', 'admin@jerryshop.vn', '0982900374', '123456', 500000, 'admin')`);
 
-    // Tạo sẵn 2 mã giảm giá chào mừng
-    db.run(`INSERT OR IGNORE INTO coupons (code, discount_type, discount_value, min_order, max_uses) VALUES ('JERRY10', 'percent', 10, 0, 500)`);
-    db.run(`INSERT OR IGNORE INTO coupons (code, discount_type, discount_value, min_order, max_uses) VALUES ('CHAOBAN', 'fixed', 5000, 30000, 500)`);
-
-    // Cài đặt shop mặc định
+    // Cài đặt shop mặc định (Đã bỏ toàn bộ mã giảm giá và bảo hành chung trên giao diện)
     const defaultSettings = [
         ['site_name', 'JERRY <span class="text-yellow-300">SHOP</span>'],
         ['site_slogan', 'Tài Khoản AI Giá Siêu Rẻ'],
         ['site_logo', ''],
+        ['site_domain', ''],
         ['site_hotline', '0982.900.374'],
         ['site_zalo', '0982900374'],
-        ['site_notice', 'Jerry Shop - Giao tài khoản AI tự động 24/7 • Bảo hành login và tạo video 12h'],
+        ['site_notice', 'Jerry Shop - Hệ thống giao tài khoản AI tự động 24/7 nhanh chóng, uy tín'],
         ['site_banner_title', 'Bấm trực tiếp vào sản phẩm để chọn gói và số lượng mua!'],
-        ['site_banner_desc', 'Hệ thống phân phối tài khoản cấp sẵn dùng riêng, tự động bàn giao ngay sau 3 giây thanh toán. Bảo hành 12h uy tín 1 đổi 1.'],
+        ['site_banner_desc', 'Hệ thống phân phối tài khoản cấp sẵn dùng riêng, tự động bàn giao ngay sau 3 giây thanh toán.'],
         ['bank_id', 'MB'],
         ['bank_name', 'MB BANK (Quân Đội)'],
         ['bank_account', '5428102008'],
         ['bank_owner', 'JERRY SHOP'],
-        ['min_deposit', '20000'],
-        ['popup_banner_active', '1'],
-        ['popup_banner_title', '🎉 ƯU ĐÃI CHÀO BẠN MỚI TẠI JERRY SHOP!'],
-        ['popup_banner_content', 'Nhập ngay mã giảm giá [JERRY10] khi mua để được giảm 10% cho mọi đơn hàng. Chúc bạn có trải nghiệm tuyệt vời!']
+        ['min_deposit', '20000']
     ];
     const sStmt = db.prepare(`INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`);
     defaultSettings.forEach(s => sStmt.run(s[0], s[1]));
     sStmt.finalize();
 
+    // Làm sạch thông báo cũ nếu còn dính chữ mã giảm giá hoặc bảo hành chung
+    db.run(`UPDATE settings SET value = 'Jerry Shop - Hệ thống giao tài khoản AI tự động 24/7 nhanh chóng, uy tín' WHERE key = 'site_notice' AND value LIKE '%Bảo hành%'`);
+    db.run(`UPDATE settings SET value = 'Hệ thống phân phối tài khoản cấp sẵn dùng riêng, tự động bàn giao ngay sau 3 giây thanh toán.' WHERE key = 'site_banner_desc' AND (value LIKE '%JERRY10%' OR value LIKE '%Bảo hành%')`);
+
     // Sản phẩm mẫu
     db.get("SELECT COUNT(*) as count FROM products", (err, row) => {
         if (!row || row.count === 0) {
-            db.run(`INSERT INTO products (id, name, old_price, image, description, guide) VALUES (1, 'Tài khoản Muse AI có sẵn 1 tỷ token – Cấp sẵn dùng riêng', 350000, ?, ?, ?)`,
-                [DEFAULT_IMG, '• Tài khoản Muse AI 1 tỷ token dùng riêng tốc độ cao.\n• Bảo hành login và tạo video trong vòng 12h.\n• Tự động giao acc ngay sau thanh toán.', DEFAULT_GUIDE],
+            db.run(`INSERT INTO products (id, name, old_price, image, warranty, description, guide) VALUES (1, 'Tài khoản Muse AI có sẵn 1 tỷ token – Cấp sẵn dùng riêng', 350000, ?, 'Bảo hành 12h 1 đổi 1', ?, ?)`,
+                [DEFAULT_IMG, '• Tài khoản Muse AI 1 tỷ token dùng riêng tốc độ cao.\n• Tự động giao acc ngay sau thanh toán.', DEFAULT_GUIDE],
                 function() {
                     const pid = 1;
                     db.run(`INSERT INTO product_variants (id, product_id, name, price) VALUES 
@@ -136,6 +128,45 @@ db.serialize(() => {
     });
 });
 
+// ================= TỰ ĐỘNG HỦY & XÓA MÃ NẠP TIỀN QUÁ 10 PHÚT =================
+// Khi quá 10 phút mà khách không nạp, hệ thống xóa luôn giao dịch chờ đó để:
+// 1. Không còn nằm ở trạng thái chờ ("⏳ Chờ") mãi mãi.
+// 2. Không ghi nhận mã nạp cũ đó nữa nếu chuyển khoản muộn sau 10 phút.
+function cleanupExpiredDeposits(callback) {
+    const now = Date.now();
+    const sql = `
+        DELETE FROM transactions 
+        WHERE status = 'pending' 
+        AND (
+            (expires_at IS NOT NULL AND expires_at <= ?) 
+            OR (expires_at IS NULL AND datetime(created_at, '+10 minutes') <= datetime('now'))
+        )
+    `;
+    db.run(sql, [now], function(err) {
+        if (typeof callback === 'function') callback(err, this ? this.changes : 0);
+    });
+}
+
+// Quét tự động mỗi 10 giây
+setInterval(() => {
+    cleanupExpiredDeposits();
+}, 10000);
+
+// ================= HEALTHCHECK & KEEP-ALIVE CHỐNG NGỦ ĐÔNG RENDER =================
+app.get('/api/ping', (req, res) => {
+    res.json({ ok: true, timestamp: Date.now() });
+});
+
+setInterval(() => {
+    db.get(`SELECT value FROM settings WHERE key = 'site_domain'`, (err, row) => {
+        const targetUrl = (row && row.value && row.value.trim()) ? row.value.trim() : (process.env.RENDER_EXTERNAL_URL || '');
+        if (!targetUrl || !targetUrl.startsWith('http')) return;
+        const pingUrl = targetUrl.replace(/\/+$/, '') + '/api/ping';
+        const client = pingUrl.startsWith('https') ? https : http;
+        client.get(pingUrl, (res) => { res.resume(); }).on('error', () => {});
+    });
+}, 8 * 60 * 1000); // Tự động giữ ấm server mỗi 8 phút
+
 function verifyAdmin(req, res, next) {
     const adminId = req.headers['x-admin-id'] || req.body.adminId;
     if (!adminId) return res.status(403).json({ error: 'Không có quyền truy cập!' });
@@ -145,7 +176,7 @@ function verifyAdmin(req, res, next) {
     });
 }
 
-// CÀI ĐẶT
+// CÀI ĐẶT HỆ THỐNG & TÊN MIỀN
 app.get('/api/settings', (req, res) => {
     db.all(`SELECT key, value FROM settings`, [], (err, rows) => {
         const obj = {};
@@ -160,7 +191,7 @@ app.post('/api/admin/settings', verifyAdmin, (req, res) => {
     db.serialize(() => {
         const stmt = db.prepare(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`);
         Object.entries(settings).forEach(([k, v]) => stmt.run(k, String(v)));
-        stmt.finalize(() => res.json({ message: 'Đã lưu cài đặt giao diện thành công!' }));
+        stmt.finalize(() => res.json({ message: 'Đã lưu cài đặt giao diện & tên miền thành công!' }));
     });
 });
 
@@ -182,7 +213,7 @@ app.post('/api/register', (req, res) => {
             [u, em, ph, password],
             function(iErr) {
                 if (iErr) return res.status(500).json({ error: 'Lỗi đăng ký tài khoản!' });
-                res.json({ id: this.lastID, username: u, email: em, phone: ph, balance: 0, role: 'user' });
+                res.json({ id: this.lastID, username: u, email: em, phone: ph, balance: 0, role: 'user', created_at: new Date().toISOString() });
             }
         );
     });
@@ -192,138 +223,21 @@ app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Vui lòng nhập tài khoản và mật khẩu!' });
     const u = username.trim().toLowerCase();
-    db.get(`SELECT id, username, email, phone, balance, role FROM users WHERE (LOWER(username) = ? OR LOWER(email) = ?) AND password = ?`, [u, u, password], (err, row) => {
+    db.get(`SELECT id, username, email, phone, balance, role, created_at FROM users WHERE (LOWER(username) = ? OR LOWER(email) = ?) AND password = ?`, [u, u, password], (err, row) => {
         if (!row) return res.status(400).json({ error: 'Sai tên đăng nhập/email hoặc mật khẩu!' });
         res.json(row);
     });
 });
 
-// QUÊN MẬT KHẨU: GỬI MÃ OTP ĐẾN EMAIL
-app.post('/api/forgot-password', (req, res) => {
-    const { email } = req.body;
-    if (!email || !email.trim()) return res.status(400).json({ error: 'Vui lòng nhập địa chỉ Email!' });
-    const em = email.trim().toLowerCase();
-
-    db.get(`SELECT id, username FROM users WHERE LOWER(email) = ?`, [em], (err, user) => {
-        if (!user) return res.status(404).json({ error: 'Không tìm thấy tài khoản nào khớp với Email này!' });
-
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-
-        db.run(`INSERT INTO password_resets (email, otp, expires_at) VALUES (?, ?, ?)
-                ON CONFLICT(email) DO UPDATE SET otp = excluded.otp, expires_at = excluded.expires_at`,
-            [em, otp, expiresAt],
-            (rErr) => {
-                if (rErr) return res.status(500).json({ error: 'Lỗi khi tạo mã OTP!' });
-                res.json({
-                    success: true,
-                    message: `Mã OTP xác nhận gồm 6 chữ số đã được tạo cho email ${em}!`,
-                    otpCode: otp
-                });
-            }
-        );
-    });
-});
-
-// ĐẶT LẠI MẬT KHẨU BẰNG OTP
-app.post('/api/reset-password', (req, res) => {
-    const { email, otp, newPassword } = req.body;
-    if (!email || !otp || !newPassword) return res.status(400).json({ error: 'Vui lòng điền đủ Email, mã OTP và Mật khẩu mới!' });
-    const em = email.trim().toLowerCase();
-    const cleanOtp = otp.trim();
-
-    if (newPassword.length < 4) return res.status(400).json({ error: 'Mật khẩu mới phải có ít nhất 4 ký tự!' });
-
-    db.get(`SELECT * FROM password_resets WHERE email = ?`, [em], (err, row) => {
-        if (!row || row.otp !== cleanOtp) {
-            return res.status(400).json({ error: 'Mã OTP không chính xác!' });
-        }
-        if (new Date(row.expires_at) < new Date()) {
-            return res.status(400).json({ error: 'Mã OTP đã hết hạn (chỉ có hiệu lực trong 5 phút). Vui lòng yêu cầu mã mới!' });
-        }
-
-        db.run(`UPDATE users SET password = ? WHERE LOWER(email) = ?`, [newPassword, em], (uErr) => {
-            if (uErr) return res.status(500).json({ error: 'Lỗi cập nhật mật khẩu!' });
-            db.run(`DELETE FROM password_resets WHERE email = ?`, [em], () => {});
-            res.json({ success: true, message: '🎉 Đổi mật khẩu thành công! Bây giờ bạn có thể đăng nhập bằng mật khẩu mới.' });
-        });
-    });
-});
-
 app.get('/api/user/:id', (req, res) => {
-    db.get(`SELECT id, username, email, phone, balance, role FROM users WHERE id = ?`, [req.params.id], (err, row) => {
+    db.get(`SELECT id, username, email, phone, balance, role, created_at FROM users WHERE id = ?`, [req.params.id], (err, row) => {
         if (!row) return res.status(404).json({ error: 'Không tìm thấy người dùng!' });
         res.json(row);
     });
 });
 
-// ================= MÃ GIẢM GIÁ (COUPON CODES) =================
-app.post('/api/coupon/apply', (req, res) => {
-    const { code, totalAmount } = req.body;
-    if (!code || !code.trim()) return res.status(400).json({ error: 'Vui lòng nhập mã giảm giá!' });
-    const c = code.trim().toUpperCase();
-    const total = parseInt(totalAmount) || 0;
-
-    db.get(`SELECT * FROM coupons WHERE UPPER(code) = ? AND is_active = 1`, [c], (err, row) => {
-        if (!row) return res.status(404).json({ error: 'Mã giảm giá không hợp lệ hoặc đã hết hạn!' });
-        if (row.max_uses && row.used_count >= row.max_uses) {
-            return res.status(400).json({ error: 'Mã giảm giá này đã hết lượt sử dụng!' });
-        }
-        if (row.min_order && total < row.min_order) {
-            return res.status(400).json({ error: `Mã này chỉ áp dụng cho đơn từ ${row.min_order.toLocaleString()}đ trở lên!` });
-        }
-
-        let discount = 0;
-        if (row.discount_type === 'percent') {
-            discount = Math.round((total * row.discount_value) / 100);
-        } else {
-            discount = row.discount_value;
-        }
-        discount = Math.min(discount, total);
-        const finalTotal = Math.max(0, total - discount);
-
-        res.json({
-            valid: true,
-            code: row.code,
-            discountType: row.discount_type,
-            discountValue: row.discount_value,
-            discountAmount: discount,
-            finalTotal: finalTotal,
-            message: `Áp dụng mã ${row.code} thành công! Tiết kiệm: ${discount.toLocaleString()}đ.`
-        });
-    });
-});
-
-app.get('/api/admin/coupons', verifyAdmin, (req, res) => {
-    db.all(`SELECT * FROM coupons ORDER BY id DESC`, [], (err, rows) => res.json(rows || []));
-});
-
-app.post('/api/admin/coupons', verifyAdmin, (req, res) => {
-    const { code, discount_type, discount_value, min_order, max_uses } = req.body;
-    if (!code || !code.trim()) return res.status(400).json({ error: 'Vui lòng nhập mã code!' });
-    const c = code.trim().toUpperCase();
-    const type = discount_type === 'fixed' ? 'fixed' : 'percent';
-    const val = parseInt(discount_value) || 10;
-    const minO = parseInt(min_order) || 0;
-    const maxU = parseInt(max_uses) || 500;
-
-    db.run(`INSERT INTO coupons (code, discount_type, discount_value, min_order, max_uses) VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(code) DO UPDATE SET discount_type = excluded.discount_type, discount_value = excluded.discount_value, min_order = excluded.min_order, max_uses = excluded.max_uses, is_active = 1`,
-        [c, type, val, minO, maxU],
-        function(err) {
-            if (err) return res.status(500).json({ error: 'Lỗi khi lưu mã giảm giá!' });
-            res.json({ message: 'Đã lưu mã giảm giá thành công!' });
-        }
-    );
-});
-
-app.delete('/api/admin/coupons/:id', verifyAdmin, (req, res) => {
-    db.run(`DELETE FROM coupons WHERE id = ?`, [req.params.id], () => res.json({ message: 'Đã xóa mã giảm giá!' }));
-});
-
 // ================= LIVE ORDER TICKER (CHỈ HIỆN SẢN PHẨM THẬT CỦA SHOP) =================
 app.get('/api/live-activities', (req, res) => {
-    // Lấy danh sách sản phẩm THỰC TẾ có trong cơ sở dữ liệu của shop
     db.all(`SELECT id, name FROM products`, [], (pErr, prods) => {
         const realProdNames = (prods && prods.length) 
             ? prods.map(p => p.name) 
@@ -339,7 +253,6 @@ app.get('/api/live-activities', (req, res) => {
             const sampleUsers = ['huy***26', 'linh***99', 'thanh***88', 'minh***04', 'tuan***72', 'duc***15', 'hoang***93', 'anh***68', 'phuong***32'];
             const sampleTimes = ['2 phút trước', '5 phút trước', '9 phút trước', '14 phút trước', '21 phút trước', '30 phút trước'];
 
-            // Nếu chưa có đơn thực tế: CHỈ DÙNG TÊN SẢN PHẨM THẬT TRONG SHOP
             if (!rows || !rows.length) {
                 const generated = sampleUsers.slice(0, 5).map((u, i) => ({
                     id: i + 1,
@@ -368,7 +281,7 @@ app.get('/api/live-activities', (req, res) => {
     });
 });
 
-// ================= SẢN PHẨM & TÙY CHỌN =================
+// ================= SẢN PHẨM & TÙY CHỌN (CÓ BẢO HÀNH RIÊNG CHO TỪNG SẢN PHẨM) =================
 app.get('/api/products', (req, res) => {
     const sql = `SELECT p.*,
         (SELECT COUNT(*) FROM inventory i WHERE i.product_id = p.id AND i.is_sold = 0) as total_stock,
@@ -384,6 +297,7 @@ app.get('/api/products', (req, res) => {
                 const minPrice = vars.length ? Math.min(...vars.map(v => v.price)) : (p.price || 0);
                 return {
                     ...p,
+                    warranty: (p.warranty !== undefined && p.warranty !== null) ? p.warranty : '',
                     guide: p.guide || DEFAULT_GUIDE,
                     variants: vars,
                     min_price: minPrice,
@@ -394,102 +308,76 @@ app.get('/api/products', (req, res) => {
     });
 });
 
-// ================= MUA HÀNG (ÁP DỤNG MÃ GIẢM GIÁ & TẠO ĐƠN) =================
+// ================= MUA HÀNG (ĐÃ BỎ MÃ GIẢM GIÁ, LƯU CHẾ ĐỘ BẢO HÀNH RIÊNG CỦA SẢN PHẨM) =================
 app.post('/api/buy', (req, res) => {
-    const { userId, productId, variantId, quantity, couponCode } = req.body;
+    const { userId, productId, variantId, quantity } = req.body;
     const qty = Math.max(1, parseInt(quantity) || 1);
     if (!userId || !productId || !variantId) return res.status(400).json({ error: 'Thiếu thông tin đặt hàng!' });
 
     db.get(`SELECT * FROM users WHERE id = ?`, [userId], (err, user) => {
         if (!user) return res.status(404).json({ error: 'Không tìm thấy tài khoản!' });
 
-        db.get(`SELECT p.name as product_name, p.guide as product_guide, pv.name as variant_name, pv.price 
+        db.get(`SELECT p.name as product_name, p.warranty as product_warranty, p.guide as product_guide, pv.name as variant_name, pv.price 
                 FROM product_variants pv 
                 JOIN products p ON pv.product_id = p.id 
                 WHERE pv.id = ? AND pv.product_id = ?`, [variantId, productId], (vErr, itemInfo) => {
             if (!itemInfo) return res.status(404).json({ error: 'Gói sản phẩm không tồn tại!' });
 
-            let subtotal = itemInfo.price * qty;
-            let discountAmount = 0;
-            let finalCoupon = null;
+            const totalPrice = Math.max(0, itemInfo.price * qty);
+            if (user.balance < totalPrice) {
+                const diff = totalPrice - user.balance;
+                return res.status(400).json({
+                    error: `Số dư ví không đủ! Đơn hàng cần ${totalPrice.toLocaleString()}đ, ví của bạn hiện có ${user.balance.toLocaleString()}đ (còn thiếu ${diff.toLocaleString()}đ).`,
+                    missingAmount: diff
+                });
+            }
 
-            const proceedPurchase = () => {
-                const totalPrice = Math.max(0, subtotal - discountAmount);
-                if (user.balance < totalPrice) {
-                    const diff = totalPrice - user.balance;
-                    return res.status(400).json({
-                        error: `Số dư ví không đủ! Đơn hàng cần ${totalPrice.toLocaleString()}đ, ví của bạn hiện có ${user.balance.toLocaleString()}đ (còn thiếu ${diff.toLocaleString()}đ).`,
-                        missingAmount: diff
-                    });
+            db.all(`SELECT id, account_data FROM inventory WHERE product_id = ? AND variant_id = ? AND is_sold = 0 LIMIT ?`,
+                [productId, variantId, qty], (iErr, items) => {
+                if (!items || items.length < qty) {
+                    return res.status(400).json({ error: `Rất tiếc, kho chỉ còn ${items ? items.length : 0} tài khoản, không đủ ${qty} tài khoản bạn cần mua!` });
                 }
 
-                db.all(`SELECT id, account_data FROM inventory WHERE product_id = ? AND variant_id = ? AND is_sold = 0 LIMIT ?`,
-                    [productId, variantId, qty], (iErr, items) => {
-                    if (!items || items.length < qty) {
-                        return res.status(400).json({ error: `Rất tiếc, kho chỉ còn ${items ? items.length : 0} tài khoản, không đủ ${qty} tài khoản bạn cần mua!` });
-                    }
+                const d = new Date();
+                const yy = String(d.getFullYear()).slice(-2);
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const rand = Math.floor(1000 + Math.random() * 9000);
+                const orderCode = `DH-${yy}${mm}${dd}-${rand}`;
 
-                    const d = new Date();
-                    const yy = String(d.getFullYear()).slice(-2);
-                    const mm = String(d.getMonth() + 1).padStart(2, '0');
-                    const dd = String(d.getDate()).padStart(2, '0');
-                    const rand = Math.floor(1000 + Math.random() * 9000);
-                    const orderCode = `DH-${yy}${mm}${dd}-${rand}`;
+                db.serialize(() => {
+                    db.run(`UPDATE users SET balance = balance - ? WHERE id = ?`, [totalPrice, userId]);
+                    db.run(`INSERT INTO orders (order_code, user_id, product_id, variant_id, product_name, variant_name, warranty, quantity, total_price)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [orderCode, userId, productId, variantId, itemInfo.product_name, itemInfo.variant_name, itemInfo.product_warranty || '', qty, totalPrice],
+                        function(oErr) {
+                            const newOrderId = this.lastID;
+                            const itemIds = items.map(x => x.id);
+                            const placeholders = itemIds.map(() => '?').join(',');
 
-                    db.serialize(() => {
-                        db.run(`UPDATE users SET balance = balance - ? WHERE id = ?`, [totalPrice, userId]);
-                        if (finalCoupon) {
-                            db.run(`UPDATE coupons SET used_count = used_count + 1 WHERE UPPER(code) = ?`, [finalCoupon]);
+                            db.run(`UPDATE inventory SET is_sold = 1, order_id = ?, buyer_id = ?, sold_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`,
+                                [newOrderId, userId, ...itemIds],
+                                () => {
+                                    res.json({
+                                        success: true,
+                                        message: `Thanh toán thành công ${qty} tài khoản!`,
+                                        orderId: newOrderId,
+                                        orderCode: orderCode,
+                                        productId: productId,
+                                        productName: itemInfo.product_name,
+                                        warranty: itemInfo.product_warranty || '',
+                                        productGuide: itemInfo.product_guide || DEFAULT_GUIDE,
+                                        variantName: itemInfo.variant_name,
+                                        quantity: qty,
+                                        totalPrice: totalPrice,
+                                        accounts: items.map(x => x.account_data)
+                                    });
+                                }
+                            );
                         }
-                        db.run(`INSERT INTO orders (order_code, user_id, product_id, variant_id, product_name, variant_name, quantity, total_price, discount_amount, coupon_code)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                            [orderCode, userId, productId, variantId, itemInfo.product_name, itemInfo.variant_name, qty, totalPrice, discountAmount, finalCoupon || ''],
-                            function(oErr) {
-                                const newOrderId = this.lastID;
-                                const itemIds = items.map(x => x.id);
-                                const placeholders = itemIds.map(() => '?').join(',');
-
-                                db.run(`UPDATE inventory SET is_sold = 1, order_id = ?, buyer_id = ?, sold_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`,
-                                    [newOrderId, userId, ...itemIds],
-                                    () => {
-                                        res.json({
-                                            success: true,
-                                            message: `Thanh toán thành công ${qty} tài khoản!`,
-                                            orderId: newOrderId,
-                                            orderCode: orderCode,
-                                            productName: itemInfo.product_name,
-                                            productGuide: itemInfo.product_guide || DEFAULT_GUIDE,
-                                            variantName: itemInfo.variant_name,
-                                            quantity: qty,
-                                            totalPrice: totalPrice,
-                                            discountAmount: discountAmount,
-                                            accounts: items.map(x => x.account_data)
-                                        });
-                                    }
-                                );
-                            }
-                        );
-                    });
+                    );
                 });
-            };
-
-            if (couponCode && couponCode.trim()) {
-                const c = couponCode.trim().toUpperCase();
-                db.get(`SELECT * FROM coupons WHERE UPPER(code) = ? AND is_active = 1`, [c], (cErr, coupon) => {
-                    if (coupon && (!coupon.max_uses || coupon.used_count < coupon.max_uses) && (!coupon.min_order || subtotal >= coupon.min_order)) {
-                        if (coupon.discount_type === 'percent') {
-                            discountAmount = Math.round((subtotal * coupon.discount_value) / 100);
-                        } else {
-                            discountAmount = coupon.discount_value;
-                        }
-                        discountAmount = Math.min(discountAmount, subtotal);
-                        finalCoupon = coupon.code;
-                    }
-                    proceedPurchase();
-                });
-            } else {
-                proceedPurchase();
-            }
+            });
         });
     });
 });
@@ -502,18 +390,15 @@ app.post('/api/admin/warranty/exchange', verifyAdmin, (req, res) => {
     db.get(`SELECT * FROM orders WHERE id = ?`, [orderId], (err, order) => {
         if (!order) return res.status(404).json({ error: 'Không tìm thấy đơn hàng!' });
 
-        // Tìm 1 acc mới còn trong kho của đúng sản phẩm và gói đó
         db.get(`SELECT id, account_data FROM inventory WHERE product_id = ? AND variant_id = ? AND is_sold = 0 LIMIT 1`,
             [order.product_id, order.variant_id],
             (iErr, newAcc) => {
                 if (!newAcc) return res.status(400).json({ error: 'Kho hiện đã hết tài khoản dự phòng của gói này để đổi!' });
 
                 db.serialize(() => {
-                    // Nếu có chỉ định oldAccountId thì đánh dấu đã đổi
                     if (oldAccountId) {
                         db.run(`UPDATE inventory SET is_sold = 2 WHERE id = ?`, [oldAccountId]);
                     }
-                    // Gán acc mới vào đơn hàng này
                     db.run(`UPDATE inventory SET is_sold = 1, order_id = ?, buyer_id = ?, sold_at = CURRENT_TIMESTAMP WHERE id = ?`,
                         [order.id, order.user_id, newAcc.id],
                         () => {
@@ -532,7 +417,9 @@ app.post('/api/admin/warranty/exchange', verifyAdmin, (req, res) => {
 
 // LỊCH SỬ ĐƠN HÀNG CỦA KHÁCH
 app.get('/api/orders/:userId', (req, res) => {
-    const sql = `SELECT o.*, p.guide as product_guide FROM orders o LEFT JOIN products p ON o.product_id = p.id WHERE o.user_id = ? ORDER BY o.id DESC`;
+    const sql = `SELECT o.*, COALESCE(NULLIF(o.warranty, ''), p.warranty, '') as product_warranty, p.guide as product_guide 
+                 FROM orders o LEFT JOIN products p ON o.product_id = p.id 
+                 WHERE o.user_id = ? ORDER BY o.id DESC`;
     db.all(sql, [req.params.userId], (err, orders) => {
         if (!orders || !orders.length) return res.json([]);
         const orderIds = orders.map(o => o.id);
@@ -545,6 +432,7 @@ app.get('/api/orders/:userId', (req, res) => {
             });
             res.json(orders.map(o => ({
                 ...o,
+                warranty: o.product_warranty || '',
                 guide: o.product_guide || DEFAULT_GUIDE,
                 accounts: accMap[o.id] || []
             })));
@@ -554,12 +442,15 @@ app.get('/api/orders/:userId', (req, res) => {
 
 app.get('/api/order-lookup/:code', (req, res) => {
     const code = req.params.code.trim();
-    const sql = `SELECT o.*, p.guide as product_guide FROM orders o LEFT JOIN products p ON o.product_id = p.id WHERE UPPER(o.order_code) = UPPER(?) LIMIT 1`;
+    const sql = `SELECT o.*, COALESCE(NULLIF(o.warranty, ''), p.warranty, '') as product_warranty, p.guide as product_guide 
+                 FROM orders o LEFT JOIN products p ON o.product_id = p.id 
+                 WHERE UPPER(o.order_code) = UPPER(?) LIMIT 1`;
     db.get(sql, [code], (err, o) => {
         if (!o) return res.status(404).json({ error: 'Không tìm thấy đơn hàng với mã này!' });
         db.all(`SELECT account_data FROM inventory WHERE order_id = ? ORDER BY id ASC`, [o.id], (iErr, accRows) => {
             res.json({
                 ...o,
+                warranty: o.product_warranty || '',
                 guide: o.product_guide || DEFAULT_GUIDE,
                 accounts: (accRows || []).map(a => a.account_data)
             });
@@ -567,60 +458,91 @@ app.get('/api/order-lookup/:code', (req, res) => {
     });
 });
 
-// NẠP TIỀN VIETQR
+// ================= NẠP TIỀN VIETQR (GIỚI HẠN ĐÚNG 10 PHÚT, QUÁ 10 PHÚT HỦY & XÓA LUÔN) =================
 app.post('/api/deposit/create', (req, res) => {
     const { userId, amount } = req.body;
     const val = parseInt(amount);
     if (!val || val <= 0) return res.status(400).json({ error: 'Số tiền nạp không hợp lệ!' });
 
-    db.get(`SELECT value FROM settings WHERE key = 'min_deposit'`, (err, row) => {
-        const minDep = row ? parseInt(row.value) : 20000;
-        if (val < minDep) return res.status(400).json({ error: `Số tiền nạp tối thiểu là ${minDep.toLocaleString()}đ!` });
+    cleanupExpiredDeposits(() => {
+        db.get(`SELECT value FROM settings WHERE key = 'min_deposit'`, (err, row) => {
+            const minDep = row ? parseInt(row.value) : 20000;
+            if (val < minDep) return res.status(400).json({ error: `Số tiền nạp tối thiểu là ${minDep.toLocaleString()}đ!` });
 
-        const code = 'NAP' + Math.floor(1000 + Math.random() * 9000);
-        db.run(`INSERT INTO transactions (user_id, type, amount, info, status) VALUES (?, 'deposit', ?, ?, 'pending')`,
-            [userId, val, code],
-            function(tErr) {
-                res.json({ txId: this.lastID, code, amount: val });
-            }
-        );
+            // Xóa các mã nạp đang chờ cũ của chính user này để tránh tồn đọng nhiều mã chờ
+            db.run(`DELETE FROM transactions WHERE user_id = ? AND status = 'pending'`, [userId], () => {
+                const code = 'NAP' + Math.floor(1000 + Math.random() * 9000);
+                const expiresAt = Date.now() + DEPOSIT_TIMEOUT_MS;
+                db.run(`INSERT INTO transactions (user_id, type, amount, info, status, expires_at) VALUES (?, 'deposit', ?, ?, 'pending', ?)`,
+                    [userId, val, code, expiresAt],
+                    function(tErr) {
+                        res.json({ txId: this.lastID, code, amount: val, expiresAt });
+                    }
+                );
+            });
+        });
     });
 });
 
 app.get('/api/deposit/check/:txId', (req, res) => {
-    db.get(`SELECT * FROM transactions WHERE id = ?`, [req.params.txId], (err, tx) => {
-        if (!tx) return res.status(404).json({ error: 'Giao dịch không tồn tại!' });
-        res.json(tx);
+    cleanupExpiredDeposits(() => {
+        db.get(`SELECT * FROM transactions WHERE id = ?`, [req.params.txId], (err, tx) => {
+            if (!tx) {
+                return res.status(404).json({ status: 'expired', error: 'Mã nạp tiền đã quá hạn 10 phút hoặc đã bị hủy bỏ!' });
+            }
+            if (tx.status === 'pending' && tx.expires_at && tx.expires_at <= Date.now()) {
+                db.run(`DELETE FROM transactions WHERE id = ?`, [tx.id], () => {
+                    res.status(404).json({ status: 'expired', error: 'Mã nạp tiền đã quá 10 phút và đã bị hủy!' });
+                });
+                return;
+            }
+            res.json(tx);
+        });
+    });
+});
+
+// Hủy và xóa ngay mã nạp khi hết 10 phút hoặc khi người dùng bấm hủy
+app.post('/api/deposit/cancel', (req, res) => {
+    const { txId } = req.body;
+    if (!txId) return res.status(400).json({ error: 'Thiếu mã giao dịch!' });
+    db.run(`DELETE FROM transactions WHERE id = ? AND status = 'pending'`, [txId], function(err) {
+        res.json({ success: true, message: 'Đã hủy và xóa mã nạp tiền này!' });
     });
 });
 
 app.post('/api/deposit/notify-paid', (req, res) => {
     const { txId } = req.body;
-    db.get(`SELECT * FROM transactions WHERE id = ?`, [txId], (err, tx) => {
-        if (!tx) return res.status(404).json({ error: 'Không tìm thấy giao dịch!' });
-        res.json({ message: 'Đã gửi thông báo xác nhận chuyển khoản tới Admin! Hệ thống sẽ duyệt ngay.' });
+    cleanupExpiredDeposits(() => {
+        db.get(`SELECT * FROM transactions WHERE id = ?`, [txId], (err, tx) => {
+            if (!tx) return res.status(404).json({ error: 'Mã nạp này đã hết hạn 10 phút và không còn được ghi nhận!' });
+            res.json({ message: 'Đã gửi thông báo xác nhận chuyển khoản tới hệ thống! Vui lòng hoàn tất trong thời hạn 10 phút.' });
+        });
     });
 });
 
 app.get('/api/transactions/:userId', (req, res) => {
-    db.all(`SELECT * FROM transactions WHERE user_id = ? ORDER BY id DESC LIMIT 20`, [req.params.userId], (err, rows) => res.json(rows || []));
+    cleanupExpiredDeposits(() => {
+        db.all(`SELECT * FROM transactions WHERE user_id = ? ORDER BY id DESC LIMIT 20`, [req.params.userId], (err, rows) => res.json(rows || []));
+    });
 });
 
 // ================= ADMIN APIS =================
 app.get('/api/admin/stats', verifyAdmin, (req, res) => {
-    const s = {};
-    db.get(`SELECT COUNT(*) as totalUsers FROM users WHERE role != 'admin'`, (e1, r1) => {
-        s.totalUsers = r1 ? r1.totalUsers : 0;
-        db.get(`SELECT COUNT(*) as totalOrders, COALESCE(SUM(total_price), 0) as totalRevenue FROM orders`, (e2, r2) => {
-            s.totalOrders = r2 ? r2.totalOrders : 0;
-            s.totalRevenue = r2 ? r2.totalRevenue : 0;
-            db.get(`SELECT COUNT(*) as totalSold FROM inventory WHERE is_sold = 1`, (e3, r3) => {
-                s.totalSold = r3 ? r3.totalSold : 0;
-                db.get(`SELECT COUNT(*) as totalStock FROM inventory WHERE is_sold = 0`, (e4, r4) => {
-                    s.totalStock = r4 ? r4.totalStock : 0;
-                    db.get(`SELECT COUNT(*) as pendingTx FROM transactions WHERE status = 'pending'`, (e5, r5) => {
-                        s.pendingTx = r5 ? r5.pendingTx : 0;
-                        res.json(s);
+    cleanupExpiredDeposits(() => {
+        const s = {};
+        db.get(`SELECT COUNT(*) as totalUsers FROM users WHERE role != 'admin'`, (e1, r1) => {
+            s.totalUsers = r1 ? r1.totalUsers : 0;
+            db.get(`SELECT COUNT(*) as totalOrders, COALESCE(SUM(total_price), 0) as totalRevenue FROM orders`, (e2, r2) => {
+                s.totalOrders = r2 ? r2.totalOrders : 0;
+                s.totalRevenue = r2 ? r2.totalRevenue : 0;
+                db.get(`SELECT COUNT(*) as totalSold FROM inventory WHERE is_sold = 1`, (e3, r3) => {
+                    s.totalSold = r3 ? r3.totalSold : 0;
+                    db.get(`SELECT COUNT(*) as totalStock FROM inventory WHERE is_sold = 0`, (e4, r4) => {
+                        s.totalStock = r4 ? r4.totalStock : 0;
+                        db.get(`SELECT COUNT(*) as pendingTx FROM transactions WHERE status = 'pending'`, (e5, r5) => {
+                            s.pendingTx = r5 ? r5.pendingTx : 0;
+                            res.json(s);
+                        });
                     });
                 });
             });
@@ -630,29 +552,31 @@ app.get('/api/admin/stats', verifyAdmin, (req, res) => {
 
 // QUẢN LÝ DÒNG TIỀN (CASH FLOW)
 app.get('/api/admin/cashflow', verifyAdmin, (req, res) => {
-    const cf = {};
-    db.get(`SELECT COALESCE(SUM(amount), 0) as totalDeposits FROM transactions WHERE status = 'completed'`, (e1, r1) => {
-        cf.totalDeposits = r1 ? r1.totalDeposits : 0;
-        db.get(`SELECT COALESCE(SUM(total_price), 0) as totalRevenue, COUNT(*) as totalOrders FROM orders`, (e2, r2) => {
-            cf.totalRevenue = r2 ? r2.totalRevenue : 0;
-            cf.totalOrders = r2 ? r2.totalOrders : 0;
-            db.get(`SELECT COALESCE(SUM(balance), 0) as totalUserBalances FROM users WHERE role != 'admin'`, (e3, r3) => {
-                cf.totalUserBalances = r3 ? r3.totalUserBalances : 0;
-                db.get(`SELECT COALESCE(SUM(amount), 0) as pendingDepositSum, COUNT(*) as pendingDepositCount FROM transactions WHERE status = 'pending'`, (e4, r4) => {
-                    cf.pendingDepositSum = r4 ? r4.pendingDepositSum : 0;
-                    cf.pendingDepositCount = r4 ? r4.pendingDepositCount : 0;
+    cleanupExpiredDeposits(() => {
+        const cf = {};
+        db.get(`SELECT COALESCE(SUM(amount), 0) as totalDeposits FROM transactions WHERE status = 'completed'`, (e1, r1) => {
+            cf.totalDeposits = r1 ? r1.totalDeposits : 0;
+            db.get(`SELECT COALESCE(SUM(total_price), 0) as totalRevenue, COUNT(*) as totalOrders FROM orders`, (e2, r2) => {
+                cf.totalRevenue = r2 ? r2.totalRevenue : 0;
+                cf.totalOrders = r2 ? r2.totalOrders : 0;
+                db.get(`SELECT COALESCE(SUM(balance), 0) as totalUserBalances FROM users WHERE role != 'admin'`, (e3, r3) => {
+                    cf.totalUserBalances = r3 ? r3.totalUserBalances : 0;
+                    db.get(`SELECT COALESCE(SUM(amount), 0) as pendingDepositSum, COUNT(*) as pendingDepositCount FROM transactions WHERE status = 'pending'`, (e4, r4) => {
+                        cf.pendingDepositSum = r4 ? r4.pendingDepositSum : 0;
+                        cf.pendingDepositCount = r4 ? r4.pendingDepositCount : 0;
 
-                    const activitySql = `
-                        SELECT 'deposit' as kind, t.id as ref_id, u.username, t.amount, t.info as memo, t.status, t.created_at
-                        FROM transactions t JOIN users u ON t.user_id = u.id
-                        UNION ALL
-                        SELECT 'order' as kind, o.id as ref_id, u.username, o.total_price as amount, o.order_code as memo, 'completed' as status, o.created_at
-                        FROM orders o JOIN users u ON o.user_id = u.id
-                        ORDER BY created_at DESC LIMIT 40
-                    `;
-                    db.all(activitySql, [], (e5, rows) => {
-                        cf.activities = rows || [];
-                        res.json(cf);
+                        const activitySql = `
+                            SELECT 'deposit' as kind, t.id as ref_id, u.username, t.amount, t.info as memo, t.status, t.created_at
+                            FROM transactions t JOIN users u ON t.user_id = u.id
+                            UNION ALL
+                            SELECT 'order' as kind, o.id as ref_id, u.username, o.total_price as amount, o.order_code as memo, 'completed' as status, o.created_at
+                            FROM orders o JOIN users u ON o.user_id = u.id
+                            ORDER BY created_at DESC LIMIT 40
+                        `;
+                        db.all(activitySql, [], (e5, rows) => {
+                            cf.activities = rows || [];
+                            res.json(cf);
+                        });
                     });
                 });
             });
@@ -663,8 +587,10 @@ app.get('/api/admin/cashflow', verifyAdmin, (req, res) => {
 // LỊCH SỬ BÁN HÀNG DÀNH CHO ADMIN
 app.get('/api/admin/sales-orders', verifyAdmin, (req, res) => {
     const sql = `
-        SELECT o.*, u.username as buyer_username, u.email as buyer_email, u.phone as buyer_phone
+        SELECT o.*, COALESCE(NULLIF(o.warranty, ''), p.warranty, '') as product_warranty,
+               u.username as buyer_username, u.email as buyer_email, u.phone as buyer_phone
         FROM orders o 
+        LEFT JOIN products p ON o.product_id = p.id
         LEFT JOIN users u ON o.user_id = u.id 
         ORDER BY o.id DESC LIMIT 300
     `;
@@ -680,6 +606,7 @@ app.get('/api/admin/sales-orders', verifyAdmin, (req, res) => {
             });
             res.json(orders.map(o => ({
                 ...o,
+                warranty: o.product_warranty || '',
                 accounts: accMap[o.id] || []
             })));
         });
@@ -687,13 +614,13 @@ app.get('/api/admin/sales-orders', verifyAdmin, (req, res) => {
 });
 
 app.post('/api/admin/products', verifyAdmin, (req, res) => {
-    const { name, old_price, image, description, guide, variants } = req.body;
+    const { name, old_price, image, warranty, description, guide, variants } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Vui lòng nhập tên sản phẩm!' });
     const varList = Array.isArray(variants) ? variants.filter(v => v.name && v.name.trim()) : [];
     if (!varList.length) return res.status(400).json({ error: 'Phải có ít nhất 1 tùy chọn và giá bán!' });
 
-    db.run(`INSERT INTO products (name, old_price, image, description, guide) VALUES (?, ?, ?, ?, ?)`,
-        [name.trim(), parseInt(old_price) || 0, image || DEFAULT_IMG, description || '', guide || DEFAULT_GUIDE],
+    db.run(`INSERT INTO products (name, old_price, image, warranty, description, guide) VALUES (?, ?, ?, ?, ?, ?)`,
+        [name.trim(), parseInt(old_price) || 0, image || DEFAULT_IMG, (warranty || '').trim(), description || '', guide || DEFAULT_GUIDE],
         function(err) {
             if (err) return res.status(500).json({ error: 'Lỗi khi lưu sản phẩm!' });
             const pid = this.lastID;
@@ -704,16 +631,16 @@ app.post('/api/admin/products', verifyAdmin, (req, res) => {
     );
 });
 
-// SỬA SẢN PHẨM: BẢO TOÀN VARIANT ID & TỰ ĐỘNG CHỮA LÀNH KHO INVENTORY
+// SỬA SẢN PHẨM: BẢO TOÀN VARIANT ID, CẬP NHẬT CHẾ ĐỘ BẢO HÀNH RIÊNG & BẢO TOÀN KHO INVENTORY
 app.put('/api/admin/products/:id', verifyAdmin, (req, res) => {
-    const { name, old_price, image, description, guide, variants } = req.body;
+    const { name, old_price, image, warranty, description, guide, variants } = req.body;
     const pid = req.params.id;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Tên không được để trống!' });
     const varList = Array.isArray(variants) ? variants.filter(v => v.name && v.name.trim()) : [];
     if (!varList.length) return res.status(400).json({ error: 'Sản phẩm phải có ít nhất 1 tùy chọn giá!' });
 
-    db.run(`UPDATE products SET name = ?, old_price = ?, image = ?, description = ?, guide = ? WHERE id = ?`,
-        [name.trim(), parseInt(old_price) || 0, image || DEFAULT_IMG, description || '', guide || DEFAULT_GUIDE, pid],
+    db.run(`UPDATE products SET name = ?, old_price = ?, image = ?, warranty = ?, description = ?, guide = ? WHERE id = ?`,
+        [name.trim(), parseInt(old_price) || 0, image || DEFAULT_IMG, (warranty || '').trim(), description || '', guide || DEFAULT_GUIDE, pid],
         function(err) {
             if (err) return res.status(500).json({ error: 'Lỗi cập nhật sản phẩm!' });
 
@@ -751,7 +678,7 @@ app.put('/api/admin/products/:id', verifyAdmin, (req, res) => {
                                         WHERE product_id = ? 
                                         AND (variant_id IS NULL OR variant_id NOT IN (SELECT id FROM product_variants WHERE product_id = ?))`,
                                     [firstVar.id, pid, pid],
-                                    () => res.json({ message: 'Đã lưu thay đổi sản phẩm & bảo toàn kho tài khoản thành công!' })
+                                    () => res.json({ message: 'Đã lưu thay đổi sản phẩm & chế độ bảo hành thành công!' })
                                 );
                             } else {
                                 res.json({ message: 'Đã lưu thay đổi sản phẩm!' });
@@ -819,7 +746,7 @@ app.post('/api/admin/add-stock', verifyAdmin, (req, res) => {
     });
 });
 
-// LẤY DANH SÁCH KHO TÀI KHOẢN (PHÂN LOẠI CHƯA BÁN / ĐÃ BÁN + THỜI GIAN BÁN)
+// LẤY DANH SÁCH KHO TÀI KHOẢN
 app.get('/api/admin/inventory', verifyAdmin, (req, res) => {
     const { productId, variantId, status, search } = req.query;
     let sql = `
@@ -895,8 +822,18 @@ app.post('/api/admin/clean-sold-stock', verifyAdmin, (req, res) => {
     });
 });
 
+// QUẢN LÝ KHÁCH HÀNG: TÌM KIẾM ĐA NĂNG & ĐỔI MẬT KHẨU CHO KHÁCH
 app.get('/api/admin/users', verifyAdmin, (req, res) => {
-    db.all(`SELECT id, username, email, phone, balance, role, created_at, (SELECT COUNT(*) FROM orders WHERE user_id = users.id) as orders_count FROM users ORDER BY id DESC`, [], (err, rows) => res.json(rows || []));
+    const search = (req.query.search || '').trim();
+    let sql = `SELECT id, username, email, phone, password, balance, role, created_at, (SELECT COUNT(*) FROM orders WHERE user_id = users.id) as orders_count FROM users WHERE 1=1`;
+    const params = [];
+    if (search) {
+        sql += ` AND (username LIKE ? OR email LIKE ? OR phone LIKE ? OR CAST(id AS TEXT) LIKE ?)`;
+        const s = `%${search}%`;
+        params.push(s, s, s, s);
+    }
+    sql += ` ORDER BY id DESC`;
+    db.all(sql, params, (err, rows) => res.json(rows || []));
 });
 
 app.post('/api/admin/users/balance', verifyAdmin, (req, res) => {
@@ -906,34 +843,49 @@ app.post('/api/admin/users/balance', verifyAdmin, (req, res) => {
     db.run(`UPDATE users SET balance = MAX(0, balance + ?) WHERE id = ?`, [val, userId], () => res.json({ message: 'Đã cập nhật số dư thành viên!' }));
 });
 
+app.post('/api/admin/users/password', verifyAdmin, (req, res) => {
+    const { userId, newPassword } = req.body;
+    if (!userId || !newPassword || String(newPassword).trim().length < 4) {
+        return res.status(400).json({ error: 'Mật khẩu mới phải có ít nhất 4 ký tự!' });
+    }
+    const cleanPass = String(newPassword).trim();
+    db.run(`UPDATE users SET password = ? WHERE id = ?`, [cleanPass, userId], function(err) {
+        if (err) return res.status(500).json({ error: 'Lỗi khi cập nhật mật khẩu!' });
+        res.json({ message: 'Đã đổi mật khẩu mới cho khách hàng thành công!' });
+    });
+});
+
 app.get('/api/admin/transactions', verifyAdmin, (req, res) => {
-    db.all(`SELECT t.*, u.username FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC`, [], (err, rows) => res.json(rows || []));
+    cleanupExpiredDeposits(() => {
+        db.all(`SELECT t.*, u.username FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC`, [], (err, rows) => res.json(rows || []));
+    });
 });
 
 app.post('/api/admin/approve-tx', verifyAdmin, (req, res) => {
     const { txId, action } = req.body;
-    db.get(`SELECT * FROM transactions WHERE id = ? AND status = 'pending'`, [txId], (err, tx) => {
-        if (!tx) return res.status(400).json({ error: 'Giao dịch không tồn tại hoặc đã xử lý!' });
-        if (action === 'cancel') {
-            db.run(`UPDATE transactions SET status = 'cancelled' WHERE id = ?`, [txId], () => res.json({ message: 'Đã hủy đơn nạp tiền!' }));
-        } else {
-            db.serialize(() => {
-                db.run(`UPDATE transactions SET status = 'completed' WHERE id = ?`, [txId]);
-                db.run(`UPDATE users SET balance = balance + ? WHERE id = ?`, [tx.amount, tx.user_id]);
-                res.json({ message: 'Đã duyệt nạp và cộng tiền cho khách!' });
-            });
-        }
+    cleanupExpiredDeposits(() => {
+        db.get(`SELECT * FROM transactions WHERE id = ? AND status = 'pending'`, [txId], (err, tx) => {
+            if (!tx) return res.status(400).json({ error: 'Giao dịch đã quá hạn 10 phút, không tồn tại hoặc đã xử lý!' });
+            if (action === 'cancel') {
+                // Xóa luôn đơn nạp bị hủy để không còn tồn đọng
+                db.run(`DELETE FROM transactions WHERE id = ?`, [txId], () => res.json({ message: 'Đã hủy và xóa đơn nạp tiền!' }));
+            } else {
+                db.serialize(() => {
+                    db.run(`UPDATE transactions SET status = 'completed' WHERE id = ?`, [txId]);
+                    db.run(`UPDATE users SET balance = balance + ? WHERE id = ?`, [tx.amount, tx.user_id]);
+                    res.json({ message: 'Đã duyệt nạp và cộng tiền cho khách!' });
+                });
+            }
+        });
     });
 });
 
-
-// ================= WEBHOOK TỰ ĐỘNG NẠP TIỀN (SEPAY / CASSO / SHOPEEPAY / WEB2M) =================
+// ================= WEBHOOK TỰ ĐỘNG NẠP TIỀN (CHỈ GHI NHẬN MÃ CÒN HẠN TRONG 10 PHÚT) =================
 function processIncomingBankTransfer(contentOrDescription, amount, res) {
     if (!contentOrDescription) return res.status(400).json({ error: 'Không tìm thấy nội dung chuyển khoản!' });
     const text = String(contentOrDescription);
     const amt = parseInt(amount) || 0;
 
-    // Tìm mã giao dịch dạng NAP1234 hoặc NAPxxxx trong nội dung chuyển tiền
     const match = text.match(/NAP\d+/i);
     const code = match ? match[0].toUpperCase() : null;
 
@@ -942,18 +894,22 @@ function processIncomingBankTransfer(contentOrDescription, amount, res) {
         return res.json({ success: false, message: 'Nội dung không chứa mã NAP hợp lệ' });
     }
 
-    db.get(`SELECT * FROM transactions WHERE UPPER(info) = ? AND status = 'pending'`, [code], (err, tx) => {
-        if (!tx) {
-            console.log(`[WEBHOOK] Không tìm thấy đơn nạp pending cho mã: ${code}`);
-            return res.json({ success: false, message: `Không tìm thấy đơn nạp pending cho mã ${code}` });
-        }
+    // Dọn dẹp toàn bộ các mã nạp đã quá hạn 10 phút trước khi kiểm tra
+    cleanupExpiredDeposits(() => {
+        db.get(`SELECT * FROM transactions WHERE UPPER(info) = ? AND status = 'pending'`, [code], (err, tx) => {
+            if (!tx || (tx.expires_at && tx.expires_at <= Date.now())) {
+                if (tx) db.run(`DELETE FROM transactions WHERE id = ?`, [tx.id]);
+                console.log(`[WEBHOOK TỪ CHỐI] Mã ${code} không tồn tại hoặc đã quá hạn 10 phút!`);
+                return res.json({ success: false, message: `Mã ${code} đã quá hạn 10 phút hoặc không tồn tại, hệ thống không ghi nhận!` });
+            }
 
-        const actualAmount = amt > 0 ? amt : tx.amount;
-        db.serialize(() => {
-            db.run(`UPDATE transactions SET status = 'completed', amount = ? WHERE id = ?`, [actualAmount, tx.id]);
-            db.run(`UPDATE users SET balance = balance + ? WHERE id = ?`, [actualAmount, tx.user_id]);
-            console.log(`[WEBHOOK THÀNH CÔNG] 🎉 Đã tự động cộng ${actualAmount}đ cho User #${tx.user_id} (Mã: ${code})!`);
-            res.json({ success: true, message: `Tự động cộng ${actualAmount}đ thành công cho mã ${code}` });
+            const actualAmount = amt > 0 ? amt : tx.amount;
+            db.serialize(() => {
+                db.run(`UPDATE transactions SET status = 'completed', amount = ? WHERE id = ?`, [actualAmount, tx.id]);
+                db.run(`UPDATE users SET balance = balance + ? WHERE id = ?`, [actualAmount, tx.user_id]);
+                console.log(`[WEBHOOK THÀNH CÔNG] Đã tự động cộng ${actualAmount}đ cho User #${tx.user_id} (Mã: ${code})!`);
+                res.json({ success: true, message: `Tự động cộng ${actualAmount}đ thành công cho mã ${code}` });
+            });
         });
     });
 }
