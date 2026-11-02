@@ -27,6 +27,40 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
 <!-- TOAST THÔNG BÁO -->
 <div id="toast-box" class="fixed top-3 sm:top-5 right-3 sm:right-5 z-50 space-y-2 max-w-xs sm:max-w-sm w-full pointer-events-none"></div>
 
+<!-- THANH BÁO HIỆU CHO ADMIN KHI ĐANG BẬT CHẾ ĐỘ BẢO TRÌ WEB -->
+<div id="admin-maintenance-bar" class="hidden bg-amber-500 text-slate-950 px-3 py-2 text-xs font-bold shadow-md z-50">
+  <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
+    <div class="flex items-center gap-2">
+      <span class="bg-red-600 text-white px-2 py-0.5 rounded-md text-[10px] font-black uppercase animate-pulse">Đang Bảo Trì</span>
+      <span>Chế độ Bảo Trì Web đang BẬT: Khách hàng hiện bị chặn ngoài màn hình bảo trì. Chỉ mình bạn (Admin) đang xem và sửa được web!</span>
+    </div>
+    <button type="button" onclick="toggleMaintenanceMode()" class="bg-slate-900 hover:bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-extrabold shadow shrink-0">
+      <i class="fa-solid fa-power-off mr-1 text-emerald-400"></i> Tắt Bảo Trì & Mở Lại Web Ngay
+    </button>
+  </div>
+</div>
+
+<!-- MÀN HÌNH KHÓA BẢO TRÌ WEB (HIỆN ĐỐI VỚI KHÁCH KHI ADMIN BẬT BẢO TRÌ) -->
+<div id="maintenance-overlay" class="hidden fixed inset-0 bg-slate-900/95 backdrop-blur-md z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 text-center space-y-4 shadow-2xl border border-slate-200">
+    <div class="w-16 h-16 rounded-2xl bg-amber-100 text-amber-600 mx-auto flex items-center justify-center text-3xl shadow-inner">
+      <i class="fa-solid fa-screwdriver-wrench"></i>
+    </div>
+    <h2 class="text-lg sm:text-xl font-black text-slate-900">Hệ Thống Đang Bảo Trì Nâng Cấp</h2>
+    <p id="lbl-maintenance-msg" class="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
+      Hệ thống đang tạm bảo trì để nâng cấp và cập nhật dữ liệu. Quý khách vui lòng quay lại sau ít phút!
+    </p>
+    <div class="pt-2 space-y-2">
+      <button type="button" onclick="openZaloSupport(event)" class="w-full blue-header text-white py-3 rounded-xl font-bold text-xs sm:text-sm shadow flex items-center justify-center gap-2">
+        <i class="fa-solid fa-headset"></i> Liên Hệ Zalo Hỗ Trợ 24/7
+      </button>
+      <button type="button" onclick="openAdminLoginFromMaintenance()" class="text-[11px] text-slate-400 hover:text-blue-600 font-semibold underline pt-2 block mx-auto">
+        <i class="fa-solid fa-user-shield mr-1"></i> Dành cho Quản trị viên (Đăng nhập Admin)
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- LIVE ORDER NOTIFICATION TICKER (GÓC DƯỚI BÊN TRÁI) -->
 <div id="live-order-box" class="fixed bottom-4 left-4 z-40 hidden max-w-xs w-full pointer-events-none sm:pointer-events-auto">
   <div class="bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl p-2.5 shadow-xl flex items-center gap-2.5 slide-up-notify">
@@ -411,9 +445,12 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
           <p class="text-[10px] text-blue-100">Quản lý sản phẩm, chế độ bảo hành riêng, kho acc, dòng tiền, tên miền riêng</p>
         </div>
       </div>
-      <div class="flex gap-1.5">
-        <button onclick="goHome()" class="bg-white text-blue-700 px-3 py-1.5 rounded-xl text-xs font-bold shadow">Về Shop</button>
-        <button onclick="switchTab('profile')" class="bg-blue-800 text-white border border-blue-400/40 px-3 py-1.5 rounded-xl text-xs font-bold">Tài Khoản</button>
+      <div class="flex flex-wrap items-center gap-1.5">
+        <button type="button" id="btn-adm-maint-toggle" onclick="toggleMaintenanceMode()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-xl text-xs font-extrabold shadow flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-screwdriver-wrench"></i> <span id="lbl-adm-maint-btn">Bật Bảo Trì Web</span>
+        </button>
+        <button type="button" onclick="goHome()" class="bg-white text-blue-700 px-3 py-1.5 rounded-xl text-xs font-bold shadow">Về Shop</button>
+        <button type="button" onclick="switchTab('profile')" class="bg-blue-800 text-white border border-blue-400/40 px-3 py-1.5 rounded-xl text-xs font-bold">Tài Khoản</button>
       </div>
     </div>
 
@@ -432,7 +469,7 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
       <button onclick="switchAdminSub('cashflow', this)" class="admin-nav-btn px-3 py-2 rounded-lg font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 shrink-0">4. Quản Lý Dòng Tiền</button>
       <button onclick="switchAdminSub('users', this)" class="admin-nav-btn px-3 py-2 rounded-lg font-bold text-slate-600 shrink-0">5. Khách Hàng</button>
       <button onclick="switchAdminSub('txs', this)" class="admin-nav-btn px-3 py-2 rounded-lg font-bold text-slate-600 shrink-0">6. Đơn Nạp Tiền</button>
-      <button onclick="switchAdminSub('settings', this)" class="admin-nav-btn px-3 py-2 rounded-lg font-bold text-purple-700 border border-purple-200 shrink-0">7. Tên Miền & Giao Diện</button>
+      <button onclick="switchAdminSub('settings', this)" class="admin-nav-btn px-3 py-2 rounded-lg font-bold text-purple-700 border border-purple-200 shrink-0">7. Giao Diện & Ngân Hàng</button>
     </div>
 
     <!-- Sub 1: Quản lý sản phẩm + Chế độ bảo hành riêng từng sản phẩm -->
@@ -462,42 +499,70 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
 
     <!-- Sub 2: Kho acc (Tách ĐÃ BÁN vs CHƯA BÁN + Thống kê chi tiết) -->
     <div id="adm-panel-inventory" class="adm-panel hidden grid lg:grid-cols-5 gap-3 sm:gap-4 text-xs">
-      <div class="lg:col-span-2 bg-white p-3.5 sm:p-4 rounded-xl border space-y-2.5 h-fit">
-        <b class="block border-b pb-1.5 text-slate-900">Nạp Kho Tài Khoản (Hỗ Trợ Thư Mục Mail → Cookie)</b>
-        <div><label class="font-bold block mb-1">1. Sản phẩm:</label><select id="adm-stock-product" onchange="onAdminSelectProductChange()" class="w-full p-2 border rounded-lg font-bold bg-slate-50"></select></div>
-        <div><label class="font-bold block mb-1">2. Tùy chọn gói:</label><select id="adm-stock-variant" class="w-full p-2 border rounded-lg font-bold bg-blue-50"></select></div>
+      <div class="lg:col-span-2 bg-white p-3.5 sm:p-4 rounded-xl border space-y-3 h-fit">
+        <b class="block border-b pb-1.5 text-slate-900">Nạp Kho Tài Khoản (Tách Riêng Acc Thường & Acc Cookie)</b>
+        <div><label class="font-bold block mb-1">1. Chọn sản phẩm:</label><select id="adm-stock-product" onchange="onAdminSelectProductChange()" class="w-full p-2 border rounded-lg font-bold bg-slate-50"></select></div>
+        <div><label class="font-bold block mb-1">2. Chọn gói tùy chọn:</label><select id="adm-stock-variant" class="w-full p-2 border rounded-lg font-bold bg-blue-50"></select></div>
 
-        <!-- Khung tải lên Thư mục lớn chứa nhiều Thư mục con (Tên thư mục con = Mail, File bên trong = Cookie) -->
-        <div class="bg-purple-50/80 border-2 border-dashed border-purple-300 rounded-xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-extrabold text-purple-900 text-[11px] flex items-center gap-1.5"><i class="fa-solid fa-folder-tree text-purple-600"></i>Cách 1: Tải Thư Mục Lớn (Nhiều Acc Cookie)</span>
-            <span class="bg-purple-200 text-purple-900 px-2 py-0.2 rounded text-[9px] font-bold">Khuyên dùng cho Cookie</span>
+        <!-- Nút chuyển đổi rõ ràng giữa 2 loại: Tài khoản thường vs Tài khoản Cookie -->
+        <div>
+          <label class="font-bold block mb-1">3. Chọn loại tài khoản muốn thêm:</label>
+          <div class="grid grid-cols-2 gap-1.5 bg-slate-100 p-1 rounded-xl border">
+            <button type="button" id="btn-mode-regular" onclick="switchStockInputMode('regular')" class="py-2 px-2 rounded-lg font-bold text-xs bg-blue-600 text-white shadow transition">
+              <i class="fa-solid fa-key mr-1"></i>Tài Khoản Thường (Email|Pass)
+            </button>
+            <button type="button" id="btn-mode-cookie" onclick="switchStockInputMode('cookie')" class="py-2 px-2 rounded-lg font-bold text-xs text-slate-700 hover:bg-white transition">
+              <i class="fa-solid fa-folder-tree mr-1 text-purple-600"></i>Tài Khoản Cookie (Thư mục)
+            </button>
           </div>
-          <p class="text-[10px] text-slate-600 leading-relaxed">
-            Chọn <b>Thư mục lớn</b> trên máy: bên trong có nhiều <b>thư mục nhỏ đặt tên là Mail</b> (VD: <code>abc@gmail.com</code>) và trong mỗi thư mục nhỏ là file chứa <b>Cookie</b>. Hệ thống sẽ tự động gom toàn bộ vào danh sách nạp bên dưới!
-          </p>
-          <div class="flex flex-wrap gap-1.5">
-            <label class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 px-3 rounded-xl font-bold text-xs shadow cursor-pointer flex items-center justify-center gap-1.5 transition">
-              <i class="fa-solid fa-folder-open"></i> Chọn Thư Mục Lớn (Mail / Cookie)
-              <input id="inp-folder-stock" type="file" webkitdirectory directory multiple class="hidden" onchange="handleFolderStockUpload(this)">
-            </label>
-          </div>
-          <div id="folder-upload-summary" class="hidden bg-white border border-purple-200 rounded-lg p-2 text-[11px] text-purple-900 font-semibold"></div>
         </div>
 
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <label class="font-bold">Cách 2: Dán acc hoặc kiểm tra danh sách nạp:</label>
+        <!-- KHUNG 1: DÀNH RIÊNG CHO TÀI KHOẢN THƯỜNG (EMAIL | PASS XUỐNG DÒNG) -->
+        <div id="box-stock-regular" class="space-y-1.5">
+          <div class="flex justify-between items-center">
+            <label class="font-bold text-blue-900">Dán danh sách Email|Pass (Mỗi acc 1 dòng):</label>
             <div class="flex items-center gap-1.5">
-              <button type="button" onclick="pasteToInput('adm-stock-accounts', this); updateStockInputCount();" class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold text-[10px]"><i class="fa-solid fa-paste mr-0.5"></i>Dán nhanh</button>
-              <button type="button" onclick="document.getElementById('adm-stock-accounts').value=''; document.getElementById('folder-upload-summary').classList.add('hidden'); updateStockInputCount();" class="bg-red-50 text-red-600 px-2 py-0.5 rounded font-bold text-[10px]">Xóa</button>
+              <button type="button" onclick="pasteToInput('adm-stock-accounts', this); updateStockInputCount();" class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold text-[10px]"><i class="fa-solid fa-paste mr-0.5"></i>Dán</button>
+              <button type="button" onclick="clearStockInput()" class="bg-red-50 text-red-600 px-2 py-0.5 rounded font-bold text-[10px]">Xóa</button>
               <span id="lbl-input-counter" class="text-blue-600 font-bold">0 acc</span>
             </div>
           </div>
-          <textarea id="adm-stock-accounts" oninput="updateStockInputCount()" rows="5" placeholder="acc1@gmail.com|pass123&#10;Hoặc: acc_cookie@gmail.com||nội_dung_cookie" class="w-full p-2 border rounded-lg font-mono text-[11px] bg-slate-50"></textarea>
-          <span class="text-[10px] text-slate-500 block mt-0.5">Tự động loại bỏ các tài khoản bị trùng lặp trong kho.</span>
+          <textarea id="adm-stock-accounts" oninput="updateStockInputCount()" rows="6" placeholder="email1@gmail.com|pass123&#10;email2@gmail.com|pass456&#10;email3@gmail.com|pass789" class="w-full p-2.5 border rounded-xl font-mono text-[11px] bg-slate-50 focus:outline-none focus:border-blue-600"></textarea>
+          <span class="text-[10px] text-slate-500 block">Khi khách mua hoặc tải file .txt sẽ xuất ra đúng từng dòng <code>email|pass</code> xuống dòng, không có dấu gạch thừa.</span>
         </div>
-        <button onclick="addStock()" class="w-full blue-header text-white py-2.5 rounded-xl font-bold shadow">Nạp Kho & Lọc Trùng Ngay</button>
+
+        <!-- KHUNG 2: DÀNH RIÊNG CHO TÀI KHOẢN COOKIE (TẢI THƯ MỤC LẺ, NHIỀU THƯ MỤC KHÁC NHAU, THƯ MỤC LỚN HOẶC KÉO THẢ) -->
+        <div id="box-stock-cookie" class="hidden space-y-2.5">
+          <div id="cookie-dropzone" ondragover="handleCookieDragOver(event)" ondragleave="handleCookieDragLeave(event)" ondrop="handleCookieDrop(event)" class="bg-purple-50 border-2 border-dashed border-purple-300 rounded-xl p-3 space-y-2 transition">
+            <div class="font-extrabold text-purple-900 text-xs flex items-center gap-1.5">
+              <i class="fa-solid fa-folder-plus text-purple-600"></i> Tải Lên Thư Mục Tài Khoản Cookie (Chọn Thêm Nhiều Lần Tùy Ý)
+            </div>
+            <p class="text-[11px] text-slate-600 leading-relaxed">
+              • Không bắt buộc phải gom vào 1 thư mục lớn: Bạn có thể bấm <b>"Thêm Thư Mục"</b> nhiều lần để chọn từng thư mục lẻ, nhiều thư mục khác nhau, hoặc <b>Kéo & Thả nhiều thư mục</b> trực tiếp vào khung này.<br>
+              • Tên thư mục chứa file (hoặc tên file) sẽ tự động lấy làm <b>tên Email</b>, và nội dung bên trong là <b>Cookie</b>.
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              <label class="bg-purple-600 hover:bg-purple-700 text-white py-2.5 px-3 rounded-xl font-bold text-xs shadow cursor-pointer flex items-center justify-center gap-1.5 transition text-center">
+                <i class="fa-solid fa-folder-plus"></i> + Thêm Thư Mục (Lẻ hoặc Lớn)
+                <input id="inp-folder-stock" type="file" webkitdirectory directory multiple class="hidden" onchange="handleFolderStockUpload(this)">
+              </label>
+              <label class="bg-white hover:bg-purple-100 text-purple-800 border border-purple-300 py-2.5 px-3 rounded-xl font-bold text-xs cursor-pointer flex items-center justify-center gap-1.5 transition text-center">
+                <i class="fa-solid fa-file-circle-plus"></i> + Thêm File Cookie (.txt)
+                <input id="inp-files-stock" type="file" multiple class="hidden" onchange="handleFolderStockUpload(this)">
+              </label>
+            </div>
+            <div id="folder-upload-summary" class="hidden bg-white border border-purple-200 rounded-lg p-2 text-[11px] text-purple-900 font-semibold"></div>
+          </div>
+          <div class="flex justify-between items-center text-[11px]">
+            <span class="font-bold text-purple-900">Đã gom vào danh sách chờ nạp: <b id="lbl-cookie-counter" class="text-red-600">0 acc</b></span>
+            <button type="button" onclick="clearStockInput()" class="text-red-600 font-bold hover:underline">Xóa tất cả danh sách chờ</button>
+          </div>
+          <div id="cookie-preview-list" class="max-h-44 overflow-y-auto custom-scroll space-y-1.5 bg-slate-50 p-2 rounded-xl border text-[11px]">
+            <div class="text-slate-400 text-center py-3">Chưa có thư mục Cookie nào trong danh sách chờ nạp.</div>
+          </div>
+        </div>
+
+        <button onclick="addStock()" class="w-full blue-header text-white py-2.5 rounded-xl font-bold shadow">Nạp Vào Kho & Lọc Trùng Ngay</button>
       </div>
 
       <div class="lg:col-span-3 bg-white p-3.5 sm:p-4 rounded-xl border space-y-2.5">
@@ -599,29 +664,25 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
       <div id="adm-tx-list" class="space-y-1.5 max-h-[400px] overflow-y-auto custom-scroll"></div>
     </div>
 
-    <!-- Sub 7: Tên Miền Riêng, Chống Ngủ Đông Render & Giao Diện -->
+    <!-- Sub 7: Tùy biến Giao Diện, Logo & Ngân Hàng VietQR -->
     <div id="adm-panel-settings" class="adm-panel hidden bg-white p-4 sm:p-5 rounded-xl border space-y-4 text-xs">
       <div class="flex flex-wrap justify-between border-b pb-2 items-center gap-2">
         <div>
-          <b class="text-sm text-purple-700">Cấu Hình Tên Miền Riêng, Chống Chờ Render & Giao Diện</b>
-          <p class="text-[11px] text-slate-500">Đổi sang tên miền riêng của bạn, tắt màn hình chờ Render và tùy chỉnh ngân hàng</p>
+          <b class="text-sm text-purple-700">Tùy Biến Giao Diện, Logo & Ngân Hàng Nhận Tiền</b>
+          <p class="text-[11px] text-slate-500">Chỉnh sửa tên shop, logo, hotline Zalo và cấu hình ngân hàng VietQR</p>
         </div>
-        <button onclick="saveSiteSettings()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-bold shadow text-xs">Lưu Toàn Bộ Cài Đặt</button>
+        <button onclick="saveSiteSettings()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-bold shadow text-xs">Lưu Cài Đặt</button>
       </div>
 
       <div class="grid md:grid-cols-2 gap-4">
         <div class="bg-slate-50 p-3.5 rounded-xl border space-y-2.5">
-          <b class="text-blue-900 block border-b pb-1">1. Tên Miền Riêng & Thông Tin Shop</b>
-          <div>
-            <label class="font-bold block mb-1 text-purple-800"><i class="fa-solid fa-globe mr-1"></i>Tên miền chính thức của bạn (Custom Domain):</label>
-            <input id="set-site-domain" type="text" placeholder="VD: https://jerryshop.vn" oninput="updateWebhookPreviewUrls()" class="w-full p-2 border border-purple-300 rounded-lg bg-white font-bold text-purple-900">
-            <span class="text-[10px] text-slate-500 block mt-0.5">Khi nhập tên miền của bạn vào đây, hệ thống sẽ tự động đổi toàn bộ link Webhook và tự động Ping giữ ấm tên miền này 24/7.</span>
-          </div>
+          <b class="text-blue-900 block border-b pb-1">1. Thông Tin Shop & Logo</b>
           <div><label class="font-bold block mb-1">Tên shop hiển thị:</label><input id="set-site-name" type="text" class="w-full p-2 border rounded-lg bg-white"></div>
           <div><label class="font-bold block mb-1">Slogan ngắn:</label><input id="set-site-slogan" type="text" class="w-full p-2 border rounded-lg bg-white"></div>
           <div><label class="font-bold block mb-1">Logo shop:</label><div class="flex gap-1.5"><input id="set-site-logo" type="text" placeholder="https://..." class="flex-1 p-2 border rounded-lg bg-white"><label class="bg-slate-200 px-3 py-2 rounded-lg cursor-pointer font-bold shrink-0">Tải logo<input type="file" accept="image/*" class="hidden" onchange="uploadImage(this, 'set-site-logo')"></label></div></div>
           <div><label class="font-bold block mb-1">Số điện thoại / Zalo hỗ trợ:</label><input id="set-site-hotline" type="text" class="w-full p-2 border rounded-lg bg-white"></div>
           <div><label class="font-bold block mb-1">Thông báo chạy đầu trang:</label><input id="set-site-notice" type="text" class="w-full p-2 border rounded-lg bg-white"></div>
+          <div><label class="font-bold block mb-1 text-amber-800"><i class="fa-solid fa-screwdriver-wrench mr-1"></i>Nội dung hiện khi Bật Bảo Trì Web:</label><input id="set-maintenance-msg" type="text" placeholder="Hệ thống đang tạm bảo trì nâng cấp..." class="w-full p-2 border border-amber-300 rounded-lg bg-amber-50/40"></div>
         </div>
 
         <div class="bg-slate-50 p-3.5 rounded-xl border space-y-2.5">
@@ -634,41 +695,28 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
             <div><label class="font-bold block mb-1">Số tài khoản nhận:</label><input id="set-bank-acc" type="text" class="w-full p-2 border rounded-lg bg-white text-blue-700 font-bold"></div>
             <div><label class="font-bold block mb-1">Mức nạp tối thiểu (VNĐ):</label><input id="set-min-deposit" type="number" class="w-full p-2 border rounded-lg bg-white font-bold text-red-600"></div>
           </div>
-          <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-xl space-y-1.5 text-[11px] text-emerald-900">
-            <b class="block"><i class="fa-solid fa-shield-check mr-1"></i>Cách gắn Tên Miền Riêng & Xóa màn hình chờ Render:</b>
-            <p>1. Trên trang quản lý <b>Render.com</b> → chọn dịch vụ web của bạn → vào mục <b>Settings</b> → cuộn xuống phần <b>Custom Domains</b> → bấm <b>Add Custom Domain</b> và nhập tên miền của bạn (VD: <code>jerryshop.vn</code>).</p>
-            <p>2. Vào nơi bạn mua tên miền (Tenten, Mắt Bão, Cloudflare, Namecheap...) trỏ bản ghi <b>CNAME</b> (<code>www</code>) và <b>A Record</b> (<code>@</code>) theo đúng hướng dẫn Render hiển thị.</p>
-            <p>3. <b>Để không bao giờ hiện màn hình chờ Render lúc mới mở web:</b> Code đã tích hợp sẵn bộ tự động giữ ấm <code>/api/ping</code>. Bạn chỉ cần dán link <b>Healthcheck Ping</b> bên dưới vào trang miễn phí <b>cron-job.org</b> hoặc <b>UptimeRobot.com</b> (cài 5 phút chạy 1 lần) là web mở tức thì 24/7!</p>
-          </div>
-          <button onclick="saveSiteSettings()" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-xl font-bold shadow">Lưu Cài Đặt Giao Diện & Tên Miền</button>
+          <button onclick="saveSiteSettings()" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-xl font-bold shadow mt-2">Lưu Cài Đặt Giao Diện Ngay</button>
         </div>
       </div>
 
-      <!-- BẢNG LINK WEBHOOK & LINK CHỐNG NGỦ ĐÔNG THEO TÊN MIỀN CỦA BẠN -->
+      <!-- BẢNG LINK WEBHOOK TỰ ĐỘNG NẠP TIỀN -->
       <div class="bg-blue-50 border-2 border-blue-300 p-4 rounded-xl space-y-2.5">
         <div class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-link"></i></div>
-          <b class="text-sm text-blue-900">Liên Kết Webhook Tự Động & Link Chống Ngủ Đông Render (Tự động theo tên miền của bạn)</b>
+          <div class="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-bolt"></i></div>
+          <b class="text-sm text-blue-900">Liên Kết Webhook Tự Động Nạp Tiền (SePay / ShopeePay / Web2M)</b>
         </div>
-        <div class="grid sm:grid-cols-3 gap-2.5 text-xs">
+        <div class="grid sm:grid-cols-2 gap-2.5 text-xs">
           <div class="bg-white p-2.5 rounded-xl border space-y-1">
-            <span class="text-slate-500 font-bold block text-[10px]">1. Link chống màn hình chờ Render (Ping 5p/lần):</span>
+            <span class="text-slate-500 font-bold block text-[10px]">1. Webhook SePay (sepay.vn):</span>
             <div class="flex gap-1 items-center">
-              <input id="inp-webhook-ping" type="text" readonly value="https://ten-mien-cua-ban.com/api/ping" class="flex-1 p-1.5 bg-slate-50 border rounded font-mono text-[10px] select-all">
-              <button type="button" onclick="copyFromInput('inp-webhook-ping', this)" class="bg-purple-600 text-white px-2.5 py-1.5 rounded text-[10px] font-bold shrink-0">Copy</button>
-            </div>
-          </div>
-          <div class="bg-white p-2.5 rounded-xl border space-y-1">
-            <span class="text-slate-500 font-bold block text-[10px]">2. Webhook SePay (sepay.vn):</span>
-            <div class="flex gap-1 items-center">
-              <input id="inp-webhook-sepay" type="text" readonly value="https://ten-mien-cua-ban.com/api/webhook/sepay" class="flex-1 p-1.5 bg-slate-50 border rounded font-mono text-[10px] select-all">
+              <input id="inp-webhook-sepay" type="text" readonly value="/api/webhook/sepay" class="flex-1 p-1.5 bg-slate-50 border rounded font-mono text-[10px] select-all">
               <button type="button" onclick="copyFromInput('inp-webhook-sepay', this)" class="bg-blue-600 text-white px-2.5 py-1.5 rounded text-[10px] font-bold shrink-0">Copy</button>
             </div>
           </div>
           <div class="bg-white p-2.5 rounded-xl border space-y-1">
-            <span class="text-slate-500 font-bold block text-[10px]">3. Webhook ShopeePay / Web2M:</span>
+            <span class="text-slate-500 font-bold block text-[10px]">2. Webhook ShopeePay / Web2M:</span>
             <div class="flex gap-1 items-center">
-              <input id="inp-webhook-shopeepay" type="text" readonly value="https://ten-mien-cua-ban.com/api/webhook/shopeepay" class="flex-1 p-1.5 bg-slate-50 border rounded font-mono text-[10px] select-all">
+              <input id="inp-webhook-shopeepay" type="text" readonly value="/api/webhook/shopeepay" class="flex-1 p-1.5 bg-slate-50 border rounded font-mono text-[10px] select-all">
               <button type="button" onclick="copyFromInput('inp-webhook-shopeepay', this)" class="bg-emerald-600 text-white px-2.5 py-1.5 rounded text-[10px] font-bold shrink-0">Copy</button>
             </div>
           </div>
@@ -746,7 +794,7 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
       <button type="button" onclick="downloadDeliveredAccounts(this)" class="bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-2.5 rounded-xl font-bold shadow flex items-center justify-center gap-1.5 text-xs">
         <i class="fa-solid fa-file-lines"></i> <span>Tải file .txt</span>
       </button>
-      <button type="button" onclick="downloadDeliveredZip(this)" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-2.5 rounded-xl font-bold shadow flex items-center justify-center gap-1.5 text-xs" title="Tải thư mục lớn chứa các thư mục con tên là Mail, bên trong là file cookie.txt">
+      <button type="button" id="btn-succ-zip" onclick="downloadDeliveredZip(this)" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-2.5 rounded-xl font-bold shadow flex items-center justify-center gap-1.5 text-xs" title="Tải thư mục lớn chứa các thư mục con tên là Email, bên trong là file cookie.txt">
         <i class="fa-solid fa-folder-tree"></i> <span>Tải Thư Mục (.zip)</span>
       </button>
       <button type="button" onclick="pasteToInput('succ-paste-box', this)" class="bg-amber-500 hover:bg-amber-600 text-white py-2 px-2.5 rounded-xl font-bold shadow flex items-center justify-center gap-1.5 text-xs">
@@ -862,8 +910,11 @@ let siteSettings = {
   bank_id: 'MB',
   bank_name: 'MB BANK (Quân Đội)',
   bank_account: '5428102008',
-  min_deposit: '20000'
+  min_deposit: '20000',
+  maintenance_mode: '0',
+  maintenance_message: 'Hệ thống đang tạm bảo trì để nâng cấp và cập nhật dữ liệu. Quý khách vui lòng quay lại sau ít phút!'
 };
+let adminBypassMaintenanceForLogin = false;
 
 const DEFAULT_IMG = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRWdRCJUxu-f9beNfce69-LxdtXwAC3AGfzE_Vaog4-5w&s=10';
 const DEPOSIT_LIMIT_SECONDS = 600; // Đúng 10 phút (600 giây)
@@ -1125,26 +1176,38 @@ function parseAccountParts(accStr) {
   };
 }
 
-// ĐỊNH DẠNG XUẤT FILE .TXT THEO CẤU TRÚC: TÊN THƯ MỤC LÀ MAIL -> BÊN TRONG LÀ COOKIE
+// KIỂM TRA DANH SÁCH TÀI KHOẢN CÓ CHỨA COOKIE HAY LÀ TÀI KHOẢN THƯỜNG (EMAIL|PASS)
+function checkOrderHasCookie(accountsArray) {
+  const list = Array.isArray(accountsArray) ? accountsArray : [accountsArray];
+  return list.some(acc => parseAccountParts(acc).isFolderCookie || Boolean(parseAccountParts(acc).cookie));
+}
+
+// ĐỊNH DẠNG XUẤT FILE .TXT:
+// - Nếu là TÀI KHOẢN THƯỜNG (không có cookie): chỉ xuất từng dòng email|pass xuống dòng, KHÔNG thêm bất kỳ dấu gạch hay tiêu đề nào!
+// - Nếu là TÀI KHOẢN CÓ COOKIE:
+//   + Nếu mua 1 acc: nội dung file .txt chỉ chứa thuần Cookie (tên file là tên Email).
+//   + Nếu mua nhiều acc: mỗi mục ghi tên Email (thư mục) và nội dung Cookie bên dưới.
 function formatAccountsStructuredTxt(accountsArray) {
   const list = Array.isArray(accountsArray) ? accountsArray : [accountsArray];
   if (!list.length) return '';
 
-  // Nếu chỉ có 1 tài khoản dạng Thư mục Mail -> Cookie, xuất gọn hoặc kèm tiêu đề thư mục Mail
-  if (list.length === 1) {
-    const p = parseAccountParts(list[0]);
-    if (p.cookie) {
-      return `[THƯ MỤC MAIL]: ${p.email}${p.pass ? ' | [PASS]: ' + p.pass : ''}\n[NỘI DUNG COOKIE BÊN TRONG]:\n${p.cookie}`;
-    }
-    return decodeCookieLine(list[0]);
+  const hasCookie = checkOrderHasCookie(list);
+  if (!hasCookie) {
+    // Tài khoản thường: chỉ email|pass xuống dòng
+    return list.map(acc => decodeCookieLine(String(acc || '').trim())).filter(Boolean).join('\n');
   }
 
-  return list.map((acc, idx) => {
+  if (list.length === 1) {
+    const p = parseAccountParts(list[0]);
+    return p.cookie ? p.cookie : decodeCookieLine(list[0]);
+  }
+
+  return list.map(acc => {
     const p = parseAccountParts(acc);
     if (p.cookie) {
-      return `====================================================\n📁 [THƯ MỤC ${idx + 1} - MAIL]: ${p.email}${p.pass ? '\n🔑 [MẬT KHẨU]: ' + p.pass : ''}\n====================================================\n${p.cookie}`;
+      return `[${p.email}]\n${p.cookie}`;
     }
-    return `====================================================\n📁 [TÀI KHOẢN ${idx + 1}]: ${p.email}\n====================================================\n${decodeCookieLine(acc)}`;
+    return decodeCookieLine(acc);
   }).join('\n\n');
 }
 
@@ -1269,11 +1332,7 @@ function downloadOrderFolderZipByKey(storeKey, orderCode = 'DonHang', btnEl = nu
     }
   });
 
-  // Thêm 1 file tổng hợp toàn bộ ở ngoài thư mục lớn để tiện tra cứu
-  filesList.push({
-    path: `${safeRoot}/TONG_HOP_TAT_CA_ACC.txt`,
-    content: formatAccountsStructuredTxt(lines)
-  });
+  // Cấu trúc chuẩn trong file .zip: Thư mục lớn (Mã đơn) -> Nhiều thư mục nhỏ (Tên từng Email) -> file cookie.txt bên trong
 
   const blob = buildZipBlob(filesList);
   const url = window.URL.createObjectURL(blob);
@@ -1295,8 +1354,27 @@ function downloadSingleMailCookieTxt(mailStoreKey, cookieStoreKey, btnEl = null)
   const mail = (accountDataStore[mailStoreKey] || 'account').trim();
   const cookie = accountDataStore[cookieStoreKey] || '';
   const safeFile = mail.replace(/[^a-zA-Z0-9@._-]/g, '_') || 'cookie';
-  const content = `[THƯ MỤC MAIL]: ${mail}\n[COOKIE]:\n${cookie}`;
-  downloadOrderTxt(content, safeFile, btnEl);
+  // Tên file là tên Email, bên trong file chỉ chứa thuần 100% nội dung Cookie
+  const cleanCookie = String(cookie || '').trim();
+  if (!cleanCookie) return notify('Không có nội dung Cookie để tải!', true);
+  try {
+    const blob = new Blob(['\uFEFF' + cleanCookie], { type: 'text/plain;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = safeFile.endsWith('.txt') ? safeFile : `${safeFile}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      if (a.parentNode) document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }, 600);
+    if (btnEl) flashButtonSuccess(btnEl, 'Đã tải .txt!');
+    notify(`Đã tải file ${safeFile}.txt (Bên trong là Cookie)!`);
+  } catch (err) {
+    copyText(cleanCookie, 'Đã sao chép Cookie vào bộ nhớ tạm!');
+  }
 }
 
 function escapeHtml(str) {
@@ -1438,6 +1516,8 @@ async function refreshUser() {
 }
 
 function updateUserState() {
+  if (currentUser && currentUser.role === 'admin') adminBypassMaintenanceForLogin = false;
+  applyMaintenanceState();
   if (currentUser) {
     document.getElementById('btn-open-auth').classList.add('hidden');
     document.getElementById('nav-user').classList.remove('hidden');
@@ -1519,25 +1599,89 @@ async function loadSiteSettings() {
   applySiteSettings();
 }
 
-function getEffectiveDomain() {
-  if (siteSettings.site_domain && siteSettings.site_domain.trim()) {
-    return siteSettings.site_domain.trim().replace(/\/+$/, '');
-  }
-  if (window.location && window.location.origin && window.location.origin.startsWith('http')) {
-    return window.location.origin.replace(/\/+$/, '');
-  }
-  return 'https://ten-mien-cua-ban.com';
-}
-
 function updateWebhookPreviewUrls() {
-  const inpDom = document.getElementById('set-site-domain');
-  const rawDom = (inpDom && inpDom.value.trim()) ? inpDom.value.trim().replace(/\/+$/, '') : getEffectiveDomain();
-  const elPing = document.getElementById('inp-webhook-ping');
+  const origin = (window.location && window.location.origin && window.location.origin.startsWith('http'))
+    ? window.location.origin.replace(/\/+$/, '')
+    : 'https://ten-mien-cua-ban.com';
   const elSepay = document.getElementById('inp-webhook-sepay');
   const elShopee = document.getElementById('inp-webhook-shopeepay');
-  if (elPing) elPing.value = `${rawDom}/api/ping`;
-  if (elSepay) elSepay.value = `${rawDom}/api/webhook/sepay`;
-  if (elShopee) elShopee.value = `${rawDom}/api/webhook/shopeepay`;
+  if (elSepay) elSepay.value = `${origin}/api/webhook/sepay`;
+  if (elShopee) elShopee.value = `${origin}/api/webhook/shopeepay`;
+}
+
+// QUẢN LÝ CHẾ ĐỘ BẢO TRÌ WEB CHỈ DÀNH CHO ADMIN
+function applyMaintenanceState() {
+  const isMaint = String(siteSettings.maintenance_mode || '0') === '1';
+  const isAdmin = Boolean(currentUser && currentUser.role === 'admin');
+  const overlay = document.getElementById('maintenance-overlay');
+  const admBar = document.getElementById('admin-maintenance-bar');
+  const maintMsgEl = document.getElementById('lbl-maintenance-msg');
+  const btnToggle = document.getElementById('btn-adm-maint-toggle');
+  const lblBtn = document.getElementById('lbl-adm-maint-btn');
+
+  if (maintMsgEl) {
+    maintMsgEl.innerText = siteSettings.maintenance_message || 'Hệ thống đang tạm bảo trì để nâng cấp và cập nhật dữ liệu. Quý khách vui lòng quay lại sau ít phút!';
+  }
+
+  if (btnToggle && lblBtn) {
+    if (isMaint) {
+      btnToggle.className = 'bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-xl text-xs font-extrabold shadow flex items-center gap-1.5 transition animate-pulse';
+      lblBtn.innerText = 'Đang Bảo Trì (Bấm Để Tắt)';
+    } else {
+      btnToggle.className = 'bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-xl text-xs font-extrabold shadow flex items-center gap-1.5 transition';
+      lblBtn.innerText = 'Bật Bảo Trì Web';
+    }
+  }
+
+  if (isMaint) {
+    if (isAdmin) {
+      if (overlay) overlay.classList.add('hidden');
+      if (admBar) admBar.classList.remove('hidden');
+    } else {
+      if (admBar) admBar.classList.add('hidden');
+      if (overlay) {
+        if (adminBypassMaintenanceForLogin) overlay.classList.add('hidden');
+        else overlay.classList.remove('hidden');
+      }
+    }
+  } else {
+    if (overlay) overlay.classList.add('hidden');
+    if (admBar) admBar.classList.add('hidden');
+    adminBypassMaintenanceForLogin = false;
+  }
+}
+
+function openAdminLoginFromMaintenance() {
+  adminBypassMaintenanceForLogin = true;
+  const overlay = document.getElementById('maintenance-overlay');
+  if (overlay) overlay.classList.add('hidden');
+  switchTab('auth');
+  switchAuthMode('login');
+  notify('Vui lòng đăng nhập tài khoản Quản trị viên (Admin) để chỉnh sửa web!');
+}
+
+async function toggleMaintenanceMode() {
+  if (!currentUser || currentUser.role !== 'admin') return notify('Chỉ Quản trị viên mới có quyền bật/tắt bảo trì web!', true);
+  const currentMode = String(siteSettings.maintenance_mode || '0') === '1';
+  const nextEnabled = !currentMode;
+  const msgInput = document.getElementById('set-maintenance-msg');
+  const customMsg = (msgInput && msgInput.value.trim()) ? msgInput.value.trim() : siteSettings.maintenance_message;
+
+  siteSettings.maintenance_mode = nextEnabled ? '1' : '0';
+  if (customMsg) siteSettings.maintenance_message = customMsg;
+  applyMaintenanceState();
+
+  try {
+    const res = await fetch('/api/admin/maintenance', {
+      method: 'POST',
+      headers: adminHeaders(),
+      body: JSON.stringify({ enabled: nextEnabled, message: siteSettings.maintenance_message })
+    });
+    const d = await res.json();
+    if (res.ok) notify(d.message);
+  } catch (e) {
+    notify(nextEnabled ? 'Đã BẬT chế độ bảo trì web (Chỉ Admin mới xem & sửa được web)!' : 'Đã TẮT chế độ bảo trì, khách hàng truy cập bình thường!');
+  }
 }
 
 function applySiteSettings() {
@@ -1565,16 +1709,17 @@ function applySiteSettings() {
   document.getElementById('lbl-dep-acc').innerText = siteSettings.bank_account;
   document.getElementById('lbl-min-deposit-hint').innerText = Number(siteSettings.min_deposit || 20000).toLocaleString() + 'đ';
   updateWebhookPreviewUrls();
+  applyMaintenanceState();
 }
 
 async function saveSiteSettings() {
   const payload = {
-    site_domain: document.getElementById('set-site-domain').value.trim(),
     site_name: document.getElementById('set-site-name').value.trim(),
     site_slogan: document.getElementById('set-site-slogan').value.trim(),
     site_logo: document.getElementById('set-site-logo').value.trim(),
     site_hotline: document.getElementById('set-site-hotline').value.trim(),
     site_notice: document.getElementById('set-site-notice').value.trim(),
+    maintenance_message: document.getElementById('set-maintenance-msg').value.trim(),
     bank_id: document.getElementById('set-bank-id').value.trim(),
     bank_name: document.getElementById('set-bank-name').value.trim(),
     bank_account: document.getElementById('set-bank-acc').value.trim(),
@@ -1588,17 +1733,18 @@ async function saveSiteSettings() {
     if (!res.ok) return notify(d.error, true);
     notify(d.message);
   } catch (e) {
-    notify('Đã lưu cài đặt tên miền & giao diện!');
+    notify('Đã lưu cài đặt giao diện thành công!');
   }
 }
 
 function populateSettingsForm() {
-  document.getElementById('set-site-domain').value = siteSettings.site_domain || '';
   document.getElementById('set-site-name').value = siteSettings.site_name || '';
   document.getElementById('set-site-slogan').value = siteSettings.site_slogan || '';
   document.getElementById('set-site-logo').value = siteSettings.site_logo || '';
   document.getElementById('set-site-hotline').value = siteSettings.site_hotline || '';
   document.getElementById('set-site-notice').value = siteSettings.site_notice || '';
+  const mInp = document.getElementById('set-maintenance-msg');
+  if (mInp) mInp.value = siteSettings.maintenance_message || '';
   document.getElementById('set-bank-id').value = siteSettings.bank_id || 'MB';
   document.getElementById('set-bank-name').value = siteSettings.bank_name || 'MB BANK (Quân Đội)';
   document.getElementById('set-bank-acc').value = siteSettings.bank_account || '5428102008';
@@ -1910,15 +2056,22 @@ async function confirmBuy() {
 let currentDeliveredRawKey = '';
 let currentDeliveredFormattedTxtKey = '';
 
+let currentDeliveredIsCookie = false;
+let currentDeliveredSingleMail = '';
+
 function showDeliveryModal(d) {
   const warrantyNote = (d.warranty && d.warranty.trim()) ? ` • ${d.warranty.trim()}` : '';
   document.getElementById('succ-msg').innerText = `Mã đơn: #${d.orderCode} • Đã giao ${d.accounts.length} tài khoản [${d.variantName}]${warrantyNote}`;
   const accList = d.accounts || [];
+  currentDeliveredIsCookie = checkOrderHasCookie(accList);
+  const btnZip = document.getElementById('btn-succ-zip');
+  if (btnZip) btnZip.classList.toggle('hidden', !currentDeliveredIsCookie);
   currentDeliveredText = formatAccountsStructuredTxt(accList);
   currentDeliveredRawKey = registerStoreText(accList.join('\n'));
   currentDeliveredFormattedTxtKey = registerStoreText(currentDeliveredText);
   currentDeliveredCode = d.orderCode || 'DH';
   currentDeliveredProdId = d.productId || (selectedProduct ? selectedProduct.id : null);
+  currentDeliveredSingleMail = accList.length === 1 ? (parseAccountParts(accList[0]).email || currentDeliveredCode) : currentDeliveredCode;
   lastCopiedText = currentDeliveredText;
 
   const pasteBox = document.getElementById('succ-paste-box');
@@ -1927,33 +2080,46 @@ function showDeliveryModal(d) {
   const box = document.getElementById('succ-accounts-container');
   box.innerHTML = accList.map((a, i) => {
     const parts = parseAccountParts(a);
-    const fullKey = registerStoreText(parts.cookie ? `[THƯ MỤC MAIL]: ${parts.email}\n[COOKIE]:\n${parts.cookie}` : parts.raw);
+    const rawLineKey = registerStoreText(parts.raw);
     const emailKey = parts.email ? registerStoreText(parts.email) : '';
     const passKey = parts.pass ? registerStoreText(parts.pass) : '';
     const cookieKey = parts.cookie ? registerStoreText(parts.cookie) : '';
 
-    return `
-      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
-        <div class="flex flex-wrap justify-between items-center gap-1.5 text-[11px] border-b border-slate-200 pb-1.5">
-          <div class="flex items-center gap-1.5">
-            <span class="bg-blue-600 text-white font-bold px-2 py-0.2 rounded text-[10px]">#${i + 1}</span>
-            <b class="text-blue-900"><i class="fa-solid fa-folder text-amber-500 mr-1"></i>Thư mục Mail: <span class="font-mono text-slate-900">${escapeHtml(parts.email || 'Tài khoản')}</span></b>
+    // Nếu là TÀI KHOẢN CÓ COOKIE: hiện rõ Thư mục Email + Cookie riêng biệt
+    if (parts.cookie) {
+      return `
+        <div class="bg-slate-50 p-3 rounded-xl border border-purple-200 space-y-2">
+          <div class="flex flex-wrap justify-between items-center gap-1.5 text-[11px] border-b border-slate-200 pb-1.5">
+            <div class="flex items-center gap-1.5">
+              <span class="bg-purple-600 text-white font-bold px-2 py-0.2 rounded text-[10px]">#${i + 1}</span>
+              <b class="text-purple-900"><i class="fa-solid fa-folder text-amber-500 mr-1"></i>Email: <span class="font-mono text-slate-900 select-all">${escapeHtml(parts.email || 'Tài khoản')}</span></b>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              ${emailKey ? `<button type="button" onclick="copyByKey('${emailKey}', 'Đã sao chép riêng Email: ${escapeHtml(parts.email)}!', this)" class="bg-blue-100 text-blue-800 hover:bg-blue-200 px-2.5 py-1 rounded-lg text-[10px] font-bold"><i class="fa-regular fa-envelope mr-1"></i>Copy Riêng Email</button>` : ''}
+              ${passKey ? `<button type="button" onclick="copyByKey('${passKey}', 'Đã sao chép Mật khẩu!', this)" class="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 px-2.5 py-1 rounded-lg text-[10px] font-bold"><i class="fa-solid fa-key mr-1"></i>Copy Pass</button>` : ''}
+              <button type="button" onclick="copyByKey('${cookieKey}', 'Đã sao chép riêng Cookie của ${escapeHtml(parts.email)}!', this)" class="bg-purple-600 text-white hover:bg-purple-700 px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-xs"><i class="fa-solid fa-cookie mr-1"></i>Copy Riêng Cookie</button>
+              <button type="button" onclick="downloadSingleMailCookieTxt('${emailKey}', '${cookieKey}', this)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-xs" title="Tải file .txt có tên là Email, bên trong là Cookie"><i class="fa-solid fa-download mr-0.5"></i>Tải File .txt</button>
+            </div>
           </div>
-          <div class="flex flex-wrap gap-1">
-            ${emailKey ? `<button type="button" onclick="copyByKey('${emailKey}', 'Đã sao chép Mail: ${escapeHtml(parts.email)}!', this)" class="bg-blue-100 text-blue-800 hover:bg-blue-200 px-2.5 py-1 rounded-lg text-[10px] font-bold"><i class="fa-regular fa-envelope mr-1"></i>Copy Mail</button>` : ''}
-            ${passKey ? `<button type="button" onclick="copyByKey('${passKey}', 'Đã sao chép Mật khẩu!', this)" class="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 px-2.5 py-1 rounded-lg text-[10px] font-bold"><i class="fa-solid fa-key mr-1"></i>Copy Pass</button>` : ''}
-            ${cookieKey ? `<button type="button" onclick="copyByKey('${cookieKey}', 'Đã sao chép riêng Cookie của ${escapeHtml(parts.email)}!', this)" class="bg-purple-600 text-white hover:bg-purple-700 px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-xs"><i class="fa-solid fa-cookie mr-1"></i>Copy Riêng Cookie</button>` : ''}
-            ${cookieKey ? `<button type="button" onclick="downloadSingleMailCookieTxt('${emailKey}', '${cookieKey}', this)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-xs"><i class="fa-solid fa-download mr-0.5"></i>Tải .txt</button>` : `<button type="button" onclick="downloadByKey('${fullKey}', '${escapeHtml(parts.email || currentDeliveredCode)}', this)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold"><i class="fa-solid fa-download mr-0.5"></i>Tải .txt</button>`}
-          </div>
-        </div>
-        ${parts.cookie ? `
           <div class="space-y-1">
-            <span class="text-[10px] text-slate-500 font-semibold block">Nội dung Cookie bên trong thư mục <b>${escapeHtml(parts.email)}</b>:</span>
+            <span class="text-[10px] text-slate-500 font-semibold block">Cookie bên trong thư mục <b>${escapeHtml(parts.email)}</b>:</span>
             <pre class="bg-slate-900 text-emerald-400 p-2 rounded-lg font-mono text-[10px] max-h-24 overflow-y-auto custom-scroll whitespace-pre-wrap break-all select-all">${escapeHtml(parts.cookie)}</pre>
           </div>
-        ` : `
-          <code class="block bg-slate-900 text-emerald-400 p-2 rounded-lg font-mono text-[11px] break-all select-all">${escapeHtml(parts.raw)}</code>
-        `}
+        </div>`;
+    }
+
+    // Nếu là TÀI KHOẢN THƯỜNG (Không có Cookie): chỉ hiển thị dòng email|pass gọn gàng
+    return `
+      <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1.5">
+        <div class="flex flex-wrap justify-between items-center gap-1.5 text-[11px]">
+          <span class="font-bold text-slate-700">#${i + 1} Tài khoản thường</span>
+          <div class="flex flex-wrap gap-1">
+            ${emailKey ? `<button type="button" onclick="copyByKey('${emailKey}', 'Đã sao chép Email!', this)" class="bg-blue-100 text-blue-800 hover:bg-blue-200 px-2 py-0.5 rounded-lg text-[10px] font-bold">Copy Email</button>` : ''}
+            ${passKey ? `<button type="button" onclick="copyByKey('${passKey}', 'Đã sao chép Mật khẩu!', this)" class="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 px-2 py-0.5 rounded-lg text-[10px] font-bold">Copy Pass</button>` : ''}
+            <button type="button" onclick="copyByKey('${rawLineKey}', 'Đã sao chép dòng #${i + 1}!', this)" class="bg-blue-600 text-white hover:bg-blue-700 px-2.5 py-0.5 rounded-lg text-[10px] font-bold">Copy cả dòng</button>
+          </div>
+        </div>
+        <code class="block bg-slate-900 text-emerald-400 p-2 rounded-lg font-mono text-[11px] break-all select-all">${escapeHtml(parts.raw)}</code>
       </div>`;
   }).join('');
 
@@ -1967,7 +2133,12 @@ function copyDeliveredAccounts(btnEl = null) {
 
 function downloadDeliveredAccounts(btnEl = null) {
   if (!currentDeliveredText) return notify('Không có dữ liệu để tải file!', true);
-  downloadOrderTxt(currentDeliveredText, `${currentDeliveredCode}_Mail_Cookie`, btnEl);
+  if (currentDeliveredIsCookie && currentDeliveredSingleMail) {
+    const safeMail = currentDeliveredSingleMail.replace(/[^a-zA-Z0-9@._-]/g, '_') || currentDeliveredCode;
+    downloadOrderTxt(currentDeliveredText, safeMail, btnEl);
+  } else {
+    downloadOrderTxt(currentDeliveredText, currentDeliveredCode, btnEl);
+  }
 }
 
 function downloadDeliveredZip(btnEl = null) {
@@ -1999,6 +2170,7 @@ function renderOrderCardsInto(containerEl, ordersArray) {
 
   containerEl.innerHTML = ordersArray.map(o => {
     const accs = o.accounts || [];
+    const hasCookie = checkOrderHasCookie(accs);
     const rawJoined = accs.join('\n');
     const structuredTxt = formatAccountsStructuredTxt(accs);
     const orderRawKey = registerStoreText(rawJoined);
@@ -2006,6 +2178,7 @@ function renderOrderCardsInto(containerEl, ordersArray) {
     const prodNameKey = registerStoreText(o.product_name || 'Sản phẩm');
     const varNameKey = registerStoreText(o.variant_name || 'Gói');
     const warrantyText = (o.warranty || '').trim();
+    const txtDownloadName = (hasCookie && accs.length === 1) ? (parseAccountParts(accs[0]).email || o.order_code) : o.order_code;
 
     return `
     <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 sm:p-4 space-y-2.5">
@@ -2025,8 +2198,8 @@ function renderOrderCardsInto(containerEl, ordersArray) {
         </div>
         <div class="flex flex-wrap items-center gap-1.5">
           <button type="button" onclick="copyByKey('${orderFormattedKey}', 'Đã sao chép tất cả ${accs.length} tài khoản của đơn #${escapeHtml(o.order_code)}!', this)" class="blue-header text-white px-2.5 py-1.5 rounded-xl font-bold text-xs shadow flex items-center gap-1"><i class="fa-regular fa-copy"></i><span>Copy tất cả (${accs.length})</span></button>
-          <button type="button" onclick="downloadByKey('${orderFormattedKey}', '${escapeHtml(o.order_code)}_Mail_Cookie', this)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-xl font-bold text-xs shadow flex items-center gap-1"><i class="fa-solid fa-file-lines"></i><span>Tải file .txt</span></button>
-          <button type="button" onclick="downloadOrderFolderZipByKey('${orderRawKey}', '${escapeHtml(o.order_code)}', this)" class="bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1.5 rounded-xl font-bold text-xs shadow flex items-center gap-1" title="Tải thư mục lớn chứa các thư mục con tên là Mail, bên trong là file cookie.txt"><i class="fa-solid fa-folder-tree"></i><span>Tải Thư Mục (.zip)</span></button>
+          <button type="button" onclick="downloadByKey('${orderFormattedKey}', '${escapeHtml(txtDownloadName)}', this)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-xl font-bold text-xs shadow flex items-center gap-1"><i class="fa-solid fa-file-lines"></i><span>Tải file .txt</span></button>
+          ${hasCookie ? `<button type="button" onclick="downloadOrderFolderZipByKey('${orderRawKey}', '${escapeHtml(o.order_code)}', this)" class="bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1.5 rounded-xl font-bold text-xs shadow flex items-center gap-1" title="Tải thư mục lớn chứa các thư mục nhỏ tên là Email, bên trong là file cookie.txt"><i class="fa-solid fa-folder-tree"></i><span>Tải Thư Mục (.zip)</span></button>` : ''}
           <button type="button" onclick="openProductGuide(${o.product_id || 1})" class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-2.5 py-1.5 rounded-xl font-bold text-xs border border-blue-200">HDSD</button>
           <button type="button" onclick="claimWarrantyByKey('${escapeHtml(o.order_code)}', '${prodNameKey}', '${varNameKey}')" class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-2.5 py-1.5 rounded-xl font-bold text-xs"><i class="fa-solid fa-headset mr-1"></i>Bảo hành</button>
         </div>
@@ -2034,29 +2207,41 @@ function renderOrderCardsInto(containerEl, ordersArray) {
       <div class="space-y-2 max-h-60 overflow-y-auto custom-scroll pr-1">
         ${accs.map((a, i) => {
           const parts = parseAccountParts(a);
-          const singleKey = registerStoreText(parts.cookie ? `[THƯ MỤC MAIL]: ${parts.email}\n[COOKIE]:\n${parts.cookie}` : parts.raw);
+          const singleKey = registerStoreText(parts.raw);
           const emKey = parts.email ? registerStoreText(parts.email) : '';
           const pwKey = parts.pass ? registerStoreText(parts.pass) : '';
           const ckKey = parts.cookie ? registerStoreText(parts.cookie) : '';
-          return `
-          <div class="bg-white p-2.5 rounded-xl border text-xs space-y-1.5">
-            <div class="flex flex-wrap justify-between items-center gap-2">
-              <div class="flex items-center gap-1.5 min-w-0">
-                <span class="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded font-mono font-bold">#${i + 1}</span>
-                <b class="text-blue-900 truncate"><i class="fa-solid fa-folder text-amber-500 mr-1"></i>Mail: <span class="font-mono text-slate-900 select-all">${escapeHtml(parts.email || 'Tài khoản')}</span></b>
+
+          if (parts.cookie) {
+            return `
+            <div class="bg-white p-2.5 rounded-xl border border-purple-200 text-xs space-y-1.5">
+              <div class="flex flex-wrap justify-between items-center gap-2">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="text-[10px] bg-purple-100 text-purple-800 px-1.5 py-0.2 rounded font-mono font-bold">#${i + 1}</span>
+                  <b class="text-purple-900 truncate"><i class="fa-solid fa-folder text-amber-500 mr-1"></i>Email: <span class="font-mono text-slate-900 select-all">${escapeHtml(parts.email || 'Tài khoản')}</span></b>
+                </div>
+                <div class="flex flex-wrap gap-1 shrink-0">
+                  ${emKey ? `<button type="button" onclick="copyByKey('${emKey}', 'Đã sao chép riêng Email: ${escapeHtml(parts.email)}!', this)" class="bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 px-2.5 py-0.5 rounded-lg text-[10px] font-bold transition"><i class="fa-regular fa-envelope mr-1"></i>Copy Riêng Email</button>` : ''}
+                  ${pwKey ? `<button type="button" onclick="copyByKey('${pwKey}', 'Đã sao chép Mật khẩu!', this)" class="bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 px-2.5 py-0.5 rounded-lg text-[10px] font-bold transition"><i class="fa-solid fa-key mr-1"></i>Copy Pass</button>` : ''}
+                  <button type="button" onclick="copyByKey('${ckKey}', 'Đã sao chép riêng Cookie của ${escapeHtml(parts.email)}!', this)" class="bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-0.5 rounded-lg text-[10px] font-bold shadow-xs transition"><i class="fa-solid fa-cookie mr-1"></i>Copy Riêng Cookie</button>
+                  <button type="button" onclick="downloadSingleMailCookieTxt('${emKey}', '${ckKey}', this)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 rounded-lg text-[10px] font-bold" title="Tải file .txt tên Email, bên trong là Cookie"><i class="fa-solid fa-download mr-0.5"></i>Tải .txt</button>
+                </div>
               </div>
-              <div class="flex flex-wrap gap-1 shrink-0">
-                ${emKey ? `<button type="button" onclick="copyByKey('${emKey}', 'Đã sao chép Mail: ${escapeHtml(parts.email)}!', this)" class="bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 px-2.5 py-0.5 rounded-lg text-[10px] font-bold transition"><i class="fa-regular fa-envelope mr-1"></i>Copy Mail</button>` : ''}
-                ${pwKey ? `<button type="button" onclick="copyByKey('${pwKey}', 'Đã sao chép Mật khẩu!', this)" class="bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 px-2.5 py-0.5 rounded-lg text-[10px] font-bold transition"><i class="fa-solid fa-key mr-1"></i>Copy Pass</button>` : ''}
-                ${ckKey ? `<button type="button" onclick="copyByKey('${ckKey}', 'Đã sao chép riêng Cookie của ${escapeHtml(parts.email)}!', this)" class="bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-0.5 rounded-lg text-[10px] font-bold shadow-xs transition"><i class="fa-solid fa-cookie mr-1"></i>Copy Cookie</button>` : ''}
-                ${ckKey ? `<button type="button" onclick="downloadSingleMailCookieTxt('${emKey}', '${ckKey}', this)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 rounded-lg text-[10px] font-bold"><i class="fa-solid fa-download mr-0.5"></i>Tải .txt</button>` : `<button type="button" onclick="copyByKey('${singleKey}', 'Đã sao chép tài khoản #${i + 1}!', this)" class="bg-slate-100 hover:bg-blue-600 hover:text-white px-2.5 py-0.5 rounded-lg text-[10px] font-bold text-slate-700">Sao chép</button>`}
-              </div>
-            </div>
-            ${parts.cookie ? `
               <pre class="bg-slate-900 text-emerald-400 p-2 rounded-lg font-mono text-[10px] max-h-20 overflow-y-auto custom-scroll whitespace-pre-wrap break-all select-all">${escapeHtml(parts.cookie)}</pre>
-            ` : `
-              <code class="block text-emerald-700 font-mono text-[11px] break-all select-all">${escapeHtml(parts.raw)}</code>
-            `}
+            </div>`;
+          }
+
+          return `
+          <div class="bg-white p-2.5 rounded-xl border text-xs flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center gap-2 min-w-0 flex-1">
+              <span class="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded font-mono font-bold">#${i + 1}</span>
+              <code class="text-emerald-700 font-mono text-[11px] break-all select-all flex-1">${escapeHtml(parts.raw)}</code>
+            </div>
+            <div class="flex flex-wrap gap-1 shrink-0">
+              ${emKey ? `<button type="button" onclick="copyByKey('${emKey}', 'Đã sao chép Email!', this)" class="bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 px-2 py-0.5 rounded-lg text-[10px] font-bold transition">Copy Email</button>` : ''}
+              ${pwKey ? `<button type="button" onclick="copyByKey('${pwKey}', 'Đã sao chép Mật khẩu!', this)" class="bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 px-2 py-0.5 rounded-lg text-[10px] font-bold transition">Copy Pass</button>` : ''}
+              <button type="button" onclick="copyByKey('${singleKey}', 'Đã sao chép dòng #${i + 1}!', this)" class="bg-slate-100 hover:bg-blue-600 hover:text-white px-2.5 py-0.5 rounded-lg text-[10px] font-bold text-slate-700 transition">Copy cả dòng</button>
+            </div>
           </div>`;
         }).join('')}
       </div>
@@ -2513,37 +2698,106 @@ function onAdminSelectProductChange() {
   loadAdminInventory();
 }
 
-// HÀM ĐỌC THƯ MỤC LỚN -> NHIỀU THƯ MỤC NHỎ (TÊN THƯ MỤC CON = MAIL, FILE BÊN TRONG = COOKIE)
-async function handleFolderStockUpload(inputEl) {
-  const files = Array.from(inputEl.files || []);
-  if (!files.length) return;
+// CHẾ ĐỘ NẠP KHO: TÁCH RIÊNG TÀI KHOẢN THƯỜNG VS TÀI KHOẢN COOKIE (CỘNG DỒN NHIỀU THƯ MỤC LẺ HOẶC LỚN)
+let currentStockInputMode = 'regular';
+const pendingCookieFolders = new Map(); // Lưu cộng dồn: tên Email -> nội dung Cookie
 
-  // Lọc bỏ các file ẩn hệ thống (.DS_Store, Thumbs.db, desktop.ini)
-  const validFiles = files.filter(f => {
-    const name = (f.name || '').toLowerCase();
-    return name && !name.startsWith('.') && name !== 'thumbs.db' && name !== 'desktop.ini';
+function switchStockInputMode(mode) {
+  currentStockInputMode = mode === 'cookie' ? 'cookie' : 'regular';
+  const btnReg = document.getElementById('btn-mode-regular');
+  const btnCk = document.getElementById('btn-mode-cookie');
+  const boxReg = document.getElementById('box-stock-regular');
+  const boxCk = document.getElementById('box-stock-cookie');
+
+  if (currentStockInputMode === 'regular') {
+    btnReg.className = 'py-2 px-2 rounded-lg font-bold text-xs bg-blue-600 text-white shadow transition';
+    btnCk.className = 'py-2 px-2 rounded-lg font-bold text-xs text-slate-700 hover:bg-white transition';
+    boxReg.classList.remove('hidden');
+    boxCk.classList.add('hidden');
+  } else {
+    btnCk.className = 'py-2 px-2 rounded-lg font-bold text-xs bg-purple-600 text-white shadow transition';
+    btnReg.className = 'py-2 px-2 rounded-lg font-bold text-xs text-slate-700 hover:bg-white transition';
+    boxCk.classList.remove('hidden');
+    boxReg.classList.add('hidden');
+  }
+}
+
+function clearStockInput() {
+  pendingCookieFolders.clear();
+  const ta = document.getElementById('adm-stock-accounts');
+  if (ta) ta.value = '';
+  const sumEl = document.getElementById('folder-upload-summary');
+  if (sumEl) sumEl.classList.add('hidden');
+  renderPendingCookiePreview();
+  updateStockInputCount();
+}
+
+function removePendingCookieAccount(mailName) {
+  pendingCookieFolders.delete(mailName);
+  syncPendingCookiesToTextarea();
+  renderPendingCookiePreview();
+}
+
+function syncPendingCookiesToTextarea() {
+  const formattedLines = [];
+  pendingCookieFolders.forEach((cookieText, mail) => {
+    formattedLines.push(`${mail}||${encodeCookieLine(cookieText)}`);
   });
+  const textarea = document.getElementById('adm-stock-accounts');
+  if (textarea) textarea.value = formattedLines.join('\n');
+  updateStockInputCount();
+}
 
-  if (!validFiles.length) return notify('Thư mục bạn chọn không có file hợp lệ!', true);
+function renderPendingCookiePreview() {
+  const cntEl = document.getElementById('lbl-cookie-counter');
+  if (cntEl) cntEl.innerText = `${pendingCookieFolders.size} acc`;
+  const box = document.getElementById('cookie-preview-list');
+  if (!box) return;
+  if (!pendingCookieFolders.size) {
+    box.innerHTML = '<div class="text-slate-400 text-center py-3">Chưa có thư mục Cookie nào trong danh sách chờ nạp.</div>';
+    return;
+  }
+  const itemsHtml = [];
+  let idx = 0;
+  pendingCookieFolders.forEach((cookieText, mail) => {
+    idx++;
+    const mailKey = registerStoreText(mail);
+    itemsHtml.push(`
+      <div class="bg-white p-2 rounded-lg border border-purple-200 flex justify-between items-center gap-2">
+        <div class="overflow-hidden flex-1">
+          <div class="font-bold text-purple-900 truncate"><i class="fa-solid fa-folder text-amber-500 mr-1"></i>#${idx} Email: <span class="font-mono text-slate-900">${escapeHtml(mail)}</span></div>
+          <div class="text-[10px] text-slate-500 truncate">Cookie: ${escapeHtml(cookieText.slice(0, 65))}${cookieText.length > 65 ? '...' : ''} (${cookieText.length} ký tự)</div>
+        </div>
+        <button type="button" onclick="removePendingCookieAccount(accountDataStore['${mailKey}'])" class="text-red-500 hover:text-red-700 px-1.5 py-0.5 shrink-0" title="Bỏ thư mục này"><i class="fa-solid fa-xmark"></i></button>
+      </div>`);
+  });
+  box.innerHTML = itemsHtml.join('');
+}
 
-  const mailMap = new Map();
+async function processUploadedFilePairs(filePairs) {
+  let addedNow = 0;
+  for (const item of filePairs) {
+    const file = item.file;
+    const relPath = (item.relPath || file.webkitRelativePath || file.name || '').replace(/\\/g, '/');
+    const nameLower = (file.name || '').toLowerCase();
+    if (!nameLower || nameLower.startsWith('.') || nameLower === 'thumbs.db' || nameLower === 'desktop.ini') continue;
 
-  for (const file of validFiles) {
-    const relPath = (file.webkitRelativePath || file.name || '').replace(/\\/g, '/');
     const segs = relPath.split('/').filter(Boolean);
     let mailName = '';
 
     if (segs.length >= 3) {
-      // Cấu trúc: Thư_mục_lớn / Tên_Mail (Thư mục nhỏ) / file_cookie.txt
+      // Thư mục lớn / Thư mục nhỏ (Tên Email) / file_cookie
       mailName = segs[segs.length - 2].trim();
     } else if (segs.length === 2) {
-      // Nếu chọn trực tiếp 1 thư mục Mail hoặc trong thư mục lớn chứa các file tên là Mail.txt
+      // Thư mục lẻ (Tên Email) / file_cookie HOẶC Thư mục / ten_email.txt
       const folderName = segs[0].trim();
       const fileNameNoExt = segs[1].replace(/\.(txt|json|cookie|cookies)$/i, '').trim();
-      if (validFiles.length === 1 || /^(cookie|cookies|data|account|acc|token)$/i.test(fileNameNoExt)) {
+      if (fileNameNoExt.includes('@') && !folderName.includes('@')) {
+        mailName = fileNameNoExt;
+      } else if (folderName.includes('@') || filePairs.length === 1 || /^(cookie|cookies|data|account|acc|token)/i.test(fileNameNoExt)) {
         mailName = folderName;
       } else {
-        mailName = fileNameNoExt;
+        mailName = folderName;
       }
     } else {
       mailName = (file.name || '').replace(/\.(txt|json|cookie|cookies)$/i, '').trim();
@@ -2564,35 +2818,96 @@ async function handleFolderStockUpload(inputEl) {
     const cleanCookie = String(content || '').trim();
     if (!cleanCookie) continue;
 
-    if (mailMap.has(mailName)) {
-      mailMap.set(mailName, mailMap.get(mailName) + '\n' + cleanCookie);
-    } else {
-      mailMap.set(mailName, cleanCookie);
-    }
+    pendingCookieFolders.set(mailName, cleanCookie);
+    addedNow++;
   }
 
-  if (!mailMap.size) {
-    return notify('Không đọc được dữ liệu Cookie nào từ thư mục đã chọn!', true);
+  if (!addedNow) {
+    return notify('Không tìm thấy file Cookie hợp lệ trong mục vừa chọn!', true);
   }
 
-  const formattedLines = [];
-  mailMap.forEach((cookieText, mail) => {
-    // Lưu theo định dạng chuẩn: mail||cookie_đã_mã_hóa_dòng (1 dòng = 1 tài khoản trọn vẹn)
-    formattedLines.push(`${mail}||${encodeCookieLine(cookieText)}`);
-  });
-
-  const textarea = document.getElementById('adm-stock-accounts');
-  const existing = (textarea.value || '').trim();
-  textarea.value = existing ? (existing + '\n' + formattedLines.join('\n')) : formattedLines.join('\n');
-  updateStockInputCount();
+  syncPendingCookiesToTextarea();
+  renderPendingCookiePreview();
 
   const summaryEl = document.getElementById('folder-upload-summary');
   if (summaryEl) {
     summaryEl.classList.remove('hidden');
-    summaryEl.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i>Đã đọc thành công <b>${formattedLines.length} thư mục Mail kèm Cookie</b>! Bấm nút <b>"Nạp Kho & Lọc Trùng Ngay"</b> bên dưới để hoàn tất lưu vào kho.`;
+    summaryEl.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i>Vừa thêm <b>+${addedNow} thư mục</b> (Tổng đang chờ nạp: <b>${pendingCookieFolders.size} tài khoản Cookie</b>). Bạn có thể bấm <b>"+ Thêm Thư Mục"</b> để chọn thêm các thư mục khác nữa hoặc bấm <b>"Nạp Vào Kho"</b>!`;
   }
-  notify(`Đã tải ${formattedLines.length} tài khoản (Thư mục Mail -> Cookie) vào khung chờ nạp!`);
+  notify(`Đã cộng thêm ${addedNow} tài khoản Cookie (Tổng: ${pendingCookieFolders.size} acc)!`);
+}
+
+async function handleFolderStockUpload(inputEl) {
+  const files = Array.from(inputEl.files || []);
+  if (!files.length) return;
+  const pairs = files.map(f => ({ file: f, relPath: f.webkitRelativePath || f.name }));
+  await processUploadedFilePairs(pairs);
   inputEl.value = '';
+}
+
+function handleCookieDragOver(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const dz = document.getElementById('cookie-dropzone');
+  if (dz) dz.classList.add('border-purple-600', 'bg-purple-100/70');
+}
+
+function handleCookieDragLeave(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const dz = document.getElementById('cookie-dropzone');
+  if (dz) dz.classList.remove('border-purple-600', 'bg-purple-100/70');
+}
+
+async function readEntryRecursively(entry, parentPath = '') {
+  const currentPath = parentPath ? `${parentPath}/${entry.name}` : entry.name;
+  if (entry.isFile) {
+    const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+    return [{ file, relPath: currentPath }];
+  }
+  if (entry.isDirectory) {
+    const dirReader = entry.createReader();
+    const allEntries = [];
+    while (true) {
+      const batch = await new Promise((resolve, reject) => dirReader.readEntries(resolve, reject));
+      if (!batch || !batch.length) break;
+      allEntries.push(...batch);
+    }
+    const results = [];
+    for (const child of allEntries) {
+      const childFiles = await readEntryRecursively(child, currentPath);
+      results.push(...childFiles);
+    }
+    return results;
+  }
+  return [];
+}
+
+async function handleCookieDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  handleCookieDragLeave(e);
+
+  const items = Array.from(e.dataTransfer?.items || []);
+  if (items.length && items[0].webkitGetAsEntry) {
+    const allPairs = [];
+    for (const item of items) {
+      const entry = item.webkitGetAsEntry();
+      if (entry) {
+        const found = await readEntryRecursively(entry, '');
+        allPairs.push(...found);
+      }
+    }
+    if (allPairs.length) {
+      await processUploadedFilePairs(allPairs);
+      return;
+    }
+  }
+
+  const droppedFiles = Array.from(e.dataTransfer?.files || []);
+  if (droppedFiles.length) {
+    await processUploadedFilePairs(droppedFiles.map(f => ({ file: f, relPath: f.webkitRelativePath || f.name })));
+  }
 }
 
 function updateStockInputCount() {
@@ -2610,14 +2925,12 @@ async function addStock() {
     const d = await res.json();
     if (!res.ok) return notify(d.error, true);
     notify(d.message);
-    document.getElementById('adm-stock-accounts').value = '';
-    updateStockInputCount();
+    clearStockInput();
     loadAdminDashboard();
     loadAdminInventory();
   } catch (e) {
     notify('Đã nạp tài khoản vào kho!');
-    document.getElementById('adm-stock-accounts').value = '';
-    updateStockInputCount();
+    clearStockInput();
   }
 }
 
