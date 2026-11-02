@@ -321,36 +321,50 @@ app.delete('/api/admin/coupons/:id', verifyAdmin, (req, res) => {
     db.run(`DELETE FROM coupons WHERE id = ?`, [req.params.id], () => res.json({ message: 'Đã xóa mã giảm giá!' }));
 });
 
-// ================= LIVE ORDER TICKER (HOẠT ĐỘNG MUA HÀNG THỜI GIAN THỰC) =================
+// ================= LIVE ORDER TICKER (CHỈ HIỆN SẢN PHẨM THẬT CỦA SHOP) =================
 app.get('/api/live-activities', (req, res) => {
-    const sql = `
-        SELECT o.id, o.order_code, o.product_name, o.variant_name, o.quantity, o.created_at, u.username
-        FROM orders o 
-        LEFT JOIN users u ON o.user_id = u.id 
-        ORDER BY o.id DESC LIMIT 15
-    `;
-    db.all(sql, [], (err, rows) => {
-        if (!rows || !rows.length) {
-            // Dữ liệu mẫu thực tế nếu shop vừa khởi động
-            return res.json([
-                { id: 1, masked_user: 'huy***26', product_name: 'Tài khoản Muse AI 1 tỷ token', quantity: 1, time_ago: '1 phút trước' },
-                { id: 2, masked_user: 'linh***99', product_name: 'Tài khoản ChatGPT Plus', quantity: 1, time_ago: '4 phút trước' },
-                { id: 3, masked_user: 'thanh***88', product_name: 'Tài khoản Claude Pro', quantity: 2, time_ago: '8 phút trước' }
-            ]);
-        }
-        res.json(rows.map(r => {
-            const u = r.username || 'Khách';
-            const masked = u.length > 3 ? u.substring(0, 2) + '***' + u.slice(-2) : u + '***';
-            return {
-                id: r.id,
-                order_code: r.order_code,
-                masked_user: masked,
-                product_name: r.product_name,
-                variant_name: r.variant_name,
-                quantity: r.quantity,
-                created_at: r.created_at
-            };
-        }));
+    // Lấy danh sách sản phẩm THỰC TẾ có trong cơ sở dữ liệu của shop
+    db.all(`SELECT id, name FROM products`, [], (pErr, prods) => {
+        const realProdNames = (prods && prods.length) 
+            ? prods.map(p => p.name) 
+            : ['Tài khoản Muse AI có sẵn 1 tỷ token'];
+
+        const sql = `
+            SELECT o.id, o.order_code, o.product_name, o.variant_name, o.quantity, o.created_at, u.username
+            FROM orders o 
+            LEFT JOIN users u ON o.user_id = u.id 
+            ORDER BY o.id DESC LIMIT 15
+        `;
+        db.all(sql, [], (err, rows) => {
+            const sampleUsers = ['huy***26', 'linh***99', 'thanh***88', 'minh***04', 'tuan***72', 'duc***15', 'hoang***93', 'anh***68', 'phuong***32'];
+            const sampleTimes = ['2 phút trước', '5 phút trước', '9 phút trước', '14 phút trước', '21 phút trước', '30 phút trước'];
+
+            // Nếu chưa có đơn thực tế: CHỈ DÙNG TÊN SẢN PHẨM THẬT TRONG SHOP
+            if (!rows || !rows.length) {
+                const generated = sampleUsers.slice(0, 5).map((u, i) => ({
+                    id: i + 1,
+                    masked_user: u,
+                    product_name: realProdNames[i % realProdNames.length],
+                    quantity: 1,
+                    time_ago: sampleTimes[i % sampleTimes.length]
+                }));
+                return res.json(generated);
+            }
+
+            res.json(rows.map((r, i) => {
+                const u = r.username || 'Khách';
+                const masked = u.length > 3 ? u.substring(0, 2) + '***' + u.slice(-2) : u + '***';
+                return {
+                    id: r.id,
+                    order_code: r.order_code,
+                    masked_user: masked,
+                    product_name: r.product_name || realProdNames[0],
+                    variant_name: r.variant_name || '',
+                    quantity: r.quantity || 1,
+                    time_ago: sampleTimes[i % sampleTimes.length]
+                };
+            }));
+        });
     });
 });
 
@@ -910,6 +924,66 @@ app.post('/api/admin/approve-tx', verifyAdmin, (req, res) => {
             });
         }
     });
+});
+
+
+// ================= WEBHOOK TỰ ĐỘNG NẠP TIỀN (SEPAY / CASSO / SHOPEEPAY / WEB2M) =================
+function processIncomingBankTransfer(contentOrDescription, amount, res) {
+    if (!contentOrDescription) return res.status(400).json({ error: 'Không tìm thấy nội dung chuyển khoản!' });
+    const text = String(contentOrDescription);
+    const amt = parseInt(amount) || 0;
+
+    // Tìm mã giao dịch dạng NAP1234 hoặc NAPxxxx trong nội dung chuyển tiền
+    const match = text.match(/NAP\d+/i);
+    const code = match ? match[0].toUpperCase() : null;
+
+    if (!code) {
+        console.log(`[WEBHOOK] Không tìm thấy mã NAP trong nội dung: "${text}"`);
+        return res.json({ success: false, message: 'Nội dung không chứa mã NAP hợp lệ' });
+    }
+
+    db.get(`SELECT * FROM transactions WHERE UPPER(info) = ? AND status = 'pending'`, [code], (err, tx) => {
+        if (!tx) {
+            console.log(`[WEBHOOK] Không tìm thấy đơn nạp pending cho mã: ${code}`);
+            return res.json({ success: false, message: `Không tìm thấy đơn nạp pending cho mã ${code}` });
+        }
+
+        const actualAmount = amt > 0 ? amt : tx.amount;
+        db.serialize(() => {
+            db.run(`UPDATE transactions SET status = 'completed', amount = ? WHERE id = ?`, [actualAmount, tx.id]);
+            db.run(`UPDATE users SET balance = balance + ? WHERE id = ?`, [actualAmount, tx.user_id]);
+            console.log(`[WEBHOOK THÀNH CÔNG] 🎉 Đã tự động cộng ${actualAmount}đ cho User #${tx.user_id} (Mã: ${code})!`);
+            res.json({ success: true, message: `Tự động cộng ${actualAmount}đ thành công cho mã ${code}` });
+        });
+    });
+}
+
+// 1. SePay Webhook (sepay.vn - Cổng VietQR tự động)
+app.post(['/api/webhook/sepay', '/api/sepay/webhook'], (req, res) => {
+    const data = req.body || {};
+    const content = data.content || data.description || '';
+    const amount = data.transferAmount || data.amount || 0;
+    processIncomingBankTransfer(content, amount, res);
+});
+
+// 2. Casso Webhook (casso.vn - Kết nối ngân hàng tự động)
+app.post('/api/webhook/casso', (req, res) => {
+    const data = req.body || {};
+    const records = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : [data]);
+    if (records.length) {
+        const first = records[0];
+        processIncomingBankTransfer(first.description || first.content, first.amount, res);
+    } else {
+        res.json({ success: false, message: 'Dữ liệu casso trống' });
+    }
+});
+
+// 3. ShopeePay / Web2M / Universal Webhook
+app.post(['/api/webhook/shopeepay', '/api/webhook/web2m', '/api/webhook/payment', '/api/webhook'], (req, res) => {
+    const data = req.body || {};
+    const content = data.comment || data.content || data.description || data.msg || '';
+    const amount = data.amount || data.transferAmount || data.money || 0;
+    processIncomingBankTransfer(content, amount, res);
 });
 
 const PORT = process.env.PORT || 3000;
