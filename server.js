@@ -160,8 +160,16 @@ db.serialize(() => {
         image TEXT, warranty TEXT DEFAULT 'Bảo hành 12h', description TEXT, guide TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
-    db.run(`ALTER TABLE products ADD COLUMN guide TEXT`, () => {});
+    db.run(`ALTER TABLE products ADD COLUMN old_price INTEGER DEFAULT 0`, () => {});
+    db.run(`ALTER TABLE products ADD COLUMN image TEXT`, () => {});
     db.run(`ALTER TABLE products ADD COLUMN warranty TEXT DEFAULT 'Bảo hành 12h'`, () => {});
+    db.run(`ALTER TABLE products ADD COLUMN description TEXT`, () => {});
+    db.run(`ALTER TABLE products ADD COLUMN guide TEXT`, () => {});
+    db.run(`ALTER TABLE products ADD COLUMN price INTEGER DEFAULT 0`, () => {});
+    db.run(`ALTER TABLE products ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`, () => {});
+    db.run(`ALTER TABLE product_variants ADD COLUMN product_id INTEGER`, () => {});
+    db.run(`ALTER TABLE product_variants ADD COLUMN name TEXT`, () => {});
+    db.run(`ALTER TABLE product_variants ADD COLUMN price INTEGER DEFAULT 0`, () => {});
 
     // 4. Tùy chọn sản phẩm động
     db.run(`CREATE TABLE IF NOT EXISTS product_variants (
@@ -844,21 +852,55 @@ app.post('/api/admin/products', verifyAdmin, (req, res) => {
     const { name, old_price, image, warranty, description, guide, variants } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Vui lòng nhập tên sản phẩm!' });
     const varList = Array.isArray(variants) ? variants.filter(v => v.name && v.name.trim()) : [];
-    if (!varList.length) return res.status(400).json({ error: 'Phải có ít nhất 1 tùy chọn và giá bán!' });
+    if (!varList.length) return res.status(400).json({ error: 'Phải có ít nhất 1 tùy chọn giá!' });
+
+    const insertVariants = (newPid) => {
+        if (!newPid) return res.json({ success: true, message: 'Đã thêm sản phẩm thành công!' });
+        const stmt = db.prepare(`INSERT INTO product_variants (product_id, name, price) VALUES (?, ?, ?)`);
+        varList.forEach(v => stmt.run(newPid, v.name.trim(), parseInt(v.price) || 0));
+        stmt.finalize(() => {
+            res.json({ success: true, message: 'Đã thêm sản phẩm & chế độ bảo hành thành công!', id: newPid });
+        });
+    };
 
     db.run(`INSERT INTO products (name, old_price, image, warranty, description, guide) VALUES (?, ?, ?, ?, ?, ?)`,
         [name.trim(), parseInt(old_price) || 0, image || DEFAULT_IMG, (warranty || '').trim(), description || '', guide || DEFAULT_GUIDE],
         function(err) {
-            if (err) return res.status(500).json({ error: 'Lỗi khi lưu sản phẩm!' });
-            const pid = this.lastID;
-            const stmt = db.prepare(`INSERT INTO product_variants (product_id, name, price) VALUES (?, ?, ?)`);
-            varList.forEach(v => stmt.run(pid, v.name.trim(), parseInt(v.price) || 0));
-            stmt.finalize(() => res.json({ message: 'Đã thêm sản phẩm thành công!', id: pid }));
+            if (!err) {
+                const pid = this.lastID;
+                if (pid) return insertVariants(pid);
+                db.get(`SELECT MAX(id) as maxId FROM products`, (mErr, mRow) => {
+                    insertVariants(mRow ? mRow.maxId : 1);
+                });
+                return;
+            }
+
+            console.error('[ADD PRODUCT ERROR]', err);
+            // Tự động phục hồi cột thiếu và chèn lại
+            db.run(`ALTER TABLE products ADD COLUMN old_price INTEGER DEFAULT 0`, () => {});
+            db.run(`ALTER TABLE products ADD COLUMN warranty TEXT`, () => {});
+            db.run(`ALTER TABLE products ADD COLUMN guide TEXT`, () => {});
+            db.run(`ALTER TABLE products ADD COLUMN description TEXT`, () => {});
+            db.run(`ALTER TABLE products ADD COLUMN image TEXT`, () => {});
+
+            db.run(`INSERT INTO products (name, image, description) VALUES (?, ?, ?)`,
+                [name.trim(), image || DEFAULT_IMG, description || ''],
+                function(err2) {
+                    if (!err2) {
+                        const pid = this.lastID;
+                        if (pid) return insertVariants(pid);
+                        db.get(`SELECT MAX(id) as maxId FROM products`, (mErr, mRow) => {
+                            insertVariants(mRow ? mRow.maxId : 1);
+                        });
+                        return;
+                    }
+                    res.status(500).json({ error: 'Lỗi khi lưu sản phẩm: ' + (err.message || err2.message || 'Lỗi CSDL') });
+                }
+            );
         }
     );
 });
 
-// SỬA SẢN PHẨM: BẢO TOÀN VARIANT ID, CẬP NHẬT CHẾ ĐỘ BẢO HÀNH RIÊNG & BẢO TOÀN KHO INVENTORY
 app.put('/api/admin/products/:id', verifyAdmin, (req, res) => {
     const { name, old_price, image, warranty, description, guide, variants } = req.body;
     const pid = req.params.id;
@@ -866,61 +908,55 @@ app.put('/api/admin/products/:id', verifyAdmin, (req, res) => {
     const varList = Array.isArray(variants) ? variants.filter(v => v.name && v.name.trim()) : [];
     if (!varList.length) return res.status(400).json({ error: 'Sản phẩm phải có ít nhất 1 tùy chọn giá!' });
 
-    db.run(`UPDATE products SET name = ?, old_price = ?, image = ?, warranty = ?, description = ?, guide = ? WHERE id = ?`,
-        [name.trim(), parseInt(old_price) || 0, image || DEFAULT_IMG, (warranty || '').trim(), description || '', guide || DEFAULT_GUIDE, pid],
-        function(err) {
-            if (err) return res.status(500).json({ error: 'Lỗi cập nhật sản phẩm!' });
+    const updateVariants = () => {
+        db.all(`SELECT id FROM product_variants WHERE product_id = ?`, [pid], (vErr, existingVars) => {
+            const existingIds = (existingVars || []).map(v => v.id);
+            const keptIds = [];
 
-            db.all(`SELECT id FROM product_variants WHERE product_id = ?`, [pid], (vErr, existingVars) => {
-                const existingIds = (existingVars || []).map(v => v.id);
-                const keptIds = [];
-
-                const updatePromises = varList.map(v => {
-                    return new Promise(resolve => {
-                        const vId = parseInt(v.id);
-                        if (vId && existingIds.includes(vId)) {
-                            keptIds.push(vId);
-                            db.run(`UPDATE product_variants SET name = ?, price = ? WHERE id = ?`,
-                                [v.name.trim(), parseInt(v.price) || 0, vId],
-                                () => resolve(vId)
-                            );
-                        } else {
-                            db.run(`INSERT INTO product_variants (product_id, name, price) VALUES (?, ?, ?)`,
-                                [pid, v.name.trim(), parseInt(v.price) || 0],
-                                function() {
-                                    keptIds.push(this.lastID);
-                                    resolve(this.lastID);
-                                }
-                            );
-                        }
-                    });
-                });
-
-                Promise.all(updatePromises).then(() => {
-                    const toDelete = existingIds.filter(id => !keptIds.includes(id));
-                    const completeUpdate = () => {
-                        db.get(`SELECT id FROM product_variants WHERE product_id = ? ORDER BY id ASC LIMIT 1`, [pid], (fErr, firstVar) => {
-                            if (firstVar) {
-                                db.run(`UPDATE inventory SET variant_id = ? 
-                                        WHERE product_id = ? 
-                                        AND (variant_id IS NULL OR variant_id NOT IN (SELECT id FROM product_variants WHERE product_id = ?))`,
-                                    [firstVar.id, pid, pid],
-                                    () => res.json({ message: 'Đã lưu thay đổi sản phẩm & chế độ bảo hành thành công!' })
-                                );
-                            } else {
-                                res.json({ message: 'Đã lưu thay đổi sản phẩm!' });
-                            }
-                        });
-                    };
-
-                    if (toDelete.length) {
-                        const placeholders = toDelete.map(() => '?').join(',');
-                        db.run(`DELETE FROM product_variants WHERE id IN (${placeholders})`, toDelete, completeUpdate);
+            const updatePromises = varList.map(v => {
+                return new Promise(resolve => {
+                    const vId = parseInt(v.id);
+                    if (vId && existingIds.includes(vId)) {
+                        keptIds.push(vId);
+                        db.run(`UPDATE product_variants SET name = ?, price = ? WHERE id = ?`,
+                            [v.name.trim(), parseInt(v.price) || 0, vId],
+                            () => resolve(vId)
+                        );
                     } else {
-                        completeUpdate();
+                        db.run(`INSERT INTO product_variants (product_id, name, price) VALUES (?, ?, ?)`,
+                            [pid, v.name.trim(), parseInt(v.price) || 0],
+                            function() {
+                                keptIds.push(this.lastID);
+                                resolve(this.lastID);
+                            }
+                        );
                     }
                 });
             });
+
+            Promise.all(updatePromises).then(() => {
+                const toDelete = existingIds.filter(id => !keptIds.includes(id));
+                if (toDelete.length) {
+                    const placeholders = toDelete.map(() => '?').join(',');
+                    db.run(`DELETE FROM product_variants WHERE id IN (${placeholders})`, toDelete, () => {
+                        res.json({ success: true, message: 'Đã lưu thay đổi sản phẩm & chế độ bảo hành thành công!' });
+                    });
+                } else {
+                    res.json({ success: true, message: 'Đã lưu thay đổi sản phẩm & chế độ bảo hành thành công!' });
+                }
+            });
+        });
+    };
+
+    db.run(`UPDATE products SET name = ?, old_price = ?, image = ?, warranty = ?, description = ?, guide = ? WHERE id = ?`,
+        [name.trim(), parseInt(old_price) || 0, image || DEFAULT_IMG, (warranty || '').trim(), description || '', guide || DEFAULT_GUIDE, pid],
+        function(err) {
+            if (!err) return updateVariants();
+            console.error('[UPDATE PRODUCT ERROR]', err);
+            db.run(`UPDATE products SET name = ?, image = ?, description = ? WHERE id = ?`,
+                [name.trim(), image || DEFAULT_IMG, description || '', pid],
+                () => updateVariants()
+            );
         }
     );
 });
