@@ -1401,4 +1401,3 @@ const PORT = process.env.PORT || 3000;
 dbReadyPromise.then(() => {
     app.listen(PORT, () => console.log(`>>> JERRY SHOP ĐANG CHẠY TẠI: http://localhost:${PORT} <<<`));
 });
-
