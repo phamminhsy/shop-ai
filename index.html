@@ -3019,7 +3019,7 @@ function renderProductGrid() {
     const discount = oldP > minP && minP > 0 ? Math.round((1 - minP / oldP) * 100) : 0;
     const warranty = (p.warranty || '').trim();
     const catName = (p.category_name || 'Tài khoản AI').trim();
-    const hasContactVar = Number(p.is_contact_admin) === 1 || vars.some(v => Number(v.is_contact_admin) === 1);
+    const hasContactVar = vars.some(v => Number(v.is_contact_admin) === 1);
     return `
     <div onclick="openBuyModal(${p.id})" class="bg-white rounded-2xl p-2.5 sm:p-3.5 border border-slate-200 shadow-sm product-card cursor-pointer flex flex-col justify-between">
       <div>
@@ -3092,7 +3092,7 @@ function renderModalVariantsList() {
   const vars = selectedProduct.variants || [];
   document.getElementById('mdl-variants-list').innerHTML = vars.map(v => {
     const stock = Number(v.stock || 0), isSel = Number(v.id) === Number(selectedVariantId);
-    const isContact = Number(v.is_contact_admin) === 1 || Number(selectedProduct.is_contact_admin) === 1;
+    const isContact = Number(v.is_contact_admin) === 1;
     return `
     <div onclick="selectModalVariant(${v.id})" class="p-2.5 rounded-xl border-2 cursor-pointer flex justify-between items-center text-xs ${isSel ? 'border-blue-600 bg-blue-50' : 'border-slate-200 bg-white'} ${stock <= 0 ? 'opacity-50' : ''}">
       <div class="flex items-center gap-2 min-w-0 flex-1">
@@ -3125,7 +3125,7 @@ function updatePricing() {
   const v = vars.find(x => Number(x.id) === Number(selectedVariantId)) || vars[0];
   const stock = v ? Number(v.stock || 0) : 0, price = v ? Number(v.price || 0) : 0, qty = Math.max(1, parseInt(document.getElementById('mdl-qty').value) || 1);
   const total = Math.max(0, price * qty);
-  const isContact = (v && Number(v.is_contact_admin) === 1) || Number(selectedProduct.is_contact_admin) === 1;
+  const isContact = Boolean(v && Number(v.is_contact_admin) === 1);
 
   const contactNotice = document.getElementById('mdl-contact-admin-notice');
   if (contactNotice) contactNotice.classList.toggle('hidden', !isContact);
@@ -3219,7 +3219,7 @@ async function executeBuyNow() {
   const v = vars.find(x => Number(x.id) === Number(selectedVariantId)) || vars[0];
   const qty = Math.max(1, parseInt(document.getElementById('mdl-qty').value) || 1);
   const total = Math.max(0, (v ? v.price : 0) * qty);
-  const isContact = (v && Number(v.is_contact_admin) === 1) || Number(selectedProduct.is_contact_admin) === 1;
+  const isContact = Boolean(v && Number(v.is_contact_admin) === 1);
 
   if (currentUser.balance < total) {
     closeBuyStep2Modal();
@@ -4585,6 +4585,11 @@ function onVariantTypeRowChange(selectEl) {
   if (isContact && panelCfg) {
     panelCfg.classList.add('hidden');
   }
+  const allSelects = Array.from(document.querySelectorAll('#variants-container .var-contact-mode'));
+  const allContactChk = document.getElementById('chk-prod-all-contact');
+  if (allContactChk && allSelects.length) {
+    allContactChk.checked = allSelects.every(el => el.value === '1');
+  }
   updateVariantConfigSummaryBadge(row);
 }
 
@@ -4814,7 +4819,7 @@ function editProduct(id) {
   document.getElementById('prod-guide').value = p.guide || '';
   document.getElementById('prod-admin-note').value = p.admin_note || '';
   updateFormNotePreviewLabel(p.admin_note || '');
-  document.getElementById('chk-prod-all-contact').checked = Number(p.is_contact_admin) === 1;
+  document.getElementById('chk-prod-all-contact').checked = Array.isArray(p.variants) && p.variants.length > 0 && p.variants.every(v => Number(v.is_contact_admin) === 1);
   document.getElementById('prod-featured').checked = Number(p.is_featured) === 1;
   document.getElementById('prod-hidden').checked = Number(p.is_hidden) === 1;
 
@@ -4865,7 +4870,7 @@ async function saveProduct() {
     }
   }
 
-  const is_contact_admin = document.getElementById('chk-prod-all-contact').checked || variants.every(v => Number(v.is_contact_admin) === 1) ? 1 : 0;
+  const is_contact_admin = variants.every(v => Number(v.is_contact_admin) === 1) ? 1 : 0;
   const delivery_config = variants[0] && variants[0].delivery_config ? variants[0].delivery_config : getDeliveryConfigFromForm();
 
   const payload = {
@@ -4912,7 +4917,7 @@ async function saveProduct() {
     }
   } catch (e) {
     const assignedVars = variants.map((v, i) => {
-      const isC = Number(v.is_contact_admin) === 1 || Number(is_contact_admin) === 1;
+      const isC = Number(v.is_contact_admin) === 1;
       const mStock = Math.max(0, Number(v.manual_stock || 0));
       return {
         id: v.id ? Number(v.id) : (Date.now() + i + 1),
@@ -5268,7 +5273,7 @@ function onAdminSelectProductChange(preferredVarId = '') {
   if (vSel) {
     vSel.innerHTML = (p && p.variants && p.variants.length)
       ? p.variants.map(v => {
-          const isC = Number(v.is_contact_admin) === 1 || Number(p.is_contact_admin) === 1;
+          const isC = Number(v.is_contact_admin) === 1;
           return `<option value="${v.id}">${escapeHtml(v.name)} - ${Number(v.price).toLocaleString()}đ (${isC ? `Liên hệ Admin - SL: ${v.stock || 0}` : `Kho: ${v.stock || 0}`})</option>`;
         }).join('')
       : '<option value="">Chưa có tùy chọn</option>';
@@ -5289,7 +5294,7 @@ function onAdminSelectVariantChange() {
   const boxAuto = document.getElementById('box-stock-auto-wrapper');
   const inpManual = document.getElementById('inp-manual-stock-qty');
 
-  const isContact = (v && Number(v.is_contact_admin) === 1) || (p && Number(p.is_contact_admin) === 1);
+  const isContact = Boolean(v && Number(v.is_contact_admin) === 1);
   if (isContact) {
     if (boxContact) boxContact.classList.remove('hidden');
     if (boxAuto) boxAuto.classList.add('hidden');
@@ -6256,3 +6261,4 @@ initApp();
 </script>
 </body>
 </html>
+
