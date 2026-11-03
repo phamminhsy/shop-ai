@@ -12,14 +12,18 @@ app.use(express.json({ limit: '20mb' }));
 app.use(express.static(__dirname));
 
 // ================= CẤU HÌNH CƠ SỞ DỮ LIỆU KÉP (TURSO CLOUD + SQLITE NỘI BỘ TỰ ĐỘNG DỰ PHÒNG) =================
-const TURSO_DATABASE_URL = (process.env.TURSO_DATABASE_URL || '').trim();
-const TURSO_AUTH_TOKEN = (process.env.TURSO_AUTH_TOKEN || '').trim();
+const DEFAULT_TURSO_URL = 'libsql://shop-ai-db-phamminhsy.aws-ap-southeast-1.turso.io';
+const DEFAULT_TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTM2MzA5NDMsImlkIjoiMDFhMTljYmEtZGUwMS03OGQ1LTgxMzUtZTEzNDMwYzNhZWY1Iiwia2lkIjoiYVpNLWpXclQ0ajhIWW1RRFl0eFVLeW9JM2YyYVdqTTBwV29uOW9sVTFqQSIsInJpZCI6IjZlNTkwYjRjLTI3N2UtNDZiMy1iMGI0LWE4NGQxOTI3OThlOSJ9.iRp-GToUj_xu2Fc7CW-1xA_QvlRABWF7lxHdDnU0zS9DtmM_HuPmV08F-l1ACZ-vfuXZr_X2QPgrIC-_3kmWCw';
+
+const TURSO_DATABASE_URL = (process.env.TURSO_DATABASE_URL || DEFAULT_TURSO_URL).trim();
+const TURSO_AUTH_TOKEN = (process.env.TURSO_AUTH_TOKEN || DEFAULT_TURSO_TOKEN).trim();
 
 // Luôn khởi tạo SQLite local làm nền tảng vững chắc 100% (không bao giờ lỗi 400 migration jobs)
 const localDbPath = path.join(__dirname, 'database.sqlite');
 const sqliteDb = new sqlite3.Database(localDbPath);
 
 let isUsingTurso = false;
+let tursoVerified = false;
 let tursoLastError = '';
 let tursoClient = null;
 
@@ -72,8 +76,11 @@ function normalizeDbArgs(params, cb) {
 function handleTursoFailure(err) {
     const msg = err && err.message ? err.message : String(err || 'Turso Error');
     tursoLastError = msg;
-    if (isUsingTurso) {
-        console.warn(`>>> [AUTO-HEAL DB] Phát hiện lỗi từ Turso (${msg}). Đã tự động chuyển sang SQLite Server để bảo vệ dữ liệu 100%! <<<`);
+    if (isUsingTurso && !tursoVerified) {
+        console.warn(`>>> [AUTO-HEAL DB] Không thể kết nối Turso lúc khởi động (${msg}). Chuyển sang SQLite nội bộ! <<<`);
+        isUsingTurso = false;
+    } else if (isUsingTurso && /fetching migration jobs: 400|UNAUTHENTICATED|401|403/i.test(msg)) {
+        console.warn(`>>> [AUTO-HEAL DB] Turso trả về lỗi cấu hình nghiêm trọng (${msg}). Chuyển sang SQLite nội bộ! <<<`);
         isUsingTurso = false;
     }
 }
@@ -180,12 +187,22 @@ async function initDatabaseSchema() {
     const getAsync = (sql, params = []) => new Promise(resolve => {
         db.get(sql, params, (err, row) => resolve({ err, row }));
     });
+    const allAsync = (sql, params = []) => new Promise(resolve => {
+        db.all(sql, params, (err, rows) => resolve({ err, rows: rows || [] }));
+    });
+    const ensureColumn = async (table, colName, colDef) => {
+        const { rows } = await allAsync(`PRAGMA table_info(${table})`);
+        if (!rows.some(r => String(r.name).toLowerCase() === colName.toLowerCase())) {
+            await runAsync(`ALTER TABLE ${table} ADD COLUMN ${colName} ${colDef}`);
+        }
+    };
 
     // Kiểm tra kết nối Turso ngay lúc khởi động
     if (isUsingTurso && tursoClient) {
         try {
             await tursoClient.execute('SELECT 1');
-            console.log(`>>> [TURSO CLOUD] Kết nối thành công: ${TURSO_DATABASE_URL} <<<`);
+            tursoVerified = true;
+            console.log(`>>> [TURSO CLOUD] Kết nối vĩnh viễn thành công: ${TURSO_DATABASE_URL} <<<`);
         } catch (err) {
             handleTursoFailure(err);
         }
@@ -199,8 +216,8 @@ async function initDatabaseSchema() {
         id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, email TEXT, phone TEXT, password TEXT,
         balance INTEGER DEFAULT 0, role TEXT DEFAULT 'user', created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
-    await runAsync(`ALTER TABLE users ADD COLUMN email TEXT`);
-    await runAsync(`ALTER TABLE users ADD COLUMN phone TEXT`);
+    await ensureColumn('users', 'email', 'TEXT');
+    await ensureColumn('users', 'phone', 'TEXT');
 
     // 3. Sản phẩm
     await runAsync(`CREATE TABLE IF NOT EXISTS products (
@@ -208,22 +225,22 @@ async function initDatabaseSchema() {
         image TEXT, warranty TEXT DEFAULT 'Bảo hành 12h', description TEXT, guide TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
-    await runAsync(`ALTER TABLE products ADD COLUMN old_price INTEGER DEFAULT 0`);
-    await runAsync(`ALTER TABLE products ADD COLUMN image TEXT`);
-    await runAsync(`ALTER TABLE products ADD COLUMN warranty TEXT DEFAULT 'Bảo hành 12h'`);
-    await runAsync(`ALTER TABLE products ADD COLUMN description TEXT`);
-    await runAsync(`ALTER TABLE products ADD COLUMN guide TEXT`);
-    await runAsync(`ALTER TABLE products ADD COLUMN price INTEGER DEFAULT 0`);
-    await runAsync(`ALTER TABLE products ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`);
+    await ensureColumn('products', 'old_price', 'INTEGER DEFAULT 0');
+    await ensureColumn('products', 'image', 'TEXT');
+    await ensureColumn('products', 'warranty', "'TEXT DEFAULT 'Bảo hành 12h'".replace("'TEXT", "TEXT"));
+    await ensureColumn('products', 'description', 'TEXT');
+    await ensureColumn('products', 'guide', 'TEXT');
+    await ensureColumn('products', 'price', 'INTEGER DEFAULT 0');
+    await ensureColumn('products', 'created_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
 
     // 4. Tùy chọn sản phẩm động
     await runAsync(`CREATE TABLE IF NOT EXISTS product_variants (
         id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER, name TEXT, price INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
     )`);
-    await runAsync(`ALTER TABLE product_variants ADD COLUMN product_id INTEGER`);
-    await runAsync(`ALTER TABLE product_variants ADD COLUMN name TEXT`);
-    await runAsync(`ALTER TABLE product_variants ADD COLUMN price INTEGER DEFAULT 0`);
+    await ensureColumn('product_variants', 'product_id', 'INTEGER');
+    await ensureColumn('product_variants', 'name', 'TEXT');
+    await ensureColumn('product_variants', 'price', 'INTEGER DEFAULT 0');
 
     // 5. Đơn hàng
     await runAsync(`CREATE TABLE IF NOT EXISTS orders (
@@ -232,7 +249,7 @@ async function initDatabaseSchema() {
         warranty TEXT, quantity INTEGER DEFAULT 1, total_price INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
-    await runAsync(`ALTER TABLE orders ADD COLUMN warranty TEXT`);
+    await ensureColumn('orders', 'warranty', 'TEXT');
 
     // 6. Kho hàng
     await runAsync(`CREATE TABLE IF NOT EXISTS inventory (
@@ -241,12 +258,12 @@ async function initDatabaseSchema() {
         order_id INTEGER, buyer_id INTEGER, sold_at DATETIME,
         batch_code TEXT, batch_time TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
-    await runAsync(`ALTER TABLE inventory ADD COLUMN order_id INTEGER`);
-    await runAsync(`ALTER TABLE inventory ADD COLUMN buyer_id INTEGER`);
-    await runAsync(`ALTER TABLE inventory ADD COLUMN sold_at DATETIME`);
-    await runAsync(`ALTER TABLE inventory ADD COLUMN batch_code TEXT`);
-    await runAsync(`ALTER TABLE inventory ADD COLUMN batch_time TEXT`);
-    await runAsync(`ALTER TABLE inventory ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`);
+    await ensureColumn('inventory', 'order_id', 'INTEGER');
+    await ensureColumn('inventory', 'buyer_id', 'INTEGER');
+    await ensureColumn('inventory', 'sold_at', 'DATETIME');
+    await ensureColumn('inventory', 'batch_code', 'TEXT');
+    await ensureColumn('inventory', 'batch_time', 'TEXT');
+    await ensureColumn('inventory', 'created_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
 
     // Quản lý lần nạp kho (Batch)
     await runAsync(`CREATE TABLE IF NOT EXISTS stock_batches (
@@ -268,7 +285,7 @@ async function initDatabaseSchema() {
         amount INTEGER, info TEXT, status TEXT DEFAULT 'pending',
         expires_at INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
-    await runAsync(`ALTER TABLE transactions ADD COLUMN expires_at INTEGER`);
+    await ensureColumn('transactions', 'expires_at', 'INTEGER');
 
     // Tự động bảo vệ và chữa lành kho inventory
     await runAsync(`UPDATE inventory SET variant_id = (SELECT id FROM product_variants pv WHERE pv.product_id = inventory.product_id ORDER BY pv.id ASC LIMIT 1) 
@@ -805,10 +822,79 @@ app.get('/api/transactions/:userId', (req, res) => {
 app.get('/api/admin/db-status', verifyAdmin, (req, res) => {
     res.json({
         isUsingTurso,
-        databaseUrl: isUsingTurso ? TURSO_DATABASE_URL : 'SQLite Server (Đã kích hoạt lưu trữ trực tiếp ổn định 100%)',
+        databaseUrl: isUsingTurso ? TURSO_DATABASE_URL : 'SQLite Server (Tạm thời trên Render)',
         hasToken: Boolean(TURSO_AUTH_TOKEN),
         tursoFallbackReason: tursoLastError || ''
     });
+});
+
+// SAO LƯU & KHÔI PHỤC TOÀN BỘ DỮ LIỆU SHOP (.JSON) 1-CLICK
+app.get('/api/admin/backup-export', verifyAdmin, (req, res) => {
+    const backup = { exportedAt: new Date().toISOString(), version: 2 };
+    db.all(`SELECT * FROM settings`, [], (e1, settings) => {
+        backup.settings = settings || [];
+        db.all(`SELECT * FROM users`, [], (e2, users) => {
+            backup.users = users || [];
+            db.all(`SELECT * FROM products`, [], (e3, products) => {
+                backup.products = products || [];
+                db.all(`SELECT * FROM product_variants`, [], (e4, product_variants) => {
+                    backup.product_variants = product_variants || [];
+                    db.all(`SELECT * FROM stock_batches`, [], (e5, stock_batches) => {
+                        backup.stock_batches = stock_batches || [];
+                        db.all(`SELECT * FROM inventory`, [], (e6, inventory) => {
+                            backup.inventory = inventory || [];
+                            db.all(`SELECT * FROM orders`, [], (e7, orders) => {
+                                backup.orders = orders || [];
+                                db.all(`SELECT * FROM transactions`, [], (e8, transactions) => {
+                                    backup.transactions = transactions || [];
+                                    res.json(backup);
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+});
+
+app.post('/api/admin/backup-import', verifyAdmin, async (req, res) => {
+    const data = req.body;
+    if (!data || !Array.isArray(data.products)) {
+        return res.status(400).json({ error: 'File sao lưu không hợp lệ!' });
+    }
+    const runQ = (sql, params = []) => new Promise(resolve => db.run(sql, params, () => resolve()));
+    try {
+        await runQ(`DELETE FROM products`);
+        await runQ(`DELETE FROM product_variants`);
+        await runQ(`DELETE FROM stock_batches`);
+        await runQ(`DELETE FROM inventory`);
+        await runQ(`DELETE FROM orders`);
+        for (const st of (data.settings || [])) {
+            if (st.key) await runQ(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, [st.key, String(st.value ?? '')]);
+        }
+        for (const u of (data.users || [])) {
+            if (u.username) await runQ(`INSERT OR REPLACE INTO users (id, username, email, phone, password, balance, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [u.id, u.username, u.email || '', u.phone || '', u.password || '123456', Number(u.balance || 0), u.role || 'user', u.created_at || new Date().toISOString()]);
+        }
+        for (const p of (data.products || [])) {
+            await runQ(`INSERT INTO products (id, name, old_price, image, warranty, description, guide, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [p.id, p.name, Number(p.old_price || 0), p.image || DEFAULT_IMG, p.warranty || '', p.description || '', p.guide || DEFAULT_GUIDE, p.created_at || new Date().toISOString()]);
+        }
+        for (const v of (data.product_variants || [])) {
+            await runQ(`INSERT INTO product_variants (id, product_id, name, price, created_at) VALUES (?, ?, ?, ?, ?)`, [v.id, v.product_id, v.name, Number(v.price || 0), v.created_at || new Date().toISOString()]);
+        }
+        for (const b of (data.stock_batches || [])) {
+            await runQ(`INSERT OR REPLACE INTO stock_batches (id, batch_code, batch_time, product_id, variant_id, variant_name, account_count, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [b.id, b.batch_code, b.batch_time, b.product_id, b.variant_id, b.variant_name || '', Number(b.account_count || 0), b.created_at || new Date().toISOString()]);
+        }
+        for (const inv of (data.inventory || [])) {
+            await runQ(`INSERT INTO inventory (id, product_id, variant_id, variant_name, account_data, is_sold, order_id, buyer_id, sold_at, batch_code, batch_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [inv.id, inv.product_id, inv.variant_id, inv.variant_name || '', inv.account_data, Number(inv.is_sold || 0), inv.order_id || null, inv.buyer_id || null, inv.sold_at || null, inv.batch_code || 'DOT-BAN-DAU', inv.batch_time || 'Ban đầu', inv.created_at || new Date().toISOString()]);
+        }
+        for (const o of (data.orders || [])) {
+            await runQ(`INSERT INTO orders (id, order_code, user_id, product_id, variant_id, product_name, variant_name, warranty, quantity, total_price, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [o.id, o.order_code, o.user_id, o.product_id, o.variant_id, o.product_name || '', o.variant_name || '', o.warranty || '', Number(o.quantity || 1), Number(o.total_price || 0), o.created_at || new Date().toISOString()]);
+        }
+        res.json({ success: true, message: `Đã khôi phục thành công ${(data.products || []).length} sản phẩm và ${(data.inventory || []).length} tài khoản trong kho!` });
+    } catch (err) {
+        res.status(500).json({ error: 'Lỗi khi khôi phục dữ liệu: ' + (err.message || 'Lỗi DB') });
+    }
 });
 
 app.get('/api/admin/stats', verifyAdmin, (req, res) => {
@@ -1315,3 +1401,4 @@ const PORT = process.env.PORT || 3000;
 dbReadyPromise.then(() => {
     app.listen(PORT, () => console.log(`>>> JERRY SHOP ĐANG CHẠY TẠI: http://localhost:${PORT} <<<`));
 });
+
