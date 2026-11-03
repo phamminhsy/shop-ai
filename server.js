@@ -8,7 +8,7 @@ const fs = require('fs');
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '20mb' }));
+app.use(express.json({ limit: '25mb' }));
 app.use(express.static(__dirname));
 
 // ================= CẤU HÌNH CƠ SỞ DỮ LIỆU KÉP (TURSO CLOUD + SQLITE NỘI BỘ TỰ ĐỘNG DỰ PHÒNG) =================
@@ -26,7 +26,6 @@ let tursoVerified = false;
 let tursoLastError = '';
 let tursoClient = null;
 
-// Bộ kết nối HTTPS /v2/pipeline trực tiếp tới Turso (vượt qua lỗi WebSocket/migration jobs của @libsql/client cũ)
 function createDirectHttpsTursoClient(rawUrl, authToken) {
     const httpsUrl = String(rawUrl || '').trim().replace(/^libsql:\/\//i, 'https://').replace(/\/+$/, '');
     const parsed = new URL(httpsUrl + '/v2/pipeline');
@@ -114,12 +113,10 @@ async function tryConnectTursoCandidates(customUrl = null, customToken = null) {
         candidates.push({ url: customUrl.trim(), token: customToken.trim(), mode: 'libsql-https' });
         candidates.push({ url: customUrl.trim(), token: customToken.trim(), mode: 'libsql' });
     }
-    // 1. Ưu tiên Token & URL mới nhất của chủ shop trước tiên (tránh biến môi trường cũ bị lỗi trên Render ghi đè)
     candidates.push({ url: DEFAULT_TURSO_URL, token: DEFAULT_TURSO_TOKEN, mode: 'https-direct' });
     candidates.push({ url: DEFAULT_TURSO_URL, token: DEFAULT_TURSO_TOKEN, mode: 'libsql-https' });
     candidates.push({ url: DEFAULT_TURSO_URL, token: DEFAULT_TURSO_TOKEN, mode: 'libsql' });
 
-    // 2. Thử thêm biến môi trường trên Render (nếu chủ shop có cấu hình DB khác trên Render)
     const envUrl = (process.env.TURSO_DATABASE_URL || '').trim();
     const envToken = (process.env.TURSO_AUTH_TOKEN || '').trim();
     if (envUrl && envToken && (envUrl !== DEFAULT_TURSO_URL || envToken !== DEFAULT_TURSO_TOKEN)) {
@@ -185,10 +182,6 @@ function normalizeDbArgs(params, cb) {
     return { actualParams, actualCb };
 }
 
-// Bộ điều phối Database thông minh:
-// - Nếu Turso hoạt động tốt: đọc/ghi trên Turso VÀ đồng bộ xuống SQLite local.
-// - Nếu Turso gặp lỗi (ví dụ: "Unexpected status code while fetching migration jobs: 400" hoặc token lỗi):
-//   Tự động chuyển sang SQLite local ngay lập tức trong 0ms để mọi thao tác Thêm sản phẩm, Thêm kho, Mua hàng KHÔNG BAO GIỜ LỖI hay mất dữ liệu khi F5!
 function handleTursoFailure(err) {
     const msg = err && err.message ? err.message : String(err || 'Turso Error');
     tursoLastError = msg;
@@ -215,11 +208,9 @@ const db = {
         tursoClient.execute({ sql, args: actualParams }).then(res => {
             const lastID = res.lastInsertRowid !== null && res.lastInsertRowid !== undefined ? Number(res.lastInsertRowid) : 0;
             const changes = res.rowsAffected !== null && res.rowsAffected !== undefined ? Number(res.rowsAffected) : 0;
-            // Đồng bộ ngầm vào SQLite local
             sqliteDb.run(sql, actualParams, () => {});
             if (actualCb) actualCb.call({ lastID, changes }, null);
         }).catch(err => {
-            // Bỏ qua lỗi ALTER TABLE cột đã tồn tại
             if (/duplicate column name|already exists/i.test(err && err.message ? err.message : '')) {
                 sqliteDb.run(sql, actualParams, () => {});
                 if (actualCb) actualCb.call({ lastID: 0, changes: 0 }, null);
@@ -289,11 +280,25 @@ const DEFAULT_IMG = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRWdRC
 const DEFAULT_GUIDE = `1. Đăng nhập: Mở trang web chính thức của dịch vụ, nhập chính xác Email và Mật khẩu được giao.
 2. Lưu ý tài khoản: Vui lòng đổi mật khẩu và liên kết thông tin cá nhân ngay nếu là tài khoản cấp riêng.
 3. Tài khoản Cookie: Nếu định dạng dạng Cookie (json/string), dùng tiện ích Cookie Editor hoặc J2Team Cookies trên Chrome để Import rồi F5 tải lại trang.
-4. Hỗ trợ bảo hành: Liên hệ trực tiếp Zalo hỗ trợ của shop kèm mã đơn hàng nếu tài khoản phát sinh lỗi trong thời gian bảo hành của sản phẩm.`;
+4. Hỗ trợ bảo hành: Liên hệ trực tiếp Zalo/Telegram hỗ trợ của shop kèm mã đơn hàng nếu tài khoản phát sinh lỗi trong thời gian bảo hành của sản phẩm.`;
 
-const DEPOSIT_TIMEOUT_MS = 10 * 60 * 1000; // Đúng 10 phút (600.000ms)
+const DEFAULT_DELIVERY_CONFIG = JSON.stringify({
+    account_label: 'Tài khoản',
+    btn1_enabled: true,
+    btn1_label: 'Copy Email',
+    btn2_enabled: true,
+    btn2_label: 'Copy Mật khẩu',
+    btn3_enabled: true,
+    btn3_label: 'Copy Link OTP / Khác',
+    copy_line_enabled: true,
+    copy_line_label: 'Copy cả dòng',
+    txt_enabled: true,
+    zip_enabled: false,
+    show_part3_box: false
+});
 
-// Khởi tạo Database tuần tự, an toàn 100%
+const DEPOSIT_TIMEOUT_MS = 10 * 60 * 1000; // Đúng 10 phút
+
 async function initDatabaseSchema() {
     const runAsync = (sql, params = []) => new Promise(resolve => {
         db.run(sql, params, function(err) {
@@ -313,13 +318,21 @@ async function initDatabaseSchema() {
         }
     };
 
-    // Kiểm tra tất cả phương thức kết nối Turso ngay lúc khởi động (Ưu tiên Token mới + HTTPS Pipeline trực tiếp)
     await tryConnectTursoCandidates();
 
     // 1. Cài đặt hệ thống & Giao diện
     await runAsync(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`);
 
-    // 2. Người dùng
+    // 2. Danh mục / Thư mục sản phẩm
+    await runAsync(`CREATE TABLE IF NOT EXISTS categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT UNIQUE,
+        icon TEXT DEFAULT 'fa-layer-group',
+        sort_order INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    // 3. Người dùng
     await runAsync(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, email TEXT, phone TEXT, password TEXT,
         balance INTEGER DEFAULT 0, role TEXT DEFAULT 'user', created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -327,39 +340,56 @@ async function initDatabaseSchema() {
     await ensureColumn('users', 'email', 'TEXT');
     await ensureColumn('users', 'phone', 'TEXT');
 
-    // 3. Sản phẩm
+    // 4. Sản phẩm
     await runAsync(`CREATE TABLE IF NOT EXISTS products (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, old_price INTEGER DEFAULT 0,
-        image TEXT, warranty TEXT DEFAULT 'Bảo hành 12h', description TEXT, guide TEXT,
+        id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, category_name TEXT DEFAULT 'Tài khoản AI',
+        old_price INTEGER DEFAULT 0, image TEXT, warranty TEXT DEFAULT 'Bảo hành 12h',
+        description TEXT, guide TEXT, is_contact_admin INTEGER DEFAULT 0,
+        delivery_config TEXT, is_hidden INTEGER DEFAULT 0, is_featured INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+    await ensureColumn('products', 'category_name', "TEXT DEFAULT 'Tài khoản AI'");
     await ensureColumn('products', 'old_price', 'INTEGER DEFAULT 0');
     await ensureColumn('products', 'image', 'TEXT');
-    await ensureColumn('products', 'warranty', "'TEXT DEFAULT 'Bảo hành 12h'".replace("'TEXT", "TEXT"));
+    await ensureColumn('products', 'warranty', "TEXT DEFAULT 'Bảo hành 12h'");
     await ensureColumn('products', 'description', 'TEXT');
     await ensureColumn('products', 'guide', 'TEXT');
     await ensureColumn('products', 'price', 'INTEGER DEFAULT 0');
+    await ensureColumn('products', 'is_contact_admin', 'INTEGER DEFAULT 0');
+    await ensureColumn('products', 'delivery_config', 'TEXT');
+    await ensureColumn('products', 'is_hidden', 'INTEGER DEFAULT 0');
+    await ensureColumn('products', 'is_featured', 'INTEGER DEFAULT 0');
     await ensureColumn('products', 'created_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
 
-    // 4. Tùy chọn sản phẩm động
+    // 5. Tùy chọn sản phẩm động (hỗ trợ cả tự động lẫn Liên hệ Admin + số lượng tồn thủ công)
     await runAsync(`CREATE TABLE IF NOT EXISTS product_variants (
         id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER, name TEXT, price INTEGER DEFAULT 0,
+        is_contact_admin INTEGER DEFAULT 0, manual_stock INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
     )`);
     await ensureColumn('product_variants', 'product_id', 'INTEGER');
     await ensureColumn('product_variants', 'name', 'TEXT');
     await ensureColumn('product_variants', 'price', 'INTEGER DEFAULT 0');
+    await ensureColumn('product_variants', 'is_contact_admin', 'INTEGER DEFAULT 0');
+    await ensureColumn('product_variants', 'manual_stock', 'INTEGER DEFAULT 0');
 
-    // 5. Đơn hàng
+    // 6. Đơn hàng (hỗ trợ trạng thái hoàn thành, loại bàn giao tự động / liên hệ Admin, ghi chú Admin)
     await runAsync(`CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT, order_code TEXT UNIQUE, user_id INTEGER,
         product_id INTEGER, variant_id INTEGER, product_name TEXT, variant_name TEXT,
         warranty TEXT, quantity INTEGER DEFAULT 1, total_price INTEGER DEFAULT 0,
+        delivery_type TEXT DEFAULT 'auto', order_status TEXT DEFAULT 'completed',
+        admin_note TEXT DEFAULT '', delivery_config TEXT, completed_at DATETIME,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
     await ensureColumn('orders', 'warranty', 'TEXT');
+    await ensureColumn('orders', 'delivery_type', "TEXT DEFAULT 'auto'");
+    await ensureColumn('orders', 'order_status', "TEXT DEFAULT 'completed'");
+    await ensureColumn('orders', 'admin_note', "TEXT DEFAULT ''");
+    await ensureColumn('orders', 'delivery_config', 'TEXT');
+    await ensureColumn('orders', 'completed_at', 'DATETIME');
 
-    // 6. Kho hàng
+    // 7. Kho hàng
     await runAsync(`CREATE TABLE IF NOT EXISTS inventory (
         id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER, variant_id INTEGER,
         variant_name TEXT, account_data TEXT, is_sold INTEGER DEFAULT 0,
@@ -373,7 +403,7 @@ async function initDatabaseSchema() {
     await ensureColumn('inventory', 'batch_time', 'TEXT');
     await ensureColumn('inventory', 'created_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
 
-    // Quản lý lần nạp kho (Batch)
+    // 8. Quản lý lần nạp kho (Batch)
     await runAsync(`CREATE TABLE IF NOT EXISTS stock_batches (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         batch_code TEXT UNIQUE,
@@ -387,7 +417,7 @@ async function initDatabaseSchema() {
 
     await runAsync(`UPDATE inventory SET batch_code = 'DOT-BAN-DAU', batch_time = 'Ban đầu' WHERE batch_code IS NULL OR batch_code = ''`);
 
-    // 7. Giao dịch nạp tiền
+    // 9. Giao dịch nạp tiền
     await runAsync(`CREATE TABLE IF NOT EXISTS transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT DEFAULT 'deposit',
         amount INTEGER, info TEXT, status TEXT DEFAULT 'pending',
@@ -395,12 +425,11 @@ async function initDatabaseSchema() {
     )`);
     await ensureColumn('transactions', 'expires_at', 'INTEGER');
 
-    // Tự động bảo vệ và chữa lành kho inventory
     await runAsync(`UPDATE inventory SET variant_id = (SELECT id FROM product_variants pv WHERE pv.product_id = inventory.product_id ORDER BY pv.id ASC LIMIT 1) 
             WHERE product_id IN (SELECT id FROM products) 
             AND (variant_id IS NULL OR variant_id NOT IN (SELECT id FROM product_variants))`);
 
-    // Tài khoản Admin mặc định: admin / Sy987654321@
+    // Tài khoản Admin mặc định
     const { row: existingAdmin } = await getAsync(`SELECT id FROM users WHERE LOWER(username) = 'admin' OR LOWER(email) = 'admin@jerryshop.vn'`);
     if (!existingAdmin) {
         await runAsync(`INSERT INTO users (username, email, phone, password, balance, role) VALUES ('admin', 'admin@jerryshop.vn', '0982900374', 'Sy987654321@', 500000, 'admin')`);
@@ -408,14 +437,34 @@ async function initDatabaseSchema() {
         await runAsync(`UPDATE users SET role = 'admin' WHERE id = ?`, [existingAdmin.id]);
     }
 
-    // Cài đặt shop mặc định
+    // Danh mục mặc định
+    const defaultCats = [
+        ['Tài khoản AI', 'fa-robot', 1],
+        ['VPN & Bảo mật', 'fa-shield-halved', 2],
+        ['Giải trí & Học tập', 'fa-film', 3],
+        ['Công cụ & Phần mềm', 'fa-screwdriver-wrench', 4]
+    ];
+    for (const [cName, cIcon, cOrder] of defaultCats) {
+        await runAsync(`INSERT OR IGNORE INTO categories (name, icon, sort_order) VALUES (?, ?, ?)`, [cName, cIcon, cOrder]);
+    }
+
+    // Cài đặt shop mặc định (bổ sung Favicon, Logo trong suốt, Ẩn chữ tên shop, Zalo & Telegram bật/tắt)
     const defaultSettings = [
         ['site_name', 'JERRY <span class="text-yellow-300">SHOP</span>'],
         ['site_slogan', 'Tài Khoản AI Giá Siêu Rẻ'],
         ['site_logo', ''],
+        ['site_favicon', ''],
+        ['logo_transparent', '1'],
+        ['logo_hide_text', '0'],
+        ['logo_hide_slogan', '0'],
+        ['logo_height', '44'],
         ['site_domain', ''],
         ['site_hotline', '0982.900.374'],
         ['site_zalo', '0982900374'],
+        ['zalo_enabled', '1'],
+        ['telegram_enabled', '0'],
+        ['site_telegram', 'https://t.me/jerryshop'],
+        ['site_telegram_name', '@jerryshop'],
         ['site_notice', 'Jerry Shop - Hệ thống giao tài khoản AI tự động 24/7 nhanh chóng, uy tín'],
         ['site_banner_title', 'Bấm trực tiếp vào sản phẩm để chọn gói và số lượng mua!'],
         ['site_banner_desc', 'Hệ thống phân phối tài khoản cấp sẵn dùng riêng, tự động bàn giao ngay sau 3 giây thanh toán.'],
@@ -435,35 +484,29 @@ async function initDatabaseSchema() {
     const { row: prodCountRow } = await getAsync(`SELECT COUNT(*) as count FROM products`);
     if (!prodCountRow || Number(prodCountRow.count) === 0) {
         const { lastID: pid } = await runAsync(
-            `INSERT INTO products (name, old_price, image, warranty, description, guide) VALUES (?, 350000, ?, 'Bảo hành 12h 1 đổi 1', ?, ?)`,
+            `INSERT INTO products (name, category_name, old_price, image, warranty, description, guide, is_contact_admin, delivery_config) VALUES (?, 'Tài khoản AI', 350000, ?, 'Bảo hành 12h 1 đổi 1', ?, ?, 0, ?)`,
             [
                 'Tài khoản Muse AI có sẵn 1 tỷ token – Cấp sẵn dùng riêng',
                 DEFAULT_IMG,
                 '• Tài khoản Muse AI 1 tỷ token dùng riêng tốc độ cao.\n• Tự động giao acc ngay sau thanh toán.',
-                DEFAULT_GUIDE
+                DEFAULT_GUIDE,
+                DEFAULT_DELIVERY_CONFIG
             ]
         );
         const actualPid = pid || 1;
         const { lastID: v1 } = await runAsync(
-            `INSERT INTO product_variants (product_id, name, price) VALUES (?, 'Tài khoản thường (Email | Mật khẩu)', 35000)`,
+            `INSERT INTO product_variants (product_id, name, price, is_contact_admin, manual_stock) VALUES (?, 'Tài khoản thường (Email | Mật khẩu)', 35000, 0, 0)`,
             [actualPid]
         );
         const { lastID: v2 } = await runAsync(
-            `INSERT INTO product_variants (product_id, name, price) VALUES (?, 'Tài khoản kèm Cookie (Đăng nhập tức thì)', 45000)`,
+            `INSERT INTO product_variants (product_id, name, price, is_contact_admin, manual_stock) VALUES (?, 'Gói nâng cấp chính chủ (Liên hệ Admin)', 45000, 1, 50)`,
             [actualPid]
         );
         const varId1 = v1 || 1;
-        const varId2 = v2 || 2;
         for (const acc of ['muse_vip01@gmail.com|JerryShop#992', 'muse_vip02@gmail.com|JerryShop#881', 'muse_vip03@gmail.com|JerryShop#774']) {
             await runAsync(
                 `INSERT INTO inventory (product_id, variant_id, variant_name, account_data, is_sold, batch_code, batch_time) VALUES (?, ?, 'Tài khoản thường (Email | Mật khẩu)', ?, 0, 'DOT-BAN-DAU', 'Ban đầu')`,
                 [actualPid, varId1, acc]
-            );
-        }
-        for (const acc of ['muse_cookie01@gmail.com||[{"domain":".muse.ai","name":"session","value":"eyJh123"}]', 'muse_cookie02@gmail.com||[{"domain":".muse.ai","name":"session","value":"eyJh456"}]']) {
-            await runAsync(
-                `INSERT INTO inventory (product_id, variant_id, variant_name, account_data, is_sold, batch_code, batch_time) VALUES (?, ?, 'Tài khoản kèm Cookie (Đăng nhập tức thì)', ?, 0, 'DOT-BAN-DAU', 'Ban đầu')`,
-                [actualPid, varId2, acc]
             );
         }
     }
@@ -471,6 +514,42 @@ async function initDatabaseSchema() {
 
 const dbReadyPromise = initDatabaseSchema().catch(err => {
     console.error('[DB INIT ERROR]', err);
+});
+
+// ================= PHỤC VỤ FAVICON ĐỘNG TRÊN TAB TRÌNH DUYỆT =================
+const DEFAULT_FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0052cc"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#g)"/>
+  <path d="M38 14h10L36 50h-9l5-15h-9l6-21h9l-4 13h7L38 14z" fill="#fde047"/>
+  <text x="14" y="47" font-family="Arial,sans-serif" font-weight="900" font-size="34" fill="#ffffff">J</text>
+</svg>`;
+
+app.get(['/favicon.ico', '/api/favicon'], (req, res) => {
+    db.all(`SELECT key, value FROM settings WHERE key IN ('site_favicon', 'site_logo')`, [], (err, rows) => {
+        const map = {};
+        (rows || []).forEach(r => map[r.key] = r.value);
+        const iconSrc = (map.site_favicon && map.site_favicon.trim()) ? map.site_favicon.trim() : ((map.site_logo && map.site_logo.trim()) ? map.site_logo.trim() : '');
+        if (iconSrc.startsWith('data:image/')) {
+            const match = iconSrc.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
+            if (match) {
+                const mime = match[1];
+                const buf = Buffer.from(match[2], 'base64');
+                res.setHeader('Content-Type', mime);
+                res.setHeader('Cache-Control', 'public, max-age=300');
+                return res.send(buf);
+            }
+        } else if (iconSrc.startsWith('http://') || iconSrc.startsWith('https://')) {
+            return res.redirect(iconSrc);
+        }
+        res.setHeader('Content-Type', 'image/svg+xml');
+        res.setHeader('Cache-Control', 'public, max-age=300');
+        res.send(DEFAULT_FAVICON_SVG);
+    });
 });
 
 // ================= TỰ ĐỘNG HỦY & XÓA MÃ NẠP TIỀN QUÁ 10 PHÚT =================
@@ -509,7 +588,7 @@ setInterval(() => {
 }, 8 * 60 * 1000);
 
 function verifyAdmin(req, res, next) {
-    const adminId = req.headers['x-admin-id'] || req.body.adminId;
+    const adminId = req.headers['x-admin-id'] || req.body.adminId || req.query.adminId;
     if (!adminId) return res.status(403).json({ error: 'Không có quyền truy cập!' });
     if (Number(adminId) === 1 || String(adminId) === '1') return next();
     db.get(`SELECT role, username FROM users WHERE id = ?`, [adminId], (err, u) => {
@@ -532,7 +611,7 @@ app.post('/api/admin/settings', verifyAdmin, (req, res) => {
     const { settings } = req.body;
     if (!settings || typeof settings !== 'object') return res.status(400).json({ error: 'Dữ liệu không hợp lệ!' });
     const stmt = db.prepare(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`);
-    Object.entries(settings).forEach(([k, v]) => stmt.run(k, String(v)));
+    Object.entries(settings).forEach(([k, v]) => stmt.run(k, String(v ?? '')));
     stmt.finalize(() => res.json({ message: 'Đã lưu cài đặt hệ thống thành công!' }));
 });
 
@@ -555,6 +634,51 @@ app.post('/api/admin/maintenance', verifyAdmin, (req, res) => {
                 message: enabled ? 'Đã BẬT chế độ bảo trì web (Chỉ Admin mới truy cập được)!' : 'Đã TẮT chế độ bảo trì, trang web hoạt động bình thường!'
             });
         }
+    });
+});
+
+// ================= QUẢN LÝ DANH MỤC / THƯ MỤC SẢN PHẨM =================
+app.get('/api/categories', (req, res) => {
+    db.all(`SELECT * FROM categories ORDER BY sort_order ASC, id ASC`, [], (err, rows) => {
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/admin/categories', verifyAdmin, (req, res) => {
+    const { id, name, icon, sort_order, oldName } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Vui lòng nhập tên danh mục / thư mục!' });
+    const cleanName = name.trim();
+    const cleanIcon = (icon || 'fa-layer-group').trim();
+    const orderVal = parseInt(sort_order) || 0;
+
+    if (id) {
+        db.run(`UPDATE categories SET name = ?, icon = ?, sort_order = ? WHERE id = ?`, [cleanName, cleanIcon, orderVal, id], function(err) {
+            if (err) return res.status(400).json({ error: 'Tên danh mục đã tồn tại hoặc lỗi cập nhật!' });
+            if (oldName && oldName !== cleanName) {
+                db.run(`UPDATE products SET category_name = ? WHERE category_name = ?`, [cleanName, oldName], () => {});
+            }
+            res.json({ success: true, message: `Đã cập nhật thư mục [${cleanName}]!` });
+        });
+    } else {
+        db.run(`INSERT INTO categories (name, icon, sort_order) VALUES (?, ?, ?) ON CONFLICT(name) DO UPDATE SET icon = excluded.icon, sort_order = excluded.sort_order`,
+            [cleanName, cleanIcon, orderVal],
+            function(err) {
+                if (err) return res.status(500).json({ error: 'Không thể tạo thư mục sản phẩm!' });
+                res.json({ success: true, id: this ? this.lastID : 0, message: `Đã tạo thư mục sản phẩm [${cleanName}]!` });
+            }
+        );
+    }
+});
+
+app.delete('/api/admin/categories/:id', verifyAdmin, (req, res) => {
+    const catId = req.params.id;
+    db.get(`SELECT name FROM categories WHERE id = ?`, [catId], (err, row) => {
+        db.run(`DELETE FROM categories WHERE id = ?`, [catId], () => {
+            if (row && row.name) {
+                db.run(`UPDATE products SET category_name = 'Tài khoản AI' WHERE category_name = ?`, [row.name], () => {});
+            }
+            res.json({ success: true, message: 'Đã xóa thư mục sản phẩm!' });
+        });
     });
 });
 
@@ -623,7 +747,7 @@ app.get('/api/user/:id', (req, res) => {
 
 // ================= LIVE ORDER TICKER =================
 app.get('/api/live-activities', (req, res) => {
-    db.all(`SELECT id, name FROM products`, [], (pErr, prods) => {
+    db.all(`SELECT id, name FROM products WHERE COALESCE(is_hidden, 0) = 0`, [], (pErr, prods) => {
         const realProdNames = (prods && prods.length) 
             ? prods.map(p => p.name) 
             : ['Tài khoản Muse AI có sẵn 1 tỷ token'];
@@ -666,34 +790,61 @@ app.get('/api/live-activities', (req, res) => {
     });
 });
 
+function parseDeliveryConfigSafe(rawStr) {
+    try {
+        if (!rawStr) return JSON.parse(DEFAULT_DELIVERY_CONFIG);
+        const parsed = typeof rawStr === 'object' ? rawStr : JSON.parse(rawStr);
+        return { ...JSON.parse(DEFAULT_DELIVERY_CONFIG), ...parsed };
+    } catch (e) {
+        return JSON.parse(DEFAULT_DELIVERY_CONFIG);
+    }
+}
+
 // ================= SẢN PHẨM & TÙY CHỌN =================
 app.get('/api/products', (req, res) => {
     const sql = `SELECT p.*,
-        (SELECT COUNT(*) FROM inventory i WHERE i.product_id = p.id AND i.is_sold = 0) as total_stock,
-        (SELECT COUNT(*) FROM inventory i WHERE i.product_id = p.id AND i.is_sold = 1) as total_sold
-        FROM products p ORDER BY p.id DESC`;
+        (SELECT COUNT(*) FROM inventory i WHERE i.product_id = p.id AND i.is_sold = 1) as inv_sold,
+        (SELECT COALESCE(SUM(o.quantity), 0) FROM orders o WHERE o.product_id = p.id) as orders_sold
+        FROM products p ORDER BY COALESCE(p.is_featured, 0) DESC, p.id DESC`;
     db.all(sql, [], (err, prods) => {
         if (!prods || !prods.length) return res.json([]);
-        db.all(`SELECT pv.*, (SELECT COUNT(*) FROM inventory i WHERE i.variant_id = pv.id AND i.is_sold = 0) as stock FROM product_variants pv ORDER BY pv.id ASC`, [], (vErr, variants) => {
+        db.all(`SELECT pv.*, (SELECT COUNT(*) FROM inventory i WHERE i.variant_id = pv.id AND i.is_sold = 0) as inv_stock FROM product_variants pv ORDER BY pv.id ASC`, [], (vErr, variants) => {
             const map = {};
-            (variants || []).forEach(v => { (map[v.product_id] = map[v.product_id] || []).push(v); });
+            (variants || []).forEach(v => {
+                const isContact = Number(v.is_contact_admin || 0) === 1;
+                const effectiveStock = isContact ? Math.max(0, Number(v.manual_stock || 0)) : Number(v.inv_stock || 0);
+                (map[v.product_id] = map[v.product_id] || []).push({
+                    ...v,
+                    is_contact_admin: isContact ? 1 : 0,
+                    manual_stock: Number(v.manual_stock || 0),
+                    inv_stock: Number(v.inv_stock || 0),
+                    stock: effectiveStock
+                });
+            });
             res.json(prods.map(p => {
                 const vars = map[p.id] || [];
                 const minPrice = vars.length ? Math.min(...vars.map(v => Number(v.price) || 0)) : (Number(p.price) || 0);
+                const totalStock = vars.reduce((sum, v) => sum + Number(v.stock || 0), 0);
                 return {
                     ...p,
+                    category_name: (p.category_name && p.category_name.trim()) ? p.category_name.trim() : 'Tài khoản AI',
                     warranty: (p.warranty !== undefined && p.warranty !== null) ? p.warranty : '',
                     guide: p.guide || DEFAULT_GUIDE,
+                    is_contact_admin: Number(p.is_contact_admin || 0),
+                    is_hidden: Number(p.is_hidden || 0),
+                    is_featured: Number(p.is_featured || 0),
+                    delivery_config: parseDeliveryConfigSafe(p.delivery_config),
                     variants: vars,
                     min_price: minPrice,
-                    total_stock: Number(p.total_stock || 0)
+                    total_stock: totalStock,
+                    total_sold: Math.max(Number(p.inv_sold || 0), Number(p.orders_sold || 0))
                 };
             }));
         });
     });
 });
 
-// ================= MUA HÀNG =================
+// ================= MUA HÀNG (HỖ TRỢ CẢ TỰ ĐỘNG VÀ LIÊN HỆ ADMIN) =================
 app.post('/api/buy', (req, res) => {
     const { userId, productId, variantId, quantity } = req.body;
     const qty = Math.max(1, parseInt(quantity) || 1);
@@ -706,7 +857,9 @@ app.post('/api/buy', (req, res) => {
                 return res.status(503).json({ error: 'Trang web hiện đang tạm bảo trì để nâng cấp. Vui lòng quay lại sau ít phút!' });
             }
 
-            db.get(`SELECT p.name as product_name, p.warranty as product_warranty, p.guide as product_guide, pv.name as variant_name, pv.price 
+            db.get(`SELECT p.name as product_name, p.warranty as product_warranty, p.guide as product_guide,
+                           p.is_contact_admin as prod_contact_admin, p.delivery_config as prod_delivery_config,
+                           pv.name as variant_name, pv.price, pv.is_contact_admin as var_contact_admin, pv.manual_stock
                     FROM product_variants pv 
                     JOIN products p ON pv.product_id = p.id 
                     WHERE pv.id = ? AND pv.product_id = ?`, [variantId, productId], (vErr, itemInfo) => {
@@ -721,25 +874,71 @@ app.post('/api/buy', (req, res) => {
                     });
                 }
 
+                const isContactAdmin = Number(itemInfo.var_contact_admin || 0) === 1 || Number(itemInfo.prod_contact_admin || 0) === 1;
+                const deliveryCfgStr = itemInfo.prod_delivery_config || DEFAULT_DELIVERY_CONFIG;
+                const deliveryCfgObj = parseDeliveryConfigSafe(deliveryCfgStr);
+
+                const d = new Date();
+                const yy = String(d.getFullYear()).slice(-2);
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const rand = Math.floor(1000 + Math.random() * 9000);
+                const orderCode = `DH-${yy}${mm}${dd}-${rand}`;
+
+                // TRƯỜNG HỢP 1: LOẠI SẢN PHẨM / GÓI LIÊN HỆ ADMIN (THỦ CÔNG)
+                if (isContactAdmin) {
+                    const availManual = Math.max(0, Number(itemInfo.manual_stock || 0));
+                    if (availManual < qty) {
+                        return res.status(400).json({ error: `Rất tiếc, gói sản phẩm này hiện chỉ còn ${availManual} suất, không đủ ${qty} suất bạn cần mua!` });
+                    }
+
+                    db.run(`UPDATE users SET balance = balance - ? WHERE id = ?`, [totalPrice, userId], (uErr) => {
+                        if (uErr) return res.status(500).json({ error: 'Lỗi cập nhật số dư ví!' });
+
+                        db.run(`UPDATE product_variants SET manual_stock = MAX(0, COALESCE(manual_stock, 0) - ?) WHERE id = ?`, [qty, variantId], () => {
+                            db.run(`INSERT INTO orders (order_code, user_id, product_id, variant_id, product_name, variant_name, warranty, quantity, total_price, delivery_type, order_status, admin_note, delivery_config)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'contact_admin', 'pending', '', ?)`,
+                                [orderCode, userId, productId, variantId, itemInfo.product_name, itemInfo.variant_name, itemInfo.product_warranty || '', qty, totalPrice, deliveryCfgStr],
+                                function(oErr) {
+                                    const newOrderId = (this && this.lastID) ? this.lastID : Date.now();
+                                    res.json({
+                                        success: true,
+                                        message: `Thanh toán thành công đơn hàng #${orderCode}! Vui lòng sao chép mã đơn và liên hệ Admin để nhận tài khoản.`,
+                                        orderId: newOrderId,
+                                        orderCode: orderCode,
+                                        productId: productId,
+                                        productName: itemInfo.product_name,
+                                        warranty: itemInfo.product_warranty || '',
+                                        productGuide: itemInfo.product_guide || DEFAULT_GUIDE,
+                                        variantName: itemInfo.variant_name,
+                                        quantity: qty,
+                                        totalPrice: totalPrice,
+                                        deliveryType: 'contact_admin',
+                                        orderStatus: 'pending',
+                                        adminNote: '',
+                                        deliveryConfig: deliveryCfgObj,
+                                        accounts: []
+                                    });
+                                }
+                            );
+                        });
+                    });
+                    return;
+                }
+
+                // TRƯỜNG HỢP 2: LOẠI SẢN PHẨM GIAO TỰ ĐỘNG TỪ KHO
                 db.all(`SELECT id, account_data FROM inventory WHERE product_id = ? AND variant_id = ? AND is_sold = 0 ORDER BY id ASC LIMIT ?`,
                     [productId, variantId, qty], (iErr, items) => {
                     if (!items || items.length < qty) {
                         return res.status(400).json({ error: `Rất tiếc, kho chỉ còn ${items ? items.length : 0} tài khoản, không đủ ${qty} tài khoản bạn cần mua!` });
                     }
 
-                    const d = new Date();
-                    const yy = String(d.getFullYear()).slice(-2);
-                    const mm = String(d.getMonth() + 1).padStart(2, '0');
-                    const dd = String(d.getDate()).padStart(2, '0');
-                    const rand = Math.floor(1000 + Math.random() * 9000);
-                    const orderCode = `DH-${yy}${mm}${dd}-${rand}`;
-
                     db.run(`UPDATE users SET balance = balance - ? WHERE id = ?`, [totalPrice, userId], (uErr) => {
                         if (uErr) return res.status(500).json({ error: 'Lỗi cập nhật số dư ví!' });
 
-                        db.run(`INSERT INTO orders (order_code, user_id, product_id, variant_id, product_name, variant_name, warranty, quantity, total_price)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                            [orderCode, userId, productId, variantId, itemInfo.product_name, itemInfo.variant_name, itemInfo.product_warranty || '', qty, totalPrice],
+                        db.run(`INSERT INTO orders (order_code, user_id, product_id, variant_id, product_name, variant_name, warranty, quantity, total_price, delivery_type, order_status, admin_note, delivery_config, completed_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'auto', 'completed', '', ?, CURRENT_TIMESTAMP)`,
+                            [orderCode, userId, productId, variantId, itemInfo.product_name, itemInfo.variant_name, itemInfo.product_warranty || '', qty, totalPrice, deliveryCfgStr],
                             function(oErr) {
                                 const finalizeOrderInventory = (newOrderId) => {
                                     const itemIds = items.map(x => x.id);
@@ -759,6 +958,10 @@ app.post('/api/buy', (req, res) => {
                                                 variantName: itemInfo.variant_name,
                                                 quantity: qty,
                                                 totalPrice: totalPrice,
+                                                deliveryType: 'auto',
+                                                orderStatus: 'completed',
+                                                adminNote: '',
+                                                deliveryConfig: deliveryCfgObj,
                                                 accounts: items.map(x => x.account_data)
                                             });
                                         }
@@ -818,7 +1021,8 @@ app.post('/api/admin/warranty/exchange', verifyAdmin, (req, res) => {
 
 // LỊCH SỬ ĐƠN HÀNG CỦA KHÁCH
 app.get('/api/orders/:userId', (req, res) => {
-    const sql = `SELECT o.*, COALESCE(NULLIF(o.warranty, ''), p.warranty, '') as product_warranty, p.guide as product_guide 
+    const sql = `SELECT o.*, COALESCE(NULLIF(o.warranty, ''), p.warranty, '') as product_warranty,
+                        p.guide as product_guide, COALESCE(NULLIF(o.delivery_config, ''), p.delivery_config, '') as effective_delivery_config
                  FROM orders o LEFT JOIN products p ON o.product_id = p.id 
                  WHERE o.user_id = ? ORDER BY o.id DESC`;
     db.all(sql, [req.params.userId], (err, orders) => {
@@ -835,31 +1039,134 @@ app.get('/api/orders/:userId', (req, res) => {
                 ...o,
                 warranty: o.product_warranty || '',
                 guide: o.product_guide || DEFAULT_GUIDE,
+                delivery_type: o.delivery_type || 'auto',
+                order_status: o.order_status || 'completed',
+                admin_note: o.admin_note || '',
+                delivery_config: parseDeliveryConfigSafe(o.effective_delivery_config),
                 accounts: accMap[o.id] || []
             })));
         });
     });
 });
 
+// ================= TRA CỨU MÃ ĐƠN HÀNG CỦA KHÁCH (BẢO MẬT CHẶN TRA CỨU ĐƠN NGƯỜI KHÁC) =================
 app.get('/api/order-lookup/:code', (req, res) => {
-    const code = req.params.code.trim();
-    const sql = `SELECT o.*, COALESCE(NULLIF(o.warranty, ''), p.warranty, '') as product_warranty, p.guide as product_guide 
+    const code = (req.params.code || '').trim();
+    const requestUserId = req.query.userId || req.headers['x-user-id'];
+
+    if (!requestUserId) {
+        return res.status(401).json({
+            error: 'Vui lòng đăng nhập vào tài khoản đã mua đơn hàng này để tra cứu! (Hệ thống bảo mật không cho phép tra cứu ẩn danh hoặc xem đơn hàng của người khác).'
+        });
+    }
+
+    const sql = `SELECT o.*, COALESCE(NULLIF(o.warranty, ''), p.warranty, '') as product_warranty,
+                        p.guide as product_guide, COALESCE(NULLIF(o.delivery_config, ''), p.delivery_config, '') as effective_delivery_config
                  FROM orders o LEFT JOIN products p ON o.product_id = p.id 
                  WHERE UPPER(o.order_code) = UPPER(?) LIMIT 1`;
     db.get(sql, [code], (err, o) => {
-        if (!o) return res.status(404).json({ error: 'Không tìm thấy đơn hàng với mã này!' });
-        db.all(`SELECT account_data FROM inventory WHERE order_id = ? ORDER BY id ASC`, [o.id], (iErr, accRows) => {
-            res.json({
-                ...o,
-                warranty: o.product_warranty || '',
-                guide: o.product_guide || DEFAULT_GUIDE,
-                accounts: (accRows || []).map(a => a.account_data)
+        if (!o) {
+            return res.status(404).json({ error: 'Không tìm thấy đơn hàng với mã này trong tài khoản của bạn!' });
+        }
+
+        // Kiểm tra xem người đang tra cứu có phải chủ đơn hàng (hoặc Admin) hay không
+        db.get(`SELECT id, role FROM users WHERE id = ?`, [requestUserId], (uErr, caller) => {
+            const isCallerAdmin = caller && caller.role === 'admin';
+            if (!isCallerAdmin && Number(o.user_id) !== Number(requestUserId)) {
+                return res.status(403).json({
+                    error: 'Không tìm thấy mã đơn hàng này trong tài khoản của bạn! Vì lý do bảo mật, bạn chỉ có thể tra cứu đơn hàng do chính tài khoản của mình đã mua.'
+                });
+            }
+
+            db.all(`SELECT account_data FROM inventory WHERE order_id = ? ORDER BY id ASC`, [o.id], (iErr, accRows) => {
+                res.json({
+                    ...o,
+                    warranty: o.product_warranty || '',
+                    guide: o.product_guide || DEFAULT_GUIDE,
+                    delivery_type: o.delivery_type || 'auto',
+                    order_status: o.order_status || 'completed',
+                    admin_note: o.admin_note || '',
+                    delivery_config: parseDeliveryConfigSafe(o.effective_delivery_config),
+                    accounts: (accRows || []).map(a => a.account_data)
+                });
             });
         });
     });
 });
 
-// ================= NẠP TIỀN VIETQR (GIỚI HẠN ĐÚNG 10 PHÚT, QUÁ 10 PHÚT HỦY & XÓA LUÔN) =================
+// ================= TRA CỨU & QUẢN LÝ MÃ ĐƠN HÀNG DÀNH RIÊNG CHO ADMIN =================
+app.get('/api/admin/order-lookup/:code', verifyAdmin, (req, res) => {
+    const code = (req.params.code || '').trim();
+    if (!code) return res.status(400).json({ error: 'Vui lòng nhập mã đơn hàng cần tra cứu!' });
+
+    const sql = `
+        SELECT o.*, COALESCE(NULLIF(o.warranty, ''), p.warranty, '') as product_warranty,
+               p.guide as product_guide, COALESCE(NULLIF(o.delivery_config, ''), p.delivery_config, '') as effective_delivery_config,
+               u.username as buyer_username, u.email as buyer_email, u.phone as buyer_phone, u.balance as buyer_balance
+        FROM orders o
+        LEFT JOIN products p ON o.product_id = p.id
+        LEFT JOIN users u ON o.user_id = u.id
+        WHERE UPPER(o.order_code) = UPPER(?) OR UPPER(o.order_code) LIKE UPPER(?)
+        ORDER BY o.id DESC LIMIT 10
+    `;
+    const cleanCode = code.replace(/^#/, '');
+    db.all(sql, [cleanCode, `%${cleanCode}%`], (err, orders) => {
+        if (!orders || !orders.length) {
+            return res.status(404).json({ error: `Không tìm thấy đơn hàng nào khớp với mã [${code}] trong hệ thống!` });
+        }
+        const orderIds = orders.map(o => o.id);
+        const placeholders = orderIds.map(() => '?').join(',');
+        db.all(`SELECT id, order_id, account_data FROM inventory WHERE order_id IN (${placeholders}) ORDER BY id ASC`, orderIds, (iErr, accRows) => {
+            const accMap = {};
+            (accRows || []).forEach(a => {
+                if (!accMap[a.order_id]) accMap[a.order_id] = [];
+                accMap[a.order_id].push(a.account_data);
+            });
+            res.json(orders.map(o => ({
+                ...o,
+                warranty: o.product_warranty || '',
+                guide: o.product_guide || DEFAULT_GUIDE,
+                delivery_type: o.delivery_type || 'auto',
+                order_status: o.order_status || 'completed',
+                admin_note: o.admin_note || '',
+                delivery_config: parseDeliveryConfigSafe(o.effective_delivery_config),
+                accounts: accMap[o.id] || []
+            })));
+        });
+    });
+});
+
+// CẬP NHẬT TRẠNG THÁI HOÀN THÀNH ĐƠN HÀNG & GHI CHÚ BÀN GIAO CỦA ADMIN
+app.post('/api/admin/orders/status', verifyAdmin, (req, res) => {
+    const { orderId, orderCode, status, adminNote } = req.body;
+    const nextStatus = status === 'pending' ? 'pending' : 'completed';
+    const whereClause = orderId ? `id = ?` : `UPPER(order_code) = UPPER(?)`;
+    const whereVal = orderId ? orderId : String(orderCode || '').replace(/^#/, '').trim();
+
+    db.get(`SELECT * FROM orders WHERE ${whereClause}`, [whereVal], (err, ord) => {
+        if (!ord) return res.status(404).json({ error: 'Không tìm thấy đơn hàng!' });
+        const noteToSave = adminNote !== undefined ? String(adminNote) : (ord.admin_note || '');
+        db.run(
+            `UPDATE orders SET order_status = ?, admin_note = ?, completed_at = CASE WHEN ? = 'completed' THEN CURRENT_TIMESTAMP ELSE NULL END WHERE id = ?`,
+            [nextStatus, noteToSave, nextStatus, ord.id],
+            function(uErr) {
+                if (uErr) return res.status(500).json({ error: 'Lỗi khi cập nhật trạng thái đơn hàng!' });
+                res.json({
+                    success: true,
+                    orderId: ord.id,
+                    orderCode: ord.order_code,
+                    orderStatus: nextStatus,
+                    adminNote: noteToSave,
+                    message: nextStatus === 'completed'
+                        ? `✓ Đã đánh dấu HOÀN THÀNH đơn hàng #${ord.order_code}!`
+                        : `Đã chuyển đơn hàng #${ord.order_code} về trạng thái Chờ xử lý!`
+                });
+            }
+        );
+    });
+});
+
+// ================= NẠP TIỀN VIETQR =================
 app.post('/api/deposit/create', (req, res) => {
     const { userId, amount } = req.body;
     const val = parseInt(amount);
@@ -926,7 +1233,6 @@ app.get('/api/transactions/:userId', (req, res) => {
 });
 
 // ================= ADMIN APIS =================
-
 app.post('/api/admin/connect-turso', verifyAdmin, async (req, res) => {
     const { url, authToken } = req.body || {};
     if (!url || !authToken) return res.status(400).json({ error: 'Vui lòng nhập đầy đủ Turso URL và Auth Token!' });
@@ -957,24 +1263,27 @@ app.get('/api/admin/db-status', verifyAdmin, (req, res) => {
 
 // SAO LƯU & KHÔI PHỤC TOÀN BỘ DỮ LIỆU SHOP (.JSON) 1-CLICK
 app.get('/api/admin/backup-export', verifyAdmin, (req, res) => {
-    const backup = { exportedAt: new Date().toISOString(), version: 2 };
+    const backup = { exportedAt: new Date().toISOString(), version: 3 };
     db.all(`SELECT * FROM settings`, [], (e1, settings) => {
         backup.settings = settings || [];
-        db.all(`SELECT * FROM users`, [], (e2, users) => {
-            backup.users = users || [];
-            db.all(`SELECT * FROM products`, [], (e3, products) => {
-                backup.products = products || [];
-                db.all(`SELECT * FROM product_variants`, [], (e4, product_variants) => {
-                    backup.product_variants = product_variants || [];
-                    db.all(`SELECT * FROM stock_batches`, [], (e5, stock_batches) => {
-                        backup.stock_batches = stock_batches || [];
-                        db.all(`SELECT * FROM inventory`, [], (e6, inventory) => {
-                            backup.inventory = inventory || [];
-                            db.all(`SELECT * FROM orders`, [], (e7, orders) => {
-                                backup.orders = orders || [];
-                                db.all(`SELECT * FROM transactions`, [], (e8, transactions) => {
-                                    backup.transactions = transactions || [];
-                                    res.json(backup);
+        db.all(`SELECT * FROM categories`, [], (ec, categories) => {
+            backup.categories = categories || [];
+            db.all(`SELECT * FROM users`, [], (e2, users) => {
+                backup.users = users || [];
+                db.all(`SELECT * FROM products`, [], (e3, products) => {
+                    backup.products = products || [];
+                    db.all(`SELECT * FROM product_variants`, [], (e4, product_variants) => {
+                        backup.product_variants = product_variants || [];
+                        db.all(`SELECT * FROM stock_batches`, [], (e5, stock_batches) => {
+                            backup.stock_batches = stock_batches || [];
+                            db.all(`SELECT * FROM inventory`, [], (e6, inventory) => {
+                                backup.inventory = inventory || [];
+                                db.all(`SELECT * FROM orders`, [], (e7, orders) => {
+                                    backup.orders = orders || [];
+                                    db.all(`SELECT * FROM transactions`, [], (e8, transactions) => {
+                                        backup.transactions = transactions || [];
+                                        res.json(backup);
+                                    });
                                 });
                             });
                         });
@@ -997,6 +1306,12 @@ app.post('/api/admin/backup-import', verifyAdmin, async (req, res) => {
         await runQ(`DELETE FROM stock_batches`);
         await runQ(`DELETE FROM inventory`);
         await runQ(`DELETE FROM orders`);
+        if (Array.isArray(data.categories) && data.categories.length) {
+            await runQ(`DELETE FROM categories`);
+            for (const c of data.categories) {
+                if (c.name) await runQ(`INSERT OR REPLACE INTO categories (id, name, icon, sort_order, created_at) VALUES (?, ?, ?, ?, ?)`, [c.id, c.name, c.icon || 'fa-layer-group', Number(c.sort_order || 0), c.created_at || new Date().toISOString()]);
+            }
+        }
         for (const st of (data.settings || [])) {
             if (st.key) await runQ(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, [st.key, String(st.value ?? '')]);
         }
@@ -1004,10 +1319,16 @@ app.post('/api/admin/backup-import', verifyAdmin, async (req, res) => {
             if (u.username) await runQ(`INSERT OR REPLACE INTO users (id, username, email, phone, password, balance, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [u.id, u.username, u.email || '', u.phone || '', u.password || '123456', Number(u.balance || 0), u.role || 'user', u.created_at || new Date().toISOString()]);
         }
         for (const p of (data.products || [])) {
-            await runQ(`INSERT INTO products (id, name, old_price, image, warranty, description, guide, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [p.id, p.name, Number(p.old_price || 0), p.image || DEFAULT_IMG, p.warranty || '', p.description || '', p.guide || DEFAULT_GUIDE, p.created_at || new Date().toISOString()]);
+            await runQ(`INSERT INTO products (id, name, category_name, old_price, image, warranty, description, guide, is_contact_admin, delivery_config, is_hidden, is_featured, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+                p.id, p.name, p.category_name || 'Tài khoản AI', Number(p.old_price || 0), p.image || DEFAULT_IMG, p.warranty || '', p.description || '', p.guide || DEFAULT_GUIDE,
+                Number(p.is_contact_admin || 0), typeof p.delivery_config === 'object' ? JSON.stringify(p.delivery_config) : (p.delivery_config || DEFAULT_DELIVERY_CONFIG),
+                Number(p.is_hidden || 0), Number(p.is_featured || 0), p.created_at || new Date().toISOString()
+            ]);
         }
         for (const v of (data.product_variants || [])) {
-            await runQ(`INSERT INTO product_variants (id, product_id, name, price, created_at) VALUES (?, ?, ?, ?, ?)`, [v.id, v.product_id, v.name, Number(v.price || 0), v.created_at || new Date().toISOString()]);
+            await runQ(`INSERT INTO product_variants (id, product_id, name, price, is_contact_admin, manual_stock, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`, [
+                v.id, v.product_id, v.name, Number(v.price || 0), Number(v.is_contact_admin || 0), Number(v.manual_stock || 0), v.created_at || new Date().toISOString()
+            ]);
         }
         for (const b of (data.stock_batches || [])) {
             await runQ(`INSERT OR REPLACE INTO stock_batches (id, batch_code, batch_time, product_id, variant_id, variant_name, account_count, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [b.id, b.batch_code, b.batch_time, b.product_id, b.variant_id, b.variant_name || '', Number(b.account_count || 0), b.created_at || new Date().toISOString()]);
@@ -1016,7 +1337,11 @@ app.post('/api/admin/backup-import', verifyAdmin, async (req, res) => {
             await runQ(`INSERT INTO inventory (id, product_id, variant_id, variant_name, account_data, is_sold, order_id, buyer_id, sold_at, batch_code, batch_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [inv.id, inv.product_id, inv.variant_id, inv.variant_name || '', inv.account_data, Number(inv.is_sold || 0), inv.order_id || null, inv.buyer_id || null, inv.sold_at || null, inv.batch_code || 'DOT-BAN-DAU', inv.batch_time || 'Ban đầu', inv.created_at || new Date().toISOString()]);
         }
         for (const o of (data.orders || [])) {
-            await runQ(`INSERT INTO orders (id, order_code, user_id, product_id, variant_id, product_name, variant_name, warranty, quantity, total_price, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [o.id, o.order_code, o.user_id, o.product_id, o.variant_id, o.product_name || '', o.variant_name || '', o.warranty || '', Number(o.quantity || 1), Number(o.total_price || 0), o.created_at || new Date().toISOString()]);
+            await runQ(`INSERT INTO orders (id, order_code, user_id, product_id, variant_id, product_name, variant_name, warranty, quantity, total_price, delivery_type, order_status, admin_note, delivery_config, completed_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+                o.id, o.order_code, o.user_id, o.product_id, o.variant_id, o.product_name || '', o.variant_name || '', o.warranty || '', Number(o.quantity || 1), Number(o.total_price || 0),
+                o.delivery_type || 'auto', o.order_status || 'completed', o.admin_note || '', typeof o.delivery_config === 'object' ? JSON.stringify(o.delivery_config) : (o.delivery_config || DEFAULT_DELIVERY_CONFIG),
+                o.completed_at || null, o.created_at || new Date().toISOString()
+            ]);
         }
         res.json({ success: true, message: `Đã khôi phục thành công ${(data.products || []).length} sản phẩm và ${(data.inventory || []).length} tài khoản trong kho!` });
     } catch (err) {
@@ -1029,33 +1354,52 @@ app.get('/api/admin/stats', verifyAdmin, (req, res) => {
         const s = {};
         db.get(`SELECT COUNT(*) as totalUsers FROM users WHERE role != 'admin'`, (e1, r1) => {
             s.totalUsers = r1 ? r1.totalUsers : 0;
-            db.get(`SELECT COUNT(*) as totalOrders, COALESCE(SUM(total_price), 0) as totalRevenue FROM orders`, (e2, r2) => {
+            db.get(`SELECT COUNT(*) as totalOrders, COALESCE(SUM(total_price), 0) as totalRevenue, COALESCE(SUM(quantity), 0) as totalOrderItems, COUNT(CASE WHEN order_status = 'pending' THEN 1 END) as pendingAdminOrders FROM orders`, (e2, r2) => {
                 s.totalOrders = r2 ? r2.totalOrders : 0;
                 s.totalRevenue = r2 ? r2.totalRevenue : 0;
-                db.get(`SELECT COUNT(*) as totalSold FROM inventory WHERE is_sold = 1`, (e3, r3) => {
-                    s.totalSold = r3 ? r3.totalSold : 0;
-                    db.get(`SELECT COUNT(*) as totalStock FROM inventory WHERE is_sold = 0`, (e4, r4) => {
-                        s.totalStock = r4 ? r4.totalStock : 0;
-                        db.get(`SELECT COUNT(*) as pendingTx FROM transactions WHERE status = 'pending'`, (e5, r5) => {
-                            s.pendingTx = r5 ? r5.pendingTx : 0;
+                s.pendingAdminOrders = r2 ? (r2.pendingAdminOrders || 0) : 0;
+                const orderItemsQty = r2 ? (r2.totalOrderItems || 0) : 0;
+                db.get(`SELECT COUNT(*) as invSold FROM inventory WHERE is_sold = 1`, (e3, r3) => {
+                    const invSold = r3 ? (r3.invSold || 0) : 0;
+                    s.totalSold = Math.max(invSold, orderItemsQty);
+                    db.get(`SELECT COUNT(*) as invStock FROM inventory WHERE is_sold = 0`, (e4, r4) => {
+                        const invStock = r4 ? (r4.invStock || 0) : 0;
+                        db.get(`SELECT COALESCE(SUM(manual_stock), 0) as manualStock FROM product_variants WHERE is_contact_admin = 1`, (em, rm) => {
+                            s.totalStock = invStock + (rm ? Number(rm.manualStock || 0) : 0);
+                            db.get(`SELECT COUNT(*) as pendingTx FROM transactions WHERE status = 'pending'`, (e5, r5) => {
+                                s.pendingTx = r5 ? r5.pendingTx : 0;
 
-                            const breakdownSql = `
-                                SELECT 
-                                    p.id as product_id, p.name as product_name, p.image as product_image,
-                                    pv.id as variant_id, pv.name as variant_name, pv.price as variant_price,
-                                    COUNT(CASE WHEN i.is_sold = 1 THEN 1 END) as sold_count,
-                                    COUNT(CASE WHEN i.is_sold = 0 THEN 1 END) as stock_count,
-                                    COUNT(i.id) as total_count,
-                                    COALESCE(SUM(CASE WHEN i.is_sold = 1 THEN pv.price ELSE 0 END), 0) as sold_revenue
-                                FROM products p
-                                JOIN product_variants pv ON pv.product_id = p.id
-                                LEFT JOIN inventory i ON i.product_id = p.id AND i.variant_id = pv.id
-                                GROUP BY p.id, pv.id
-                                ORDER BY p.id ASC, pv.id ASC
-                            `;
-                            db.all(breakdownSql, [], (e6, bRows) => {
-                                s.soldBreakdown = bRows || [];
-                                res.json(s);
+                                const breakdownSql = `
+                                    SELECT 
+                                        p.id as product_id, p.name as product_name, p.category_name, p.image as product_image,
+                                        pv.id as variant_id, pv.name as variant_name, pv.price as variant_price,
+                                        pv.is_contact_admin, pv.manual_stock,
+                                        (SELECT COUNT(*) FROM inventory i WHERE i.product_id = p.id AND i.variant_id = pv.id AND i.is_sold = 1) as inv_sold_count,
+                                        (SELECT COUNT(*) FROM inventory i WHERE i.product_id = p.id AND i.variant_id = pv.id AND i.is_sold = 0) as inv_stock_count,
+                                        (SELECT COALESCE(SUM(o.quantity), 0) FROM orders o WHERE o.product_id = p.id AND o.variant_id = pv.id) as ord_sold_count,
+                                        (SELECT COALESCE(SUM(o.total_price), 0) FROM orders o WHERE o.product_id = p.id AND o.variant_id = pv.id) as ord_sold_revenue,
+                                        (SELECT COUNT(*) FROM orders o WHERE o.product_id = p.id AND o.variant_id = pv.id AND o.order_status = 'pending') as pending_orders_count
+                                    FROM products p
+                                    JOIN product_variants pv ON pv.product_id = p.id
+                                    ORDER BY p.id ASC, pv.id ASC
+                                `;
+                                db.all(breakdownSql, [], (e6, bRows) => {
+                                    s.soldBreakdown = (bRows || []).map(row => {
+                                        const isContact = Number(row.is_contact_admin || 0) === 1;
+                                        const soldCount = Math.max(Number(row.inv_sold_count || 0), Number(row.ord_sold_count || 0));
+                                        const stockCount = isContact ? Math.max(0, Number(row.manual_stock || 0)) : Number(row.inv_stock_count || 0);
+                                        const soldRev = Number(row.ord_sold_revenue || 0) || (soldCount * Number(row.variant_price || 0));
+                                        return {
+                                            ...row,
+                                            is_contact_admin: isContact ? 1 : 0,
+                                            sold_count: soldCount,
+                                            stock_count: stockCount,
+                                            sold_revenue: soldRev,
+                                            pending_orders_count: Number(row.pending_orders_count || 0)
+                                        };
+                                    });
+                                    res.json(s);
+                                });
                             });
                         });
                     });
@@ -1085,7 +1429,7 @@ app.get('/api/admin/cashflow', verifyAdmin, (req, res) => {
                                 SELECT 'deposit' as kind, t.id as ref_id, u.username as username, t.amount as amount, t.info as memo, t.status as status, t.created_at as created_at
                                 FROM transactions t JOIN users u ON t.user_id = u.id
                                 UNION ALL
-                                SELECT 'order' as kind, o.id as ref_id, u.username as username, o.total_price as amount, o.order_code as memo, 'completed' as status, o.created_at as created_at
+                                SELECT 'order' as kind, o.id as ref_id, u.username as username, o.total_price as amount, o.order_code as memo, o.order_status as status, o.created_at as created_at
                                 FROM orders o JOIN users u ON o.user_id = u.id
                             ) ORDER BY created_at DESC LIMIT 40
                         `;
@@ -1100,11 +1444,12 @@ app.get('/api/admin/cashflow', verifyAdmin, (req, res) => {
     });
 });
 
-// LỊCH SỬ BÁN HÀNG DÀNH CHO ADMIN
+// LỊCH SỬ BÁN HÀNG & ĐƠN HÀNG DÀNH CHO ADMIN
 app.get('/api/admin/sales-orders', verifyAdmin, (req, res) => {
-    const { productId, variantId } = req.query;
+    const { productId, variantId, status, deliveryType, search } = req.query;
     let sql = `
         SELECT o.*, COALESCE(NULLIF(o.warranty, ''), p.warranty, '') as product_warranty,
+               COALESCE(NULLIF(o.delivery_config, ''), p.delivery_config, '') as effective_delivery_config,
                u.username as buyer_username, u.email as buyer_email, u.phone as buyer_phone
         FROM orders o 
         LEFT JOIN products p ON o.product_id = p.id
@@ -1112,9 +1457,16 @@ app.get('/api/admin/sales-orders', verifyAdmin, (req, res) => {
         WHERE 1=1
     `;
     const params = [];
-    if (productId) { sql += ` AND o.product_id = ?`; params.push(productId); }
-    if (variantId) { sql += ` AND o.variant_id = ?`; params.push(variantId); }
-    sql += ` ORDER BY o.id DESC LIMIT 300`;
+    if (productId && productId !== 'ALL') { sql += ` AND o.product_id = ?`; params.push(productId); }
+    if (variantId && variantId !== 'ALL') { sql += ` AND o.variant_id = ?`; params.push(variantId); }
+    if (status && status !== 'ALL') { sql += ` AND COALESCE(o.order_status, 'completed') = ?`; params.push(status); }
+    if (deliveryType && deliveryType !== 'ALL') { sql += ` AND COALESCE(o.delivery_type, 'auto') = ?`; params.push(deliveryType); }
+    if (search && search.trim()) {
+        const s = `%${search.trim().replace(/^#/, '')}%`;
+        sql += ` AND (o.order_code LIKE ? OR u.username LIKE ? OR u.email LIKE ? OR u.phone LIKE ? OR o.product_name LIKE ?)`;
+        params.push(s, s, s, s, s);
+    }
+    sql += ` ORDER BY CASE WHEN COALESCE(o.order_status, 'completed') = 'pending' THEN 0 ELSE 1 END ASC, o.id DESC LIMIT 300`;
     db.all(sql, params, (err, orders) => {
         if (!orders || !orders.length) return res.json([]);
         const orderIds = orders.map(o => o.id);
@@ -1128,34 +1480,46 @@ app.get('/api/admin/sales-orders', verifyAdmin, (req, res) => {
             res.json(orders.map(o => ({
                 ...o,
                 warranty: o.product_warranty || '',
+                delivery_type: o.delivery_type || 'auto',
+                order_status: o.order_status || 'completed',
+                admin_note: o.admin_note || '',
+                delivery_config: parseDeliveryConfigSafe(o.effective_delivery_config),
                 accounts: accMap[o.id] || []
             })));
         });
     });
 });
 
-// THÊM SẢN PHẨM MỚI (CHỜ LƯU XONG TẤT CẢ GÓI TÙY CHỌN MỚI TRẢ VỀ KẾT QUẢ)
+// THÊM SẢN PHẨM MỚI
 app.post('/api/admin/products', verifyAdmin, (req, res) => {
-    const { name, old_price, image, warranty, description, guide, variants } = req.body;
+    const { name, category_name, old_price, image, warranty, description, guide, is_contact_admin, delivery_config, is_hidden, is_featured, variants } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Vui lòng nhập tên sản phẩm!' });
     const varList = Array.isArray(variants) ? variants.filter(v => v.name && v.name.trim()) : [];
     if (!varList.length) return res.status(400).json({ error: 'Phải có ít nhất 1 tùy chọn giá!' });
 
+    const catName = (category_name && category_name.trim()) ? category_name.trim() : 'Tài khoản AI';
+    const prodContactAdmin = Number(is_contact_admin) ? 1 : 0;
+    const delivCfgStr = typeof delivery_config === 'object' ? JSON.stringify(delivery_config) : (delivery_config || DEFAULT_DELIVERY_CONFIG);
+
+    db.run(`INSERT OR IGNORE INTO categories (name) VALUES (?)`, [catName], () => {});
+
     const insertVariantsSequentially = async (newPid) => {
         if (!newPid) return res.status(500).json({ error: 'Không lấy được ID sản phẩm vừa tạo!' });
         for (const v of varList) {
+            const vContact = (v.is_contact_admin !== undefined ? Number(v.is_contact_admin) : prodContactAdmin) ? 1 : 0;
+            const vManualStock = Math.max(0, parseInt(v.manual_stock) || 0);
             await new Promise(resolve => {
-                db.run(`INSERT INTO product_variants (product_id, name, price) VALUES (?, ?, ?)`,
-                    [newPid, v.name.trim(), parseInt(v.price) || 0],
+                db.run(`INSERT INTO product_variants (product_id, name, price, is_contact_admin, manual_stock) VALUES (?, ?, ?, ?, ?)`,
+                    [newPid, v.name.trim(), parseInt(v.price) || 0, vContact, vManualStock],
                     () => resolve()
                 );
             });
         }
-        res.json({ success: true, message: 'Đã thêm sản phẩm & chế độ bảo hành thành công!', id: newPid });
+        res.json({ success: true, message: 'Đã thêm sản phẩm, cấu hình hiển thị & chế độ bảo hành thành công!', id: newPid });
     };
 
-    db.run(`INSERT INTO products (name, old_price, image, warranty, description, guide) VALUES (?, ?, ?, ?, ?, ?)`,
-        [name.trim(), parseInt(old_price) || 0, image || DEFAULT_IMG, (warranty || '').trim(), description || '', guide || DEFAULT_GUIDE],
+    db.run(`INSERT INTO products (name, category_name, old_price, image, warranty, description, guide, is_contact_admin, delivery_config, is_hidden, is_featured) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [name.trim(), catName, parseInt(old_price) || 0, image || DEFAULT_IMG, (warranty || '').trim(), description || '', guide || DEFAULT_GUIDE, prodContactAdmin, delivCfgStr, Number(is_hidden) ? 1 : 0, Number(is_featured) ? 1 : 0],
         function(err) {
             if (!err) {
                 const pid = this ? this.lastID : 0;
@@ -1171,11 +1535,17 @@ app.post('/api/admin/products', verifyAdmin, (req, res) => {
 });
 
 app.put('/api/admin/products/:id', verifyAdmin, (req, res) => {
-    const { name, old_price, image, warranty, description, guide, variants } = req.body;
+    const { name, category_name, old_price, image, warranty, description, guide, is_contact_admin, delivery_config, is_hidden, is_featured, variants } = req.body;
     const pid = req.params.id;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Tên không được để trống!' });
     const varList = Array.isArray(variants) ? variants.filter(v => v.name && v.name.trim()) : [];
     if (!varList.length) return res.status(400).json({ error: 'Sản phẩm phải có ít nhất 1 tùy chọn giá!' });
+
+    const catName = (category_name && category_name.trim()) ? category_name.trim() : 'Tài khoản AI';
+    const prodContactAdmin = Number(is_contact_admin) ? 1 : 0;
+    const delivCfgStr = typeof delivery_config === 'object' ? JSON.stringify(delivery_config) : (delivery_config || DEFAULT_DELIVERY_CONFIG);
+
+    db.run(`INSERT OR IGNORE INTO categories (name) VALUES (?)`, [catName], () => {});
 
     const updateVariants = () => {
         db.all(`SELECT id FROM product_variants WHERE product_id = ?`, [pid], async (vErr, existingVars) => {
@@ -1184,18 +1554,20 @@ app.put('/api/admin/products/:id', verifyAdmin, (req, res) => {
 
             for (const v of varList) {
                 const vId = parseInt(v.id);
+                const vContact = (v.is_contact_admin !== undefined ? Number(v.is_contact_admin) : prodContactAdmin) ? 1 : 0;
+                const vManualStock = Math.max(0, parseInt(v.manual_stock) || 0);
                 if (vId && existingIds.includes(vId)) {
                     keptIds.push(vId);
                     await new Promise(resolve => {
-                        db.run(`UPDATE product_variants SET name = ?, price = ? WHERE id = ?`,
-                            [v.name.trim(), parseInt(v.price) || 0, vId],
+                        db.run(`UPDATE product_variants SET name = ?, price = ?, is_contact_admin = ?, manual_stock = ? WHERE id = ?`,
+                            [v.name.trim(), parseInt(v.price) || 0, vContact, vManualStock, vId],
                             () => resolve()
                         );
                     });
                 } else {
                     await new Promise(resolve => {
-                        db.run(`INSERT INTO product_variants (product_id, name, price) VALUES (?, ?, ?)`,
-                            [pid, v.name.trim(), parseInt(v.price) || 0],
+                        db.run(`INSERT INTO product_variants (product_id, name, price, is_contact_admin, manual_stock) VALUES (?, ?, ?, ?, ?)`,
+                            [pid, v.name.trim(), parseInt(v.price) || 0, vContact, vManualStock],
                             function() {
                                 if (this && this.lastID) keptIds.push(Number(this.lastID));
                                 resolve();
@@ -1213,10 +1585,10 @@ app.put('/api/admin/products/:id', verifyAdmin, (req, res) => {
                                 WHERE product_id = ? 
                                 AND (variant_id IS NULL OR variant_id NOT IN (SELECT id FROM product_variants WHERE product_id = ?))`,
                             [firstVar.id, firstVar.name, pid, pid],
-                            () => res.json({ success: true, message: 'Đã lưu thay đổi sản phẩm & chế độ bảo hành thành công!' })
+                            () => res.json({ success: true, message: 'Đã lưu thay đổi sản phẩm, nút hiển thị & chế độ bảo hành thành công!' })
                         );
                     } else {
-                        res.json({ success: true, message: 'Đã lưu thay đổi sản phẩm & chế độ bảo hành thành công!' });
+                        res.json({ success: true, message: 'Đã lưu thay đổi sản phẩm, nút hiển thị & chế độ bảo hành thành công!' });
                     }
                 });
             };
@@ -1230,13 +1602,34 @@ app.put('/api/admin/products/:id', verifyAdmin, (req, res) => {
         });
     };
 
-    db.run(`UPDATE products SET name = ?, old_price = ?, image = ?, warranty = ?, description = ?, guide = ? WHERE id = ?`,
-        [name.trim(), parseInt(old_price) || 0, image || DEFAULT_IMG, (warranty || '').trim(), description || '', guide || DEFAULT_GUIDE, pid],
+    db.run(`UPDATE products SET name = ?, category_name = ?, old_price = ?, image = ?, warranty = ?, description = ?, guide = ?, is_contact_admin = ?, delivery_config = ?, is_hidden = ?, is_featured = ? WHERE id = ?`,
+        [name.trim(), catName, parseInt(old_price) || 0, image || DEFAULT_IMG, (warranty || '').trim(), description || '', guide || DEFAULT_GUIDE, prodContactAdmin, delivCfgStr, Number(is_hidden) ? 1 : 0, Number(is_featured) ? 1 : 0, pid],
         function(err) {
             if (err) return res.status(500).json({ error: 'Lỗi cập nhật sản phẩm: ' + err.message });
             updateVariants();
         }
     );
+});
+
+// CẬP NHẬT NHANH ẨN/HIỆN & GHIM SẢN PHẨM & SỐ LƯỢNG TỒN THỦ CÔNG (CHO LOẠI LIÊN HỆ ADMIN)
+app.post('/api/admin/products/:id/quick-toggle', verifyAdmin, (req, res) => {
+    const pid = req.params.id;
+    const { field, value } = req.body;
+    if (!['is_hidden', 'is_featured'].includes(field)) return res.status(400).json({ error: 'Trường không hợp lệ!' });
+    const val = Number(value) ? 1 : 0;
+    db.run(`UPDATE products SET ${field} = ? WHERE id = ?`, [val, pid], () => {
+        res.json({ success: true, message: 'Đã cập nhật trạng thái sản phẩm!' });
+    });
+});
+
+app.post('/api/admin/variants/manual-stock', verifyAdmin, (req, res) => {
+    const { variantId, manualStock, isContactAdmin } = req.body;
+    if (!variantId) return res.status(400).json({ error: 'Thiếu ID gói sản phẩm!' });
+    const stockVal = Math.max(0, parseInt(manualStock) || 0);
+    const contactVal = isContactAdmin !== undefined ? (Number(isContactAdmin) ? 1 : 0) : 1;
+    db.run(`UPDATE product_variants SET manual_stock = ?, is_contact_admin = ? WHERE id = ?`, [stockVal, contactVal, variantId], () => {
+        res.json({ success: true, message: `Đã cập nhật số lượng tồn kho (${stockVal} suất) cho gói Liên hệ Admin!` });
+    });
 });
 
 app.delete('/api/admin/products/:id', verifyAdmin, (req, res) => {
@@ -1312,7 +1705,7 @@ app.post('/api/admin/add-stock', verifyAdmin, (req, res) => {
 app.get('/api/admin/inventory', verifyAdmin, (req, res) => {
     const { productId, variantId, batchCode, status, search } = req.query;
     let sql = `
-        SELECT i.*, p.name as product_name, p.image as product_image,
+        SELECT i.*, p.name as product_name, p.image as product_image, p.category_name,
                u.username as buyer_name, u.email as buyer_email, o.order_code
         FROM inventory i 
         LEFT JOIN products p ON i.product_id = p.id 
@@ -1412,7 +1805,7 @@ app.post('/api/admin/clean-sold-stock', verifyAdmin, (req, res) => {
     });
 });
 
-// QUẢN LÝ KHÁCH HÀNG: TÌM KIẾM ĐA NĂNG & ĐỔI MẬT KHẨU CHO KHÁCH
+// QUẢN LÝ KHÁCH HÀNG
 app.get('/api/admin/users', verifyAdmin, (req, res) => {
     const search = (req.query.search || '').trim();
     let sql = `SELECT id, username, email, phone, password, balance, role, created_at, (SELECT COUNT(*) FROM orders WHERE user_id = users.id) as orders_count FROM users WHERE 1=1`;
@@ -1526,5 +1919,5 @@ app.post(['/api/webhook/shopeepay', '/api/webhook/web2m', '/api/webhook/payment'
 
 const PORT = process.env.PORT || 3000;
 dbReadyPromise.then(() => {
-    app.listen(PORT, () => console.log(`>>> JERRY SHOP ĐANG CHẠY TẠI: http://localhost:${PORT} <<<`));
+    app.listen(PORT, () => console.log(`>>> JERRY SHOP v3.0 ĐANG CHẠY TẠI: http://localhost:${PORT} <<<`));
 });
