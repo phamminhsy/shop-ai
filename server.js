@@ -837,7 +837,7 @@ app.get('/api/products', (req, res) => {
                     category_name: (p.category_name && p.category_name.trim()) ? p.category_name.trim() : 'Tài khoản AI',
                     warranty: (p.warranty !== undefined && p.warranty !== null) ? p.warranty : '',
                     guide: p.guide || DEFAULT_GUIDE,
-                    is_contact_admin: Number(p.is_contact_admin || 0),
+                    is_contact_admin: (vars.length > 0 && vars.every(v => Number(v.is_contact_admin) === 1)) ? 1 : 0,
                     is_hidden: Number(p.is_hidden || 0),
                     is_featured: Number(p.is_featured || 0),
                     delivery_config: parseDeliveryConfigSafe(p.delivery_config),
@@ -1510,7 +1510,7 @@ app.post('/api/admin/products', verifyAdmin, (req, res) => {
     if (!varList.length) return res.status(400).json({ error: 'Phải có ít nhất 1 tùy chọn giá!' });
 
     const catName = (category_name && category_name.trim()) ? category_name.trim() : 'Tài khoản AI';
-    const prodContactAdmin = Number(is_contact_admin) ? 1 : 0;
+    const prodContactAdmin = varList.every(v => Number(v.is_contact_admin) === 1) ? 1 : 0;
     const delivCfgStr = typeof delivery_config === 'object' ? JSON.stringify(delivery_config) : (delivery_config || DEFAULT_DELIVERY_CONFIG);
 
     db.run(`INSERT OR IGNORE INTO categories (name) VALUES (?)`, [catName], () => {});
@@ -1518,7 +1518,7 @@ app.post('/api/admin/products', verifyAdmin, (req, res) => {
     const insertVariantsSequentially = async (newPid) => {
         if (!newPid) return res.status(500).json({ error: 'Không lấy được ID sản phẩm vừa tạo!' });
         for (const v of varList) {
-            const vContact = (v.is_contact_admin !== undefined ? Number(v.is_contact_admin) : prodContactAdmin) ? 1 : 0;
+            const vContact = Number(v.is_contact_admin) === 1 ? 1 : 0;
             const vManualStock = Math.max(0, parseInt(v.manual_stock) || 0);
             const vDelivCfgStr = v.delivery_config
                 ? (typeof v.delivery_config === 'object' ? JSON.stringify(v.delivery_config) : String(v.delivery_config))
@@ -1557,7 +1557,7 @@ app.put('/api/admin/products/:id', verifyAdmin, (req, res) => {
     if (!varList.length) return res.status(400).json({ error: 'Sản phẩm phải có ít nhất 1 tùy chọn giá!' });
 
     const catName = (category_name && category_name.trim()) ? category_name.trim() : 'Tài khoản AI';
-    const prodContactAdmin = Number(is_contact_admin) ? 1 : 0;
+    const prodContactAdmin = varList.every(v => Number(v.is_contact_admin) === 1) ? 1 : 0;
     const delivCfgStr = typeof delivery_config === 'object' ? JSON.stringify(delivery_config) : (delivery_config || DEFAULT_DELIVERY_CONFIG);
 
     db.run(`INSERT OR IGNORE INTO categories (name) VALUES (?)`, [catName], () => {});
@@ -1569,7 +1569,7 @@ app.put('/api/admin/products/:id', verifyAdmin, (req, res) => {
 
             for (const v of varList) {
                 const vId = parseInt(v.id);
-                const vContact = (v.is_contact_admin !== undefined ? Number(v.is_contact_admin) : prodContactAdmin) ? 1 : 0;
+                const vContact = Number(v.is_contact_admin) === 1 ? 1 : 0;
                 const vManualStock = Math.max(0, parseInt(v.manual_stock) || 0);
                 const vDelivCfgStr = v.delivery_config
                     ? (typeof v.delivery_config === 'object' ? JSON.stringify(v.delivery_config) : String(v.delivery_config))
