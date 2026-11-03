@@ -463,6 +463,32 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
       </div>
     </div>
 
+    <!-- KHUNG TRẠNG THÁI TURSO CLOUD VĨNH VIỄN & SAO LƯU 1-CLICK NGAY ĐẦU ADMIN -->
+    <div id="top-turso-banner" class="bg-emerald-50 border-2 border-emerald-300 p-3 sm:p-3.5 rounded-2xl flex flex-wrap justify-between items-center gap-2.5 text-xs shadow-xs">
+      <div class="space-y-0.5 flex-1 min-w-[240px]">
+        <div class="flex flex-wrap items-center gap-2">
+          <b class="text-emerald-950 text-xs sm:text-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-cloud-bolt text-emerald-600"></i> Trạng Thái Cơ Sở Dữ Liệu Đám Mây (Turso Cloud):
+          </b>
+          <span id="top-badge-turso-status" class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
+            Đang kiểm tra...
+          </span>
+        </div>
+        <p id="top-lbl-turso-status-text" class="text-[11px] text-slate-600">
+          Đã tích hợp trực tiếp <b>libsql://shop-ai-db-phamminhsy.aws-ap-southeast-1.turso.io</b> kèm khóa xác thực vĩnh viễn.
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+        <button type="button" onclick="exportFullShopBackup()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl font-bold shadow flex items-center gap-1.5">
+          <i class="fa-solid fa-download"></i> Sao Lưu Toàn Bộ Shop (.json)
+        </button>
+        <label class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-xl font-bold shadow flex items-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-upload"></i> Khôi Phục File (.json)
+          <input type="file" accept=".json,application/json" class="hidden" onchange="importFullShopBackup(this)">
+        </label>
+      </div>
+    </div>
+
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 text-xs">
       <div class="bg-white p-3 rounded-xl border"><span class="text-slate-400 block text-[10px] font-bold">DOANH THU BÁN</span><b id="stat-revenue" class="text-sm sm:text-base font-black text-emerald-600">0đ</b></div>
       <div class="bg-white p-3 rounded-xl border"><span class="text-slate-400 block text-[10px] font-bold">ĐÃ BÁN / KHO CÒN</span><b class="text-sm sm:text-base font-black text-blue-600"><span id="stat-sold">0</span> / <span id="stat-stock">0</span></b></div>
@@ -2740,6 +2766,54 @@ async function viewSoldVariantAccounts(prodId, varId) {
   notify('Đang hiển thị danh sách các tài khoản ĐÃ BÁN của sản phẩm này!');
 }
 
+
+async function exportFullShopBackup() {
+  try {
+    const res = await fetch('/api/admin/backup-export', { headers: adminHeaders() });
+    if (!res.ok) return notify('Không thể xuất file sao lưu!', true);
+    const data = await res.json();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `JERRY_SHOP_BACKUP_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    notify(`Đã tải file sao lưu toàn bộ shop (${(data.products || []).length} SP, ${(data.inventory || []).length} acc)!`);
+  } catch (e) {
+    notify('Lỗi khi tải file sao lưu!', true);
+  }
+}
+
+async function importFullShopBackup(inputEl) {
+  const file = inputEl && inputEl.files && inputEl.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const payload = JSON.parse(text);
+    if (!payload || !Array.isArray(payload.products)) {
+      inputEl.value = '';
+      return notify('File .json không đúng định dạng sao lưu của Jerry Shop!', true);
+    }
+    const res = await fetch('/api/admin/backup-import', {
+      method: 'POST',
+      headers: adminHeaders(),
+      body: JSON.stringify(payload)
+    });
+    const d = await res.json();
+    inputEl.value = '';
+    if (!res.ok) return notify(d.error || 'Lỗi khôi phục dữ liệu!', true);
+    notify(d.message || 'Đã khôi phục toàn bộ dữ liệu thành công!');
+    await loadAdminDashboard(false);
+    await loadAdminInventory();
+  } catch (e) {
+    inputEl.value = '';
+    notify('Lỗi đọc file sao lưu .json!', true);
+  }
+}
+
 async function loadAdminDashboard(keepSelection = true) {
   if (!currentUser || currentUser.role !== 'admin') return;
   await loadProducts();
@@ -2782,19 +2856,22 @@ async function loadAdminDashboard(keepSelection = true) {
     const dbRes = await fetch('/api/admin/db-status', { headers: adminHeaders() });
     if (dbRes.ok) {
       const d = await dbRes.json();
-      const badge = document.getElementById('badge-turso-status');
-      const desc = document.getElementById('lbl-turso-status-text');
-      if (badge && desc) {
+      const updateDbBanner = (badgeEl, descEl, bannerEl) => {
+        if (!badgeEl || !descEl) return;
         if (d.isUsingTurso) {
-          badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300';
-          badge.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i>Đã Kết Nối Turso Cloud';
-          desc.innerHTML = `Đang lưu trên: <b class="text-blue-700 font-mono">${escapeHtml(d.databaseUrl)}</b>. Mọi dữ liệu được lưu trữ đồng bộ ổn định 100%!`;
+          if (bannerEl) bannerEl.className = 'bg-emerald-50 border-2 border-emerald-300 p-3 sm:p-3.5 rounded-2xl flex flex-wrap justify-between items-center gap-2.5 text-xs shadow-xs';
+          badgeEl.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300';
+          badgeEl.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i>Đã Kết Nối Turso Cloud Vĩnh Viễn';
+          descEl.innerHTML = `Đang lưu vĩnh viễn trên: <b class="text-blue-700 font-mono">${escapeHtml(d.databaseUrl)}</b>. Sửa code trên GitHub thoải mái không bao giờ mất dữ liệu!`;
         } else {
-          badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300';
-          badge.innerHTML = '<i class="fa-solid fa-shield-halved text-emerald-600 mr-1"></i>SQLite Server Ổn Định 100%';
-          desc.innerHTML = `Hệ thống đang chạy trên cơ sở dữ liệu <b>SQLite Server</b> ổn định 100%${d.tursoFallbackReason ? ` (Đã tự động vượt qua lỗi Turso: <code>${escapeHtml(d.tursoFallbackReason)}</code>)` : ''}. Mọi sản phẩm và tài khoản thêm vào được lưu trực tiếp trên máy chủ!`;
+          if (bannerEl) bannerEl.className = 'bg-amber-50 border-2 border-amber-400 p-3 sm:p-3.5 rounded-2xl flex flex-wrap justify-between items-center gap-2.5 text-xs shadow-xs';
+          badgeEl.className = 'px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-400';
+          badgeEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-600 mr-1"></i>Đang Dùng SQLite Nội Bộ';
+          descEl.innerHTML = `Đang chạy trên <b>SQLite Nội Bộ</b>${d.tursoFallbackReason ? ` (Lý do từ Turso: <code class="text-red-600 font-bold">${escapeHtml(d.tursoFallbackReason)}</code>)` : ''}. Hãy bấm <b>Sao Lưu Toàn Bộ Shop (.json)</b> trước khi sửa code trên GitHub!`;
         }
-      }
+      };
+      updateDbBanner(document.getElementById('badge-turso-status'), document.getElementById('lbl-turso-status-text'), null);
+      updateDbBanner(document.getElementById('top-badge-turso-status'), document.getElementById('top-lbl-turso-status-text'), document.getElementById('top-turso-banner'));
     }
   } catch (e) {}
 
