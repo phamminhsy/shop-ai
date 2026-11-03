@@ -479,6 +479,9 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
         </p>
       </div>
       <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+        <button type="button" onclick="document.getElementById('turso-quick-cfg-box').classList.toggle('hidden')" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-xl font-bold shadow flex items-center gap-1.5">
+          <i class="fa-solid fa-plug-circle-bolt text-yellow-300"></i> Cấu Hình Turso Trực Tiếp
+        </button>
         <button type="button" onclick="exportFullShopBackup()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl font-bold shadow flex items-center gap-1.5">
           <i class="fa-solid fa-download"></i> Sao Lưu Toàn Bộ Shop (.json)
         </button>
@@ -486,6 +489,21 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
           <i class="fa-solid fa-upload"></i> Khôi Phục File (.json)
           <input type="file" accept=".json,application/json" class="hidden" onchange="importFullShopBackup(this)">
         </label>
+      </div>
+      <div id="turso-quick-cfg-box" class="hidden w-full pt-2.5 mt-2 border-t border-emerald-200 grid sm:grid-cols-12 gap-2 items-end">
+        <div class="sm:col-span-5">
+          <label class="block font-bold text-[11px] text-slate-700 mb-0.5">Turso Database URL (libsql://... hoặc https://...):</label>
+          <input id="inp-quick-turso-url" type="text" value="libsql://shop-ai-db-phamminhsy.aws-ap-southeast-1.turso.io" class="w-full p-2 border rounded-xl bg-white text-xs font-mono">
+        </div>
+        <div class="sm:col-span-5">
+          <label class="block font-bold text-[11px] text-slate-700 mb-0.5">Turso Auth Token (eyJ...):</label>
+          <input id="inp-quick-turso-token" type="text" placeholder="Dán Turso Auth Token vào đây..." class="w-full p-2 border rounded-xl bg-white text-xs font-mono">
+        </div>
+        <div class="sm:col-span-2">
+          <button type="button" onclick="submitQuickTursoConnect()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-3 rounded-xl font-extrabold shadow">
+            Kết Nối Ngay
+          </button>
+        </div>
       </div>
     </div>
 
@@ -2766,6 +2784,28 @@ async function viewSoldVariantAccounts(prodId, varId) {
   notify('Đang hiển thị danh sách các tài khoản ĐÃ BÁN của sản phẩm này!');
 }
 
+
+
+async function submitQuickTursoConnect() {
+  const url = document.getElementById('inp-quick-turso-url')?.value.trim();
+  const authToken = document.getElementById('inp-quick-turso-token')?.value.trim();
+  if (!url || !authToken) return notify('Vui lòng nhập đầy đủ Turso URL và Auth Token!', true);
+  try {
+    const res = await fetch('/api/admin/connect-turso', {
+      method: 'POST',
+      headers: adminHeaders(),
+      body: JSON.stringify({ url, authToken })
+    });
+    const d = await res.json();
+    if (!res.ok) return notify(d.error || 'Lỗi kết nối Turso!', true);
+    notify(d.message || 'Đã kết nối Turso Cloud thành công!');
+    document.getElementById('turso-quick-cfg-box').classList.add('hidden');
+    await loadAdminDashboard(false);
+    await loadAdminInventory();
+  } catch (e) {
+    notify('Lỗi kết nối máy chủ!', true);
+  }
+}
 
 async function exportFullShopBackup() {
   try {
