@@ -1,14 +1,14 @@
 {
-  "name": "shop-ai",
-  "version": "2.0.0",
+  "name": "jerry-shop",
+  "version": "2.2.0",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "@libsql/client": "^0.15.4",
     "cors": "^2.8.5",
     "express": "^4.18.2",
-    "sqlite3": "^5.1.7",
-    "@libsql/client": "^0.6.0"
+    "sqlite3": "^5.1.7"
   }
 }
