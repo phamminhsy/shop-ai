@@ -15,10 +15,9 @@ app.use(express.static(__dirname));
 const DEFAULT_TURSO_URL = 'libsql://shop-ai-db-phamminhsy.aws-ap-southeast-1.turso.io';
 const DEFAULT_TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTM2MzA5NDMsImlkIjoiMDFhMTljYmEtZGUwMS03OGQ1LTgxMzUtZTEzNDMwYzNhZWY1Iiwia2lkIjoiYVpNLWpXclQ0ajhIWW1RRFl0eFVLeW9JM2YyYVdqTTBwV29uOW9sVTFqQSIsInJpZCI6IjZlNTkwYjRjLTI3N2UtNDZiMy1iMGI0LWE4NGQxOTI3OThlOSJ9.iRp-GToUj_xu2Fc7CW-1xA_QvlRABWF7lxHdDnU0zS9DtmM_HuPmV08F-l1ACZ-vfuXZr_X2QPgrIC-_3kmWCw';
 
-const TURSO_DATABASE_URL = (process.env.TURSO_DATABASE_URL || DEFAULT_TURSO_URL).trim();
-const TURSO_AUTH_TOKEN = (process.env.TURSO_AUTH_TOKEN || DEFAULT_TURSO_TOKEN).trim();
+let TURSO_DATABASE_URL = DEFAULT_TURSO_URL;
+let TURSO_AUTH_TOKEN = DEFAULT_TURSO_TOKEN;
 
-// Luôn khởi tạo SQLite local làm nền tảng vững chắc 100% (không bao giờ lỗi 400 migration jobs)
 const localDbPath = path.join(__dirname, 'database.sqlite');
 const sqliteDb = new sqlite3.Database(localDbPath);
 
@@ -27,20 +26,137 @@ let tursoVerified = false;
 let tursoLastError = '';
 let tursoClient = null;
 
-if (TURSO_AUTH_TOKEN && TURSO_DATABASE_URL) {
-    try {
-        const libsql = require('@libsql/client');
-        if (libsql && libsql.createClient) {
-            tursoClient = libsql.createClient({
-                url: TURSO_DATABASE_URL,
-                authToken: TURSO_AUTH_TOKEN
+// Bộ kết nối HTTPS /v2/pipeline trực tiếp tới Turso (vượt qua lỗi WebSocket/migration jobs của @libsql/client cũ)
+function createDirectHttpsTursoClient(rawUrl, authToken) {
+    const httpsUrl = String(rawUrl || '').trim().replace(/^libsql:\/\//i, 'https://').replace(/\/+$/, '');
+    const parsed = new URL(httpsUrl + '/v2/pipeline');
+    return {
+        execute(queryObj) {
+            const sql = typeof queryObj === 'string' ? queryObj : queryObj.sql;
+            const rawArgs = (typeof queryObj === 'object' && Array.isArray(queryObj.args)) ? queryObj.args : [];
+            const hranaArgs = rawArgs.map(v => {
+                if (v === null || v === undefined) return { type: 'null' };
+                if (typeof v === 'number') {
+                    if (Number.isInteger(v)) return { type: 'integer', value: String(v) };
+                    return { type: 'float', value: v };
+                }
+                return { type: 'text', value: String(v) };
             });
-            isUsingTurso = true;
+            const bodyStr = JSON.stringify({
+                requests: [
+                    { type: 'execute', stmt: { sql, args: hranaArgs } },
+                    { type: 'close' }
+                ]
+            });
+            return new Promise((resolve, reject) => {
+                const req = https.request({
+                    hostname: parsed.hostname,
+                    port: parsed.port || 443,
+                    path: parsed.pathname,
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                        'Content-Length': Buffer.byteLength(bodyStr)
+                    },
+                    timeout: 8000
+                }, (res) => {
+                    let chunks = [];
+                    res.on('data', d => chunks.push(d));
+                    res.on('end', () => {
+                        const text = Buffer.concat(chunks).toString('utf8');
+                        if (res.statusCode < 200 || res.statusCode >= 300) {
+                            return reject(new Error(`HTTP ${res.statusCode}: ${text.slice(0, 180)}`));
+                        }
+                        try {
+                            const data = JSON.parse(text);
+                            const first = data.results && data.results[0];
+                            if (!first) return reject(new Error('Phản hồi Turso trống'));
+                            if (first.type === 'error') {
+                                return reject(new Error(first.error && first.error.message ? first.error.message : JSON.stringify(first.error)));
+                            }
+                            const execRes = first.response && first.response.result ? first.response.result : {};
+                            const cols = (execRes.cols || []).map(c => c.name);
+                            const rows = (execRes.rows || []).map(r => {
+                                const obj = {};
+                                cols.forEach((colName, idx) => {
+                                    const cell = r[idx];
+                                    if (!cell || cell.type === 'null') obj[colName] = null;
+                                    else if (cell.type === 'integer') obj[colName] = Number(cell.value);
+                                    else if (cell.type === 'float') obj[colName] = Number(cell.value);
+                                    else obj[colName] = cell.value;
+                                });
+                                return obj;
+                            });
+                            resolve({
+                                rows,
+                                lastInsertRowid: execRes.last_insert_rowid ? Number(execRes.last_insert_rowid) : 0,
+                                rowsAffected: execRes.affected_row_count ? Number(execRes.affected_row_count) : 0
+                            });
+                        } catch (e) {
+                            reject(e);
+                        }
+                    });
+                });
+                req.on('error', reject);
+                req.on('timeout', () => { req.destroy(); reject(new Error('Turso HTTP Timeout')); });
+                req.write(bodyStr);
+                req.end();
+            });
         }
-    } catch (e) {
-        tursoLastError = e.message || 'Không thể khởi tạo @libsql/client';
-        isUsingTurso = false;
+    };
+}
+
+async function tryConnectTursoCandidates(customUrl = null, customToken = null) {
+    const candidates = [];
+    if (customUrl && customToken) {
+        candidates.push({ url: customUrl.trim(), token: customToken.trim(), mode: 'https-direct' });
+        candidates.push({ url: customUrl.trim(), token: customToken.trim(), mode: 'libsql-https' });
+        candidates.push({ url: customUrl.trim(), token: customToken.trim(), mode: 'libsql' });
     }
+    // 1. Ưu tiên Token & URL mới nhất của chủ shop trước tiên (tránh biến môi trường cũ bị lỗi trên Render ghi đè)
+    candidates.push({ url: DEFAULT_TURSO_URL, token: DEFAULT_TURSO_TOKEN, mode: 'https-direct' });
+    candidates.push({ url: DEFAULT_TURSO_URL, token: DEFAULT_TURSO_TOKEN, mode: 'libsql-https' });
+    candidates.push({ url: DEFAULT_TURSO_URL, token: DEFAULT_TURSO_TOKEN, mode: 'libsql' });
+
+    // 2. Thử thêm biến môi trường trên Render (nếu chủ shop có cấu hình DB khác trên Render)
+    const envUrl = (process.env.TURSO_DATABASE_URL || '').trim();
+    const envToken = (process.env.TURSO_AUTH_TOKEN || '').trim();
+    if (envUrl && envToken && (envUrl !== DEFAULT_TURSO_URL || envToken !== DEFAULT_TURSO_TOKEN)) {
+        candidates.push({ url: envUrl, token: envToken, mode: 'https-direct' });
+        candidates.push({ url: envUrl, token: envToken, mode: 'libsql-https' });
+        candidates.push({ url: envUrl, token: envToken, mode: 'libsql' });
+    }
+
+    let lastErr = '';
+    for (const c of candidates) {
+        try {
+            let client = null;
+            if (c.mode === 'https-direct') {
+                client = createDirectHttpsTursoClient(c.url, c.token);
+            } else {
+                const libsql = require('@libsql/client');
+                const targetUrl = c.mode === 'libsql-https' ? c.url.replace(/^libsql:\/\//i, 'https://') : c.url;
+                client = libsql.createClient({ url: targetUrl, authToken: c.token });
+            }
+            await client.execute('SELECT 1');
+            tursoClient = client;
+            TURSO_DATABASE_URL = c.url;
+            TURSO_AUTH_TOKEN = c.token;
+            isUsingTurso = true;
+            tursoVerified = true;
+            tursoLastError = '';
+            console.log(`>>> [TURSO CLOUD] Kết nối thành công (${c.mode}): ${TURSO_DATABASE_URL} <<<`);
+            return { ok: true, mode: c.mode, url: TURSO_DATABASE_URL };
+        } catch (err) {
+            lastErr = err && err.message ? err.message : String(err);
+        }
+    }
+    isUsingTurso = false;
+    tursoVerified = false;
+    tursoLastError = lastErr;
+    console.warn(`>>> [AUTO-HEAL DB] Không thể kết nối Turso (${lastErr}). Đang dùng SQLite nội bộ! <<<`);
+    return { ok: false, error: lastErr };
 }
 
 function sanitizeSqlArgs(params) {
@@ -197,16 +313,8 @@ async function initDatabaseSchema() {
         }
     };
 
-    // Kiểm tra kết nối Turso ngay lúc khởi động
-    if (isUsingTurso && tursoClient) {
-        try {
-            await tursoClient.execute('SELECT 1');
-            tursoVerified = true;
-            console.log(`>>> [TURSO CLOUD] Kết nối vĩnh viễn thành công: ${TURSO_DATABASE_URL} <<<`);
-        } catch (err) {
-            handleTursoFailure(err);
-        }
-    }
+    // Kiểm tra tất cả phương thức kết nối Turso ngay lúc khởi động (Ưu tiên Token mới + HTTPS Pipeline trực tiếp)
+    await tryConnectTursoCandidates();
 
     // 1. Cài đặt hệ thống & Giao diện
     await runAsync(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`);
@@ -818,6 +926,25 @@ app.get('/api/transactions/:userId', (req, res) => {
 });
 
 // ================= ADMIN APIS =================
+
+app.post('/api/admin/connect-turso', verifyAdmin, async (req, res) => {
+    const { url, authToken } = req.body || {};
+    if (!url || !authToken) return res.status(400).json({ error: 'Vui lòng nhập đầy đủ Turso URL và Auth Token!' });
+    const result = await tryConnectTursoCandidates(url.trim(), authToken.trim());
+    if (!result.ok) {
+        return res.status(400).json({ error: 'Không thể kết nối Turso với thông tin này: ' + (result.error || 'Lỗi kết nối') });
+    }
+    try {
+        await initDatabaseSchema();
+        res.json({
+            success: true,
+            message: `Đã kết nối thành công Turso Cloud (${result.url}) theo chế độ ${result.mode}!`,
+            databaseUrl: result.url
+        });
+    } catch (e) {
+        res.status(500).json({ error: 'Lỗi khởi tạo bảng trên Turso: ' + (e.message || 'Lỗi DB') });
+    }
+});
 
 app.get('/api/admin/db-status', verifyAdmin, (req, res) => {
     res.json({
