@@ -359,12 +359,13 @@ async function initDatabaseSchema() {
     await ensureColumn('products', 'delivery_config', 'TEXT');
     await ensureColumn('products', 'is_hidden', 'INTEGER DEFAULT 0');
     await ensureColumn('products', 'is_featured', 'INTEGER DEFAULT 0');
+    await ensureColumn('products', 'admin_note', "TEXT DEFAULT ''");
     await ensureColumn('products', 'created_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
 
-    // 5. Tùy chọn sản phẩm động (hỗ trợ cả tự động lẫn Liên hệ Admin + số lượng tồn thủ công)
+    // 5. Tùy chọn sản phẩm động (hỗ trợ cả tự động lẫn Liên hệ Admin + số lượng tồn thủ công + cấu hình nút hiển thị riêng từng gói)
     await runAsync(`CREATE TABLE IF NOT EXISTS product_variants (
         id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER, name TEXT, price INTEGER DEFAULT 0,
-        is_contact_admin INTEGER DEFAULT 0, manual_stock INTEGER DEFAULT 0,
+        is_contact_admin INTEGER DEFAULT 0, manual_stock INTEGER DEFAULT 0, delivery_config TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
     )`);
     await ensureColumn('product_variants', 'product_id', 'INTEGER');
@@ -372,6 +373,7 @@ async function initDatabaseSchema() {
     await ensureColumn('product_variants', 'price', 'INTEGER DEFAULT 0');
     await ensureColumn('product_variants', 'is_contact_admin', 'INTEGER DEFAULT 0');
     await ensureColumn('product_variants', 'manual_stock', 'INTEGER DEFAULT 0');
+    await ensureColumn('product_variants', 'delivery_config', 'TEXT');
 
     // 6. Đơn hàng (hỗ trợ trạng thái hoàn thành, loại bàn giao tự động / liên hệ Admin, ghi chú Admin)
     await runAsync(`CREATE TABLE IF NOT EXISTS orders (
@@ -472,13 +474,14 @@ async function initDatabaseSchema() {
         ['bank_name', 'MB BANK (Quân Đội)'],
         ['bank_account', '5428102008'],
         ['bank_owner', 'JERRY SHOP'],
-        ['min_deposit', '20000'],
+        ['min_deposit', '10000'],
         ['maintenance_mode', '0'],
         ['maintenance_message', 'Hệ thống đang tạm bảo trì để nâng cấp và cập nhật dữ liệu. Quý khách vui lòng quay lại sau ít phút!']
     ];
     for (const [k, v] of defaultSettings) {
         await runAsync(`INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`, [k, v]);
     }
+    await runAsync(`UPDATE settings SET value = '10000' WHERE key = 'min_deposit' AND (value = '20000' OR value IS NULL OR value = '')`);
 
     // Sản phẩm mẫu khởi tạo nếu DB hoàn toàn trống
     const { row: prodCountRow } = await getAsync(`SELECT COUNT(*) as count FROM products`);
@@ -810,15 +813,19 @@ app.get('/api/products', (req, res) => {
         if (!prods || !prods.length) return res.json([]);
         db.all(`SELECT pv.*, (SELECT COUNT(*) FROM inventory i WHERE i.variant_id = pv.id AND i.is_sold = 0) as inv_stock FROM product_variants pv ORDER BY pv.id ASC`, [], (vErr, variants) => {
             const map = {};
+            const prodCfgMap = {};
+            prods.forEach(p => { prodCfgMap[p.id] = p.delivery_config; });
             (variants || []).forEach(v => {
                 const isContact = Number(v.is_contact_admin || 0) === 1;
                 const effectiveStock = isContact ? Math.max(0, Number(v.manual_stock || 0)) : Number(v.inv_stock || 0);
+                const rawVarCfg = (v.delivery_config && String(v.delivery_config).trim()) ? v.delivery_config : prodCfgMap[v.product_id];
                 (map[v.product_id] = map[v.product_id] || []).push({
                     ...v,
                     is_contact_admin: isContact ? 1 : 0,
                     manual_stock: Number(v.manual_stock || 0),
                     inv_stock: Number(v.inv_stock || 0),
-                    stock: effectiveStock
+                    stock: effectiveStock,
+                    delivery_config: parseDeliveryConfigSafe(rawVarCfg)
                 });
             });
             res.json(prods.map(p => {
@@ -859,7 +866,8 @@ app.post('/api/buy', (req, res) => {
 
             db.get(`SELECT p.name as product_name, p.warranty as product_warranty, p.guide as product_guide,
                            p.is_contact_admin as prod_contact_admin, p.delivery_config as prod_delivery_config,
-                           pv.name as variant_name, pv.price, pv.is_contact_admin as var_contact_admin, pv.manual_stock
+                           pv.name as variant_name, pv.price, pv.is_contact_admin as var_contact_admin, pv.manual_stock,
+                           pv.delivery_config as var_delivery_config
                     FROM product_variants pv 
                     JOIN products p ON pv.product_id = p.id 
                     WHERE pv.id = ? AND pv.product_id = ?`, [variantId, productId], (vErr, itemInfo) => {
@@ -874,8 +882,10 @@ app.post('/api/buy', (req, res) => {
                     });
                 }
 
-                const isContactAdmin = Number(itemInfo.var_contact_admin || 0) === 1 || Number(itemInfo.prod_contact_admin || 0) === 1;
-                const deliveryCfgStr = itemInfo.prod_delivery_config || DEFAULT_DELIVERY_CONFIG;
+                const isContactAdmin = Number(itemInfo.var_contact_admin || 0) === 1;
+                const deliveryCfgStr = (itemInfo.var_delivery_config && String(itemInfo.var_delivery_config).trim())
+                    ? itemInfo.var_delivery_config
+                    : (itemInfo.prod_delivery_config || DEFAULT_DELIVERY_CONFIG);
                 const deliveryCfgObj = parseDeliveryConfigSafe(deliveryCfgStr);
 
                 const d = new Date();
@@ -1174,7 +1184,7 @@ app.post('/api/deposit/create', (req, res) => {
 
     cleanupExpiredDeposits(() => {
         db.get(`SELECT value FROM settings WHERE key = 'min_deposit'`, (err, row) => {
-            const minDep = row ? parseInt(row.value) : 20000;
+            const minDep = row ? parseInt(row.value) : 10000;
             if (val < minDep) return res.status(400).json({ error: `Số tiền nạp tối thiểu là ${minDep.toLocaleString()}đ!` });
 
             db.run(`DELETE FROM transactions WHERE user_id = ? AND status = 'pending'`, [userId], () => {
@@ -1326,8 +1336,10 @@ app.post('/api/admin/backup-import', verifyAdmin, async (req, res) => {
             ]);
         }
         for (const v of (data.product_variants || [])) {
-            await runQ(`INSERT INTO product_variants (id, product_id, name, price, is_contact_admin, manual_stock, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`, [
-                v.id, v.product_id, v.name, Number(v.price || 0), Number(v.is_contact_admin || 0), Number(v.manual_stock || 0), v.created_at || new Date().toISOString()
+            await runQ(`INSERT INTO product_variants (id, product_id, name, price, is_contact_admin, manual_stock, delivery_config, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
+                v.id, v.product_id, v.name, Number(v.price || 0), Number(v.is_contact_admin || 0), Number(v.manual_stock || 0),
+                typeof v.delivery_config === 'object' ? JSON.stringify(v.delivery_config) : (v.delivery_config || DEFAULT_DELIVERY_CONFIG),
+                v.created_at || new Date().toISOString()
             ]);
         }
         for (const b of (data.stock_batches || [])) {
@@ -1492,7 +1504,7 @@ app.get('/api/admin/sales-orders', verifyAdmin, (req, res) => {
 
 // THÊM SẢN PHẨM MỚI
 app.post('/api/admin/products', verifyAdmin, (req, res) => {
-    const { name, category_name, old_price, image, warranty, description, guide, is_contact_admin, delivery_config, is_hidden, is_featured, variants } = req.body;
+    const { name, category_name, old_price, image, warranty, description, guide, admin_note, is_contact_admin, delivery_config, is_hidden, is_featured, variants } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Vui lòng nhập tên sản phẩm!' });
     const varList = Array.isArray(variants) ? variants.filter(v => v.name && v.name.trim()) : [];
     if (!varList.length) return res.status(400).json({ error: 'Phải có ít nhất 1 tùy chọn giá!' });
@@ -1508,9 +1520,12 @@ app.post('/api/admin/products', verifyAdmin, (req, res) => {
         for (const v of varList) {
             const vContact = (v.is_contact_admin !== undefined ? Number(v.is_contact_admin) : prodContactAdmin) ? 1 : 0;
             const vManualStock = Math.max(0, parseInt(v.manual_stock) || 0);
+            const vDelivCfgStr = v.delivery_config
+                ? (typeof v.delivery_config === 'object' ? JSON.stringify(v.delivery_config) : String(v.delivery_config))
+                : delivCfgStr;
             await new Promise(resolve => {
-                db.run(`INSERT INTO product_variants (product_id, name, price, is_contact_admin, manual_stock) VALUES (?, ?, ?, ?, ?)`,
-                    [newPid, v.name.trim(), parseInt(v.price) || 0, vContact, vManualStock],
+                db.run(`INSERT INTO product_variants (product_id, name, price, is_contact_admin, manual_stock, delivery_config) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [newPid, v.name.trim(), parseInt(v.price) || 0, vContact, vManualStock, vDelivCfgStr],
                     () => resolve()
                 );
             });
@@ -1518,8 +1533,8 @@ app.post('/api/admin/products', verifyAdmin, (req, res) => {
         res.json({ success: true, message: 'Đã thêm sản phẩm, cấu hình hiển thị & chế độ bảo hành thành công!', id: newPid });
     };
 
-    db.run(`INSERT INTO products (name, category_name, old_price, image, warranty, description, guide, is_contact_admin, delivery_config, is_hidden, is_featured) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [name.trim(), catName, parseInt(old_price) || 0, image || DEFAULT_IMG, (warranty || '').trim(), description || '', guide || DEFAULT_GUIDE, prodContactAdmin, delivCfgStr, Number(is_hidden) ? 1 : 0, Number(is_featured) ? 1 : 0],
+    db.run(`INSERT INTO products (name, category_name, old_price, image, warranty, description, guide, admin_note, is_contact_admin, delivery_config, is_hidden, is_featured) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [name.trim(), catName, parseInt(old_price) || 0, image || DEFAULT_IMG, (warranty || '').trim(), description || '', guide || DEFAULT_GUIDE, (admin_note || '').trim(), prodContactAdmin, delivCfgStr, Number(is_hidden) ? 1 : 0, Number(is_featured) ? 1 : 0],
         function(err) {
             if (!err) {
                 const pid = this ? this.lastID : 0;
@@ -1535,7 +1550,7 @@ app.post('/api/admin/products', verifyAdmin, (req, res) => {
 });
 
 app.put('/api/admin/products/:id', verifyAdmin, (req, res) => {
-    const { name, category_name, old_price, image, warranty, description, guide, is_contact_admin, delivery_config, is_hidden, is_featured, variants } = req.body;
+    const { name, category_name, old_price, image, warranty, description, guide, admin_note, is_contact_admin, delivery_config, is_hidden, is_featured, variants } = req.body;
     const pid = req.params.id;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Tên không được để trống!' });
     const varList = Array.isArray(variants) ? variants.filter(v => v.name && v.name.trim()) : [];
@@ -1556,18 +1571,21 @@ app.put('/api/admin/products/:id', verifyAdmin, (req, res) => {
                 const vId = parseInt(v.id);
                 const vContact = (v.is_contact_admin !== undefined ? Number(v.is_contact_admin) : prodContactAdmin) ? 1 : 0;
                 const vManualStock = Math.max(0, parseInt(v.manual_stock) || 0);
+                const vDelivCfgStr = v.delivery_config
+                    ? (typeof v.delivery_config === 'object' ? JSON.stringify(v.delivery_config) : String(v.delivery_config))
+                    : delivCfgStr;
                 if (vId && existingIds.includes(vId)) {
                     keptIds.push(vId);
                     await new Promise(resolve => {
-                        db.run(`UPDATE product_variants SET name = ?, price = ?, is_contact_admin = ?, manual_stock = ? WHERE id = ?`,
-                            [v.name.trim(), parseInt(v.price) || 0, vContact, vManualStock, vId],
+                        db.run(`UPDATE product_variants SET name = ?, price = ?, is_contact_admin = ?, manual_stock = ?, delivery_config = ? WHERE id = ?`,
+                            [v.name.trim(), parseInt(v.price) || 0, vContact, vManualStock, vDelivCfgStr, vId],
                             () => resolve()
                         );
                     });
                 } else {
                     await new Promise(resolve => {
-                        db.run(`INSERT INTO product_variants (product_id, name, price, is_contact_admin, manual_stock) VALUES (?, ?, ?, ?, ?)`,
-                            [pid, v.name.trim(), parseInt(v.price) || 0, vContact, vManualStock],
+                        db.run(`INSERT INTO product_variants (product_id, name, price, is_contact_admin, manual_stock, delivery_config) VALUES (?, ?, ?, ?, ?, ?)`,
+                            [pid, v.name.trim(), parseInt(v.price) || 0, vContact, vManualStock, vDelivCfgStr],
                             function() {
                                 if (this && this.lastID) keptIds.push(Number(this.lastID));
                                 resolve();
@@ -1602,13 +1620,24 @@ app.put('/api/admin/products/:id', verifyAdmin, (req, res) => {
         });
     };
 
-    db.run(`UPDATE products SET name = ?, category_name = ?, old_price = ?, image = ?, warranty = ?, description = ?, guide = ?, is_contact_admin = ?, delivery_config = ?, is_hidden = ?, is_featured = ? WHERE id = ?`,
-        [name.trim(), catName, parseInt(old_price) || 0, image || DEFAULT_IMG, (warranty || '').trim(), description || '', guide || DEFAULT_GUIDE, prodContactAdmin, delivCfgStr, Number(is_hidden) ? 1 : 0, Number(is_featured) ? 1 : 0, pid],
+    db.run(`UPDATE products SET name = ?, category_name = ?, old_price = ?, image = ?, warranty = ?, description = ?, guide = ?, admin_note = COALESCE(?, admin_note, ''), is_contact_admin = ?, delivery_config = ?, is_hidden = ?, is_featured = ? WHERE id = ?`,
+        [name.trim(), catName, parseInt(old_price) || 0, image || DEFAULT_IMG, (warranty || '').trim(), description || '', guide || DEFAULT_GUIDE, admin_note !== undefined ? String(admin_note).trim() : null, prodContactAdmin, delivCfgStr, Number(is_hidden) ? 1 : 0, Number(is_featured) ? 1 : 0, pid],
         function(err) {
             if (err) return res.status(500).json({ error: 'Lỗi cập nhật sản phẩm: ' + err.message });
             updateVariants();
         }
     );
+});
+
+// LƯU GHI CHÚ NỘI BỘ SẢN PHẨM (POPUP GHI CHÚ DÀNH CHO ADMIN)
+app.post('/api/admin/products/:id/note', verifyAdmin, (req, res) => {
+    const pid = req.params.id;
+    const { admin_note } = req.body;
+    const cleanNote = String(admin_note ?? '').trim();
+    db.run(`UPDATE products SET admin_note = ? WHERE id = ?`, [cleanNote, pid], function(err) {
+        if (err) return res.status(500).json({ error: 'Lỗi khi lưu ghi chú sản phẩm!' });
+        res.json({ success: true, id: Number(pid), admin_note: cleanNote, message: 'Đã lưu ghi chú sản phẩm thành công!' });
+    });
 });
 
 // CẬP NHẬT NHANH ẨN/HIỆN & GHIM SẢN PHẨM & SỐ LƯỢNG TỒN THỦ CÔNG (CHO LOẠI LIÊN HỆ ADMIN)
