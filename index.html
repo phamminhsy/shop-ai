@@ -430,13 +430,14 @@ html, body {
     <div class="lg:col-span-3 bg-white p-4 sm:p-5 rounded-2xl border space-y-3">
       <h3 class="font-black text-xs sm:text-sm border-b pb-2 text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-building-columns text-blue-600"></i>Nạp Tiền Tự Động Qua VietQR (<span id="lbl-dep-bank-title">MB Bank</span>)</h3>
       <div class="bg-red-50 border-l-4 border-red-500 p-2.5 rounded-r-xl text-[11px] sm:text-xs text-red-800 space-y-1">
-        <div>• Định mức nạp tối thiểu là <b id="lbl-min-deposit-hint">20.000đ</b>. Chuyển khoản đúng số tài khoản và giữ nguyên nội dung bắt buộc.</div>
+        <div>• Định mức nạp tối thiểu là <b id="lbl-min-deposit-hint">10.000đ</b>. Chuyển khoản đúng số tài khoản và giữ nguyên nội dung bắt buộc.</div>
         <div class="font-bold text-red-700">• Lưu ý quan trọng: Mỗi mã nạp tiền chỉ có hiệu lực trong đúng <b>10 phút</b>. Quá 10 phút hệ thống sẽ <b>hủy và xóa luôn mã đó</b>.</div>
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-600 mb-1.5">CHỌN NHANH MỆNH GIÁ:</label>
-        <div class="grid grid-cols-5 gap-1.5">
-          <button onclick="selectAmount(20000, this)" class="amount-btn active border-2 border-slate-200 py-2 rounded-xl font-bold text-xs">20k</button>
+        <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+          <button onclick="selectAmount(10000, this)" class="amount-btn active border-2 border-slate-200 py-2 rounded-xl font-bold text-xs">10k</button>
+          <button onclick="selectAmount(20000, this)" class="amount-btn border-2 border-slate-200 py-2 rounded-xl font-bold text-xs">20k</button>
           <button onclick="selectAmount(50000, this)" class="amount-btn border-2 border-slate-200 py-2 rounded-xl font-bold text-xs">50k</button>
           <button onclick="selectAmount(100000, this)" class="amount-btn border-2 border-slate-200 py-2 rounded-xl font-bold text-xs">100k</button>
           <button onclick="selectAmount(200000, this)" class="amount-btn border-2 border-slate-200 py-2 rounded-xl font-bold text-xs">200k</button>
@@ -444,7 +445,7 @@ html, body {
         </div>
       </div>
       <div class="flex flex-wrap sm:flex-nowrap gap-2">
-        <input id="dep-amount" type="number" value="20000" min="20000" step="10000" class="w-full sm:flex-1 p-2.5 bg-slate-50 border-2 rounded-xl font-extrabold text-blue-600 text-xs sm:text-sm">
+        <input id="dep-amount" type="number" value="10000" min="10000" step="10000" class="w-full sm:flex-1 p-2.5 bg-slate-50 border-2 rounded-xl font-extrabold text-blue-600 text-xs sm:text-sm">
         <button onclick="createDeposit()" class="w-full sm:w-auto blue-header text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow shrink-0"><i class="fa-solid fa-qrcode mr-1"></i>Tạo Mã QR Nạp (Hạn 10p)</button>
       </div>
 
@@ -681,104 +682,34 @@ html, body {
             </div>
           </div>
 
-          <!-- TÙY CHỌN GÓI SẢN PHẨM + LOẠI TÀI KHOẢN LIÊN HỆ ADMIN (TỰ ĐIỀN SỐ LƯỢNG) -->
-          <div class="border-2 border-blue-200 bg-blue-50/50 p-3 rounded-xl space-y-2">
-            <div class="flex flex-wrap justify-between items-center gap-1.5">
+          <!-- DANH SÁCH CÁC GÓI TÙY CHỌN: MỖI GÓI CÓ LOẠI GIAO HÀNG & CẤU HÌNH NÚT HIỂN THỊ SAU KHI MUA RIÊNG BIỆT -->
+          <div class="border-2 border-blue-300 bg-blue-50/50 p-3 rounded-2xl space-y-3">
+            <div class="flex flex-wrap justify-between items-center gap-2 border-b border-blue-200 pb-2">
               <div>
-                <b class="text-blue-950 text-xs block">1. Các Gói Tùy Chọn, Giá Bán & Hình Thức Giao Hàng *</b>
-                <span class="text-[10px] text-slate-600">Chọn <b>"Giao tự động (Kho acc)"</b> hoặc <b>"Liên hệ Admin (Tự nhập số lượng sẵn)"</b></span>
+                <b class="text-blue-950 text-xs sm:text-sm flex items-center gap-1.5"><i class="fa-solid fa-layer-group text-blue-600"></i> Các Gói Tùy Chọn & Cấu Hình Giao Hàng Riêng Từng Gói *</b>
+                <span class="text-[10px] text-slate-600 block mt-0.5">Mỗi gói tùy chọn (VD: 2 tháng, 12 tháng, Tài khoản thường, Tài khoản Cookie...) đều được chỉnh <b>loại bàn giao</b> và <b>các nút Sao chép / Tải file riêng biệt</b>!</span>
               </div>
-              <button type="button" onclick="addVariantRow('', '', '', 0, 50)" class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-lg text-[11px] font-bold shadow-2xs shrink-0">+ Thêm gói mới</button>
+              <button type="button" onclick="addVariantRow('', '', '', 0, 50, null)" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-extrabold shadow flex items-center gap-1.5 shrink-0 transition hover:scale-105">
+                <i class="fa-solid fa-circle-plus text-yellow-300 text-sm"></i> + Thêm gói mới
+              </button>
             </div>
 
-            <label class="flex items-center gap-2 bg-amber-50 border border-amber-300 p-2 rounded-lg cursor-pointer select-none">
+            <label class="flex items-center gap-2 bg-amber-50 border border-amber-300 p-2 rounded-xl cursor-pointer select-none">
               <input type="checkbox" id="chk-prod-all-contact" onchange="toggleAllVariantsContactMode(this.checked)" class="w-4 h-4 rounded text-amber-600">
-              <span class="text-[11px] font-bold text-amber-950"><i class="fa-solid fa-headset text-amber-600 mr-1"></i>Đặt sản phẩm này là loại: <b>Mua xong lấy Mã Đơn Liên Hệ Admin</b> (Không cần nạp acc sẵn, tự điền số lượng)</span>
+              <span class="text-[11px] font-bold text-amber-950"><i class="fa-solid fa-headset text-amber-600 mr-1"></i>Chuyển nhanh tất cả các gói bên dưới sang loại: <b>Mua xong lấy Mã Đơn Liên Hệ Admin</b></span>
             </label>
 
-            <div id="variants-container" class="space-y-2"></div>
-          </div>
+            <!-- Container chứa danh sách các gói tùy chọn (Mỗi gói có bảng chỉnh nút sau khi mua riêng) -->
+            <div id="variants-container" class="space-y-3"></div>
 
-          <!-- CẤU HÌNH HIỂN THỊ SAU KHI MUA (TÙY CHỈNH TÊN 3 NÚT SAO CHÉP + BẬT/TẮT TẢI FILE .TXT / THƯ MỤC .ZIP) -->
-          <div class="border-2 border-purple-200 bg-purple-50/40 p-3 rounded-xl space-y-2.5">
-            <div class="border-b border-purple-200 pb-2">
-              <b class="text-purple-950 text-xs flex items-center gap-1.5"><i class="fa-solid fa-sliders text-purple-600"></i> 2. Tùy Chỉnh Giao Diện & Nút Sao Chép Khách Thấy Sau Khi Mua</b>
-              <p class="text-[10px] text-slate-600 mt-0.5">Khi tài khoản có định dạng <code>Mục 1 | Mục 2 | Mục 3</code>, bạn toàn quyền đổi tên từng nút sao chép, bật/tắt 1, 2 hoặc 3 nút, và bật/tắt nút tải file <code>.txt</code> hoặc thư mục <code>.zip</code>.</p>
-            </div>
-
-            <!-- Chọn nhanh mẫu cài đặt 1-click -->
-            <div class="space-y-1">
-              <span class="text-[10px] font-bold text-purple-900 block">Chọn nhanh mẫu hiển thị (Hoặc tự chỉnh chi tiết bên dưới):</span>
-              <div class="flex flex-wrap gap-1">
-                <button type="button" onclick="applyDeliveryPreset('email_pass')" class="bg-white hover:bg-purple-100 text-purple-900 border border-purple-300 px-2 py-1 rounded-lg text-[10px] font-bold">Mẫu 1: Email | Mật khẩu (2 nút)</button>
-                <button type="button" onclick="applyDeliveryPreset('user_pass_otp')" class="bg-white hover:bg-purple-100 text-purple-900 border border-purple-300 px-2 py-1 rounded-lg text-[10px] font-bold">Mẫu 2: Username | Pass | Link OTP (3 nút)</button>
-                <button type="button" onclick="applyDeliveryPreset('email_cookie_zip')" class="bg-white hover:bg-purple-100 text-purple-900 border border-purple-300 px-2 py-1 rounded-lg text-[10px] font-bold">Mẫu 3: Email | Cookie (Có tải .zip)</button>
-                <button type="button" onclick="applyDeliveryPreset('minimal_line')" class="bg-white hover:bg-purple-100 text-purple-900 border border-purple-300 px-2 py-1 rounded-lg text-[10px] font-bold">Mẫu 4: Tối giản (Chỉ Copy cả dòng)</button>
-              </div>
-            </div>
-
-            <!-- 3 Nút Sao Chép Thành Phần -->
-            <div class="space-y-1.5 bg-white p-2.5 rounded-xl border border-purple-200">
-              <div class="flex items-center justify-between gap-2 pb-1 border-b border-slate-100">
-                <span class="text-[11px] font-bold text-slate-700">Nhãn tiêu đề dòng tài khoản:</span>
-                <input id="cfg-account-label" type="text" value="Tài khoản" placeholder="VD: Tài khoản / Email / Acc VPN" class="w-40 p-1.5 border rounded-lg bg-slate-50 text-xs font-bold text-slate-800">
-              </div>
-
-              <!-- Nút 1 -->
-              <div class="flex items-center gap-2">
-                <label class="flex items-center gap-1.5 cursor-pointer shrink-0 w-28">
-                  <input type="checkbox" id="cfg-btn1-on" checked class="w-4 h-4 rounded text-blue-600">
-                  <span class="font-bold text-[11px] text-blue-800">Nút Mục 1:</span>
-                </label>
-                <input id="cfg-btn1-label" type="text" value="Copy Email" placeholder="VD: Copy Email / Copy Username" class="flex-1 p-1.5 border rounded-lg bg-slate-50 text-xs font-semibold min-w-0">
-              </div>
-
-              <!-- Nút 2 -->
-              <div class="flex items-center gap-2">
-                <label class="flex items-center gap-1.5 cursor-pointer shrink-0 w-28">
-                  <input type="checkbox" id="cfg-btn2-on" checked class="w-4 h-4 rounded text-emerald-600">
-                  <span class="font-bold text-[11px] text-emerald-800">Nút Mục 2:</span>
-                </label>
-                <input id="cfg-btn2-label" type="text" value="Copy Mật khẩu" placeholder="VD: Copy Pass / Copy Mật khẩu" class="flex-1 p-1.5 border rounded-lg bg-slate-50 text-xs font-semibold min-w-0">
-              </div>
-
-              <!-- Nút 3 -->
-              <div class="flex items-center gap-2">
-                <label class="flex items-center gap-1.5 cursor-pointer shrink-0 w-28">
-                  <input type="checkbox" id="cfg-btn3-on" checked class="w-4 h-4 rounded text-purple-600">
-                  <span class="font-bold text-[11px] text-purple-800">Nút Mục 3:</span>
-                </label>
-                <input id="cfg-btn3-label" type="text" value="Copy Link OTP" placeholder="VD: Copy Link OTP / Copy Cookie / Copy 2FA" class="flex-1 p-1.5 border rounded-lg bg-slate-50 text-xs font-semibold min-w-0">
-              </div>
-
-              <!-- Nút Copy Cả Dòng -->
-              <div class="flex items-center gap-2">
-                <label class="flex items-center gap-1.5 cursor-pointer shrink-0 w-28">
-                  <input type="checkbox" id="cfg-btncopyall-on" checked class="w-4 h-4 rounded text-slate-800">
-                  <span class="font-bold text-[11px] text-slate-800">Nút Cả dòng:</span>
-                </label>
-                <input id="cfg-btncopyall-label" type="text" value="Copy cả dòng" placeholder="VD: Copy cả dòng" class="flex-1 p-1.5 border rounded-lg bg-slate-50 text-xs font-semibold min-w-0">
-              </div>
-            </div>
-
-            <!-- Bật/Tắt Tải File .txt & Tải Thư Mục .zip -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-white p-2.5 rounded-xl border border-purple-200">
-              <label class="flex items-center gap-2 cursor-pointer select-none p-1 rounded hover:bg-slate-50">
-                <input type="checkbox" id="cfg-txt-on" checked class="w-4 h-4 rounded text-emerald-600">
-                <span class="text-[11px] font-bold text-slate-800"><i class="fa-solid fa-file-lines text-emerald-600 mr-1"></i>Cho phép tải file <b>.txt</b></span>
-              </label>
-              <label class="flex items-center gap-2 cursor-pointer select-none p-1 rounded hover:bg-slate-50">
-                <input type="checkbox" id="cfg-zip-on" class="w-4 h-4 rounded text-purple-600">
-                <span class="text-[11px] font-bold text-slate-800"><i class="fa-solid fa-folder-tree text-purple-600 mr-1"></i>Cho phép tải <b>Thư Mục (.zip)</b></span>
-              </label>
-              <label class="flex items-center gap-2 cursor-pointer select-none p-1 rounded hover:bg-slate-50 sm:col-span-2">
-                <input type="checkbox" id="cfg-part3-box" class="w-4 h-4 rounded text-amber-600">
-                <span class="text-[11px] font-semibold text-slate-700">Hiển thị Mục 3 thành khung văn bản riêng (Chỉ bật nếu Mục 3 là chuỗi Cookie dài)</span>
-              </label>
-            </div>
+            <!-- NÚT DẤU CỘNG LỚN ĐỂ THÊM NHIỀU GÓI TÙY CHỌN MỚI -->
+            <button type="button" onclick="addVariantRow('', '', '', 0, 50, null)" class="w-full py-3 px-4 rounded-xl border-2 border-dashed border-blue-500 bg-white hover:bg-blue-50 text-blue-700 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-2xs transition">
+              <i class="fa-solid fa-plus-circle text-base text-blue-600"></i>
+              <span>+ THÊM GÓI TÙY CHỌN MỚI (Thêm gói 2 tháng, 12 tháng, gói Cookie, gói thường...)</span>
+            </button>
 
             <!-- Tùy chọn Ghim nổi bật / Tạm ẩn -->
-            <div class="flex flex-wrap gap-3 pt-1">
+            <div class="flex flex-wrap gap-3 pt-1 border-t border-blue-200">
               <label class="flex items-center gap-1.5 cursor-pointer select-none">
                 <input type="checkbox" id="prod-featured" class="w-4 h-4 rounded text-amber-600">
                 <span class="text-[11px] font-bold text-amber-800"><i class="fa-solid fa-thumbtack mr-1"></i>Ghim nổi bật lên đầu Shop</span>
@@ -790,6 +721,32 @@ html, body {
             </div>
           </div>
 
+          <!-- Hidden default config inputs kept for backward compatibility -->
+          <div class="hidden">
+            <input id="cfg-account-label" type="text" value="Tài khoản">
+            <input type="checkbox" id="cfg-btn1-on" checked>
+            <input id="cfg-btn1-label" type="text" value="Copy Email">
+            <input type="checkbox" id="cfg-btn2-on" checked>
+            <input id="cfg-btn2-label" type="text" value="Copy Mật khẩu">
+            <input type="checkbox" id="cfg-btn3-on" checked>
+            <input id="cfg-btn3-label" type="text" value="Copy Link OTP">
+            <input type="checkbox" id="cfg-btncopyall-on" checked>
+            <input id="cfg-btncopyall-label" type="text" value="Copy cả dòng">
+            <input type="checkbox" id="cfg-txt-on" checked>
+            <input type="checkbox" id="cfg-zip-on">
+            <input type="checkbox" id="cfg-part3-box">
+          </div>
+
+          <input type="hidden" id="prod-admin-note" value="">
+          <div class="bg-amber-50 border border-amber-300 p-2.5 rounded-xl flex flex-wrap justify-between items-center gap-2">
+            <div>
+              <b class="text-amber-950 text-xs flex items-center gap-1.5"><i class="fa-solid fa-note-sticky text-amber-600"></i> Ghi Chú Riêng Của Admin Cho Sản Phẩm Này</b>
+              <span id="lbl-form-note-preview" class="text-[10px] text-slate-600 block truncate max-w-xs">Chưa có ghi chú nội bộ (Chỉ Admin mới xem được)</span>
+            </div>
+            <button type="button" onclick="openProductNoteModalFromForm()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 px-3 py-1.5 rounded-xl font-extrabold text-xs shadow-2xs flex items-center gap-1.5 shrink-0">
+              <i class="fa-solid fa-pen-to-square"></i> Mở Pop-up Ghi Chú
+            </button>
+          </div>
           <div><label class="block font-bold mb-1">Mô tả chi tiết sản phẩm</label><textarea id="prod-desc" rows="2" class="w-full p-2 border rounded-lg bg-slate-50" placeholder="Mô tả tính năng, lưu ý của sản phẩm này..."></textarea></div>
           <div><label class="block font-bold mb-1 text-blue-900">Hướng dẫn sử dụng (Popup HDSD) *</label><textarea id="prod-guide" rows="3" class="w-full p-2 border rounded-lg bg-slate-50" placeholder="Hướng dẫn cách đăng nhập, đổi pass hoặc liên hệ Admin..."></textarea></div>
           <button id="btn-save-product" onclick="saveProduct()" class="w-full blue-header text-white py-3 rounded-xl font-extrabold shadow text-xs sm:text-sm"><i class="fa-solid fa-floppy-disk mr-1"></i><span id="btn-save-prod-text">Lưu Sản Phẩm & Cấu Hình Hiển Thị</span></button>
@@ -1283,6 +1240,57 @@ html, body {
   </div>
 </div>
 
+<!-- POP-UP XÁC NHẬN MUA LẦN 2 (CHắc CHẮN SỐ LƯỢNG & GIÁ TIỀN TRƯỚC KHI TRỪ TIỀN) -->
+<div id="buy-confirm-step2-modal" onclick="if(event.target === this) closeBuyStep2Modal()" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-3 backdrop-blur-xs">
+  <div class="bg-white rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl border-2 border-blue-500 text-xs animate-[slideUpFade_0.2s_ease-out]">
+    <div class="blue-header text-white px-4 py-3 flex justify-between items-center">
+      <span class="font-extrabold flex items-center gap-1.5 text-xs sm:text-sm"><i class="fa-solid fa-circle-question text-yellow-300 text-base"></i>Xác Nhận Thanh Toán Lần Cuối</span>
+      <button type="button" onclick="closeBuyStep2Modal()" class="w-6 h-6 bg-white/20 hover:bg-red-500 rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="p-4 space-y-3.5 text-center">
+      <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 mx-auto flex items-center justify-center text-2xl shadow-inner">
+        <i class="fa-solid fa-cart-Flatbed-suitcase fa-basket-shopping"></i>
+      </div>
+      <div class="space-y-1">
+        <h4 class="font-black text-sm sm:text-base text-slate-900">Bạn có chắc chắn muốn mua?</h4>
+        <p id="step2-confirm-summary" class="text-xs text-slate-600 leading-relaxed font-medium">
+          Xác nhận mua <b id="step2-qty" class="text-blue-700 font-black">1</b> tài khoản với tổng giá <b id="step2-price" class="text-red-600 font-black">0đ</b>?
+        </p>
+      </div>
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-left space-y-1.5 text-[11px]">
+        <div class="flex justify-between items-start gap-2">
+          <span class="text-slate-500 shrink-0">Sản phẩm:</span>
+          <b id="step2-prod-name" class="text-slate-900 text-right line-clamp-2 font-bold">---</b>
+        </div>
+        <div class="flex justify-between items-center gap-2">
+          <span class="text-slate-500 shrink-0">Gói đã chọn:</span>
+          <b id="step2-var-name" class="text-blue-700 text-right font-bold">---</b>
+        </div>
+        <div class="flex justify-between items-center gap-2 border-t border-slate-200 pt-1.5">
+          <span class="text-slate-600 font-semibold">Số lượng mua:</span>
+          <b id="step2-qty-detail" class="text-slate-900 font-black text-xs">1 tài khoản</b>
+        </div>
+        <div class="flex justify-between items-center gap-2">
+          <span class="text-slate-600 font-semibold">Tổng tiền trừ ví:</span>
+          <b id="step2-total-detail" class="text-red-600 font-black text-sm">0đ</b>
+        </div>
+        <div class="flex justify-between items-center gap-2 text-[10px] text-slate-500 pt-1 border-t border-dashed border-slate-200">
+          <span>Số dư ví sau khi mua:</span>
+          <b id="step2-balance-after" class="text-emerald-700 font-bold">0đ</b>
+        </div>
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button type="button" onclick="closeBuyStep2Modal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl font-bold text-xs transition">
+          Quay Lại
+        </button>
+        <button type="button" id="btn-step2-execute-buy" onclick="executeBuyNow()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-black text-xs shadow-md flex items-center justify-center gap-1.5 transition">
+          <i class="fa-solid fa-circle-check"></i> Đồng Ý Mua Ngay
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- SUCCESS DELIVERY MODAL (HỖ TRỢ CẢ TỰ ĐỘNG THEO CẤU HÌNH NÚT & ĐƠN LIÊN HỆ ADMIN) -->
 <div id="success-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-3 backdrop-blur-xs">
   <div class="bg-white rounded-2xl max-w-lg w-full p-4 sm:p-5 space-y-3 text-xs shadow-2xl max-h-[90vh] overflow-y-auto custom-scroll">
@@ -1388,6 +1396,44 @@ html, body {
     <div class="flex gap-2 pt-1">
       <button type="button" onclick="closeDeleteConfirmModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-xl font-bold">Hủy Bỏ</button>
       <button type="button" id="btn-countdown-delete" disabled onclick="executeConfirmedDelete()" class="flex-1 bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white py-2 rounded-xl font-bold shadow transition"><span id="lbl-del-btn-text">Vui lòng chờ (3s)...</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- POP-UP GHI CHÚ NỘI BỘ SẢN PHẨM DÀNH RIÊNG CHO ADMIN -->
+<div id="prod-note-modal" onclick="if(event.target === this) closeProductNoteModal()" class="fixed inset-0 bg-black/65 z-50 hidden flex items-center justify-center p-3 backdrop-blur-xs">
+  <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl border-2 border-amber-400 text-xs animate-[slideUpFade_0.2s_ease-out]">
+    <div class="bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 px-4 py-3 flex justify-between items-center">
+      <span class="font-black flex items-center gap-1.5 text-xs sm:text-sm"><i class="fa-solid fa-note-sticky text-slate-950 text-base"></i>Ghi Chú Sản Phẩm (Chỉ Admin Thấy)</span>
+      <button type="button" onclick="closeProductNoteModal()" class="w-6 h-6 bg-black/15 hover:bg-red-600 hover:text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="p-4 space-y-3">
+      <div class="bg-amber-50 border border-amber-200 p-2.5 rounded-xl flex justify-between items-center gap-2">
+        <div class="min-w-0">
+          <span class="text-[10px] text-amber-800 font-bold block">ĐANG GHI CHÚ CHO SẢN PHẨM:</span>
+          <b id="mdl-prod-note-title" class="text-slate-900 font-black text-xs sm:text-sm block truncate">---</b>
+        </div>
+        <span class="bg-white border border-amber-300 text-amber-900 px-2 py-0.5 rounded-lg text-[10px] font-bold shrink-0">Nội bộ Admin</span>
+      </div>
+
+      <div class="space-y-1.5">
+        <div class="flex flex-wrap justify-between items-center gap-1">
+          <label class="font-bold text-slate-700 text-[11px]">Nội dung ghi chú (Nguồn nhập, giá vốn, lưu ý bảo hành, link gia hạn...):</label>
+          <div class="flex items-center gap-1">
+            <button type="button" onclick="pasteToInput('mdl-prod-note-textarea', this)" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fa-solid fa-paste mr-0.5"></i>Dán</button>
+            <button type="button" onclick="copyFromInput('mdl-prod-note-textarea', this)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fa-regular fa-copy mr-0.5"></i>Copy</button>
+            <button type="button" onclick="document.getElementById('mdl-prod-note-textarea').value=''" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2 py-0.5 rounded text-[10px] font-bold">Xóa trắng</button>
+          </div>
+        </div>
+        <textarea id="mdl-prod-note-textarea" rows="6" placeholder="Nhập ghi chú riêng của Admin cho sản phẩm này (Khách hàng sẽ không nhìn thấy mục này)..." class="w-full p-3 bg-slate-50 border-2 border-amber-300 rounded-xl font-medium text-xs text-slate-900 focus:outline-none focus:border-blue-600 custom-scroll"></textarea>
+      </div>
+
+      <div class="flex gap-2 pt-1">
+        <button type="button" onclick="closeProductNoteModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl font-bold text-xs">Đóng</button>
+        <button type="button" onclick="saveProductNoteFromModal()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 py-2.5 rounded-xl font-black text-xs shadow flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-floppy-disk"></i> Lưu Ghi Chú Ngay
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -1501,7 +1547,7 @@ let siteSettings = {
   bank_id: 'MB',
   bank_name: 'MB BANK (Quân Đội)',
   bank_account: '5428102008',
-  min_deposit: '20000',
+  min_deposit: '10000',
   maintenance_mode: '0',
   maintenance_message: 'Hệ thống đang tạm bảo trì để nâng cấp và cập nhật dữ liệu. Quý khách vui lòng quay lại sau ít phút!'
 };
@@ -1548,9 +1594,14 @@ function getNormalizedDeliveryConfig(cfg) {
   return { ...DEFAULT_DELIVERY_CFG, ...cfg };
 }
 
-function getProductDeliveryConfig(prodId, fallbackCfg = null) {
-  if (fallbackCfg && typeof fallbackCfg === 'object') return getNormalizedDeliveryConfig(fallbackCfg);
+function getProductDeliveryConfig(prodId, fallbackCfg = null, varId = null) {
   const p = allProducts.find(x => Number(x.id) === Number(prodId));
+  if (p && varId && Array.isArray(p.variants)) {
+    const v = p.variants.find(x => Number(x.id) === Number(varId));
+    if (v && v.delivery_config) return getNormalizedDeliveryConfig(v.delivery_config);
+  }
+  if (fallbackCfg && typeof fallbackCfg === 'object') return getNormalizedDeliveryConfig(fallbackCfg);
+  if (fallbackCfg && typeof fallbackCfg === 'string' && fallbackCfg.trim()) return getNormalizedDeliveryConfig(fallbackCfg);
   if (p && p.delivery_config) return getNormalizedDeliveryConfig(p.delivery_config);
   return getNormalizedDeliveryConfig(fallbackCfg);
 }
@@ -2325,15 +2376,16 @@ async function loadSiteSettings() {
     const res = await fetch('/api/settings');
     if (res.ok) {
       const d = await res.json();
+      if (d && String(d.min_deposit) === '20000') d.min_deposit = '10000';
       siteSettings = { ...siteSettings, ...d };
       safeSetStorage('jerry_site_settings', siteSettings);
     } else {
       const saved = safeGetStorage('jerry_site_settings', null);
-      if (saved) siteSettings = { ...siteSettings, ...saved };
+      if (saved) { if (String(saved.min_deposit) === '20000') saved.min_deposit = '10000'; siteSettings = { ...siteSettings, ...saved }; }
     }
   } catch (e) {
     const saved = safeGetStorage('jerry_site_settings', null);
-    if (saved) siteSettings = { ...siteSettings, ...saved };
+    if (saved) { if (String(saved.min_deposit) === '20000') saved.min_deposit = '10000'; siteSettings = { ...siteSettings, ...saved }; }
   }
   applySiteSettings();
 }
@@ -2538,7 +2590,7 @@ function applySiteSettings() {
   document.getElementById('lbl-dep-bank-title').innerText = siteSettings.bank_name;
   document.getElementById('lbl-dep-bank-name').innerText = siteSettings.bank_name;
   document.getElementById('lbl-dep-acc').innerText = siteSettings.bank_account;
-  document.getElementById('lbl-min-deposit-hint').innerText = Number(siteSettings.min_deposit || 20000).toLocaleString() + 'đ';
+  document.getElementById('lbl-min-deposit-hint').innerText = Number(siteSettings.min_deposit || 10000).toLocaleString() + 'đ';
   updateWebhookPreviewUrls();
   applyMaintenanceState();
 }
@@ -2690,7 +2742,7 @@ function populateSettingsForm() {
   document.getElementById('set-bank-id').value = siteSettings.bank_id || 'MB';
   document.getElementById('set-bank-name').value = siteSettings.bank_name || 'MB BANK (Quân Đội)';
   document.getElementById('set-bank-acc').value = siteSettings.bank_account || '5428102008';
-  document.getElementById('set-min-deposit').value = siteSettings.min_deposit || 20000;
+  document.getElementById('set-min-deposit').value = siteSettings.min_deposit || 10000;
   updateWebhookPreviewUrls();
   updateLogoLivePreview();
 }
@@ -3115,16 +3167,54 @@ function quickDepositForOrder() {
   if (currentMissingAmount > 0) {
     closeBuyModal();
     switchTab('deposit');
-    const amountToDep = Math.max(parseInt(siteSettings.min_deposit || 20000), currentMissingAmount);
+    const amountToDep = Math.max(parseInt(siteSettings.min_deposit || 10000), currentMissingAmount);
     document.getElementById('dep-amount').value = amountToDep;
     createDeposit();
     notify(`Đã tạo mã QR nạp ${amountToDep.toLocaleString()}đ (Hiệu lực 10 phút)!`);
   }
 }
 
-async function confirmBuy() {
+function closeBuyStep2Modal() {
+  const m = document.getElementById('buy-confirm-step2-modal');
+  if (m) m.classList.add('hidden');
+}
+
+function confirmBuy() {
   if (!selectedProduct) return;
   if (!currentUser) { closeBuyModal(); notify('Vui lòng đăng nhập trước!', true); return switchTab('auth'); }
+  const vars = selectedProduct.variants || [];
+  const v = vars.find(x => Number(x.id) === Number(selectedVariantId)) || vars[0];
+  const qty = Math.max(1, parseInt(document.getElementById('mdl-qty').value) || 1);
+  const total = Math.max(0, (v ? v.price : 0) * qty);
+  const stock = v ? Number(v.stock || 0) : 0;
+
+  if (stock < qty) {
+    return notify(`Kho hiện chỉ còn ${stock} tài khoản, không đủ số lượng ${qty} bạn chọn!`, true);
+  }
+
+  if (currentUser.balance < total) {
+    closeBuyModal();
+    quickDepositForOrder();
+    return;
+  }
+
+  // Hiển thị Pop-up Xác Nhận Mua Lần 2
+  const remBalance = Math.max(0, Number(currentUser.balance || 0) - total);
+  document.getElementById('step2-qty').innerText = qty;
+  document.getElementById('step2-price').innerText = total.toLocaleString() + 'đ';
+  document.getElementById('step2-prod-name').innerText = selectedProduct.name || 'Sản phẩm';
+  document.getElementById('step2-var-name').innerText = v ? v.name : 'Tiêu chuẩn';
+  document.getElementById('step2-qty-detail').innerText = `${qty} tài khoản`;
+  document.getElementById('step2-total-detail').innerText = `${total.toLocaleString()}đ`;
+  document.getElementById('step2-balance-after').innerText = `${remBalance.toLocaleString()}đ`;
+  document.getElementById('step2-confirm-summary').innerHTML = `Bạn xác nhận muốn mua <b class="text-blue-700 font-black">${qty} tài khoản</b> với tổng giá <b class="text-red-600 font-black">${total.toLocaleString()}đ</b>?`;
+
+  document.getElementById('buy-confirm-step2-modal').classList.remove('hidden');
+}
+
+let isExecutingBuy = false;
+async function executeBuyNow() {
+  if (isExecutingBuy || !selectedProduct || !currentUser) return;
   const vars = selectedProduct.variants || [];
   const v = vars.find(x => Number(x.id) === Number(selectedVariantId)) || vars[0];
   const qty = Math.max(1, parseInt(document.getElementById('mdl-qty').value) || 1);
@@ -3132,9 +3222,18 @@ async function confirmBuy() {
   const isContact = (v && Number(v.is_contact_admin) === 1) || Number(selectedProduct.is_contact_admin) === 1;
 
   if (currentUser.balance < total) {
+    closeBuyStep2Modal();
     closeBuyModal();
     quickDepositForOrder();
     return;
+  }
+
+  isExecutingBuy = true;
+  const btnStep2 = document.getElementById('btn-step2-execute-buy');
+  const origBtnHtml = btnStep2 ? btnStep2.innerHTML : '';
+  if (btnStep2) {
+    btnStep2.disabled = true;
+    btnStep2.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang xử lý...';
   }
 
   try {
@@ -3153,6 +3252,7 @@ async function confirmBuy() {
       if (d.missingAmount) currentMissingAmount = d.missingAmount;
       return notify(d.error || 'Lỗi khi mua!', true);
     }
+    closeBuyStep2Modal();
     closeBuyModal();
     showDeliveryModal(d);
     await refreshUser();
@@ -3192,7 +3292,7 @@ async function confirmBuy() {
       delivery_type: isContact ? 'contact_admin' : 'auto',
       order_status: isContact ? 'pending' : 'completed',
       admin_note: '',
-      delivery_config: getProductDeliveryConfig(selectedProduct.id),
+      delivery_config: getProductDeliveryConfig(selectedProduct.id, v ? v.delivery_config : null, v ? v.id : null),
       created_at: new Date().toLocaleString('vi-VN'),
       accounts: demoAccs
     };
@@ -3210,8 +3310,15 @@ async function confirmBuy() {
       deliveryConfig: newOrder.delivery_config,
       accounts: demoAccs
     });
+    closeBuyStep2Modal();
     updateUserState();
     renderProductGrid();
+  } finally {
+    isExecutingBuy = false;
+    if (btnStep2) {
+      btnStep2.disabled = false;
+      btnStep2.innerHTML = origBtnHtml;
+    }
   }
 }
 
@@ -3226,7 +3333,7 @@ function showDeliveryModal(d) {
   currentDeliveredCode = d.orderCode || d.order_code || 'DH';
   currentDeliveredProdId = d.productId || d.product_id || (selectedProduct ? selectedProduct.id : null);
 
-  const cfg = getProductDeliveryConfig(currentDeliveredProdId, d.deliveryConfig || d.delivery_config);
+  const cfg = getProductDeliveryConfig(currentDeliveredProdId, d.deliveryConfig || d.delivery_config, d.variantId || d.variant_id || selectedVariantId);
 
   document.getElementById('succ-msg').innerText = `Mã đơn: #${currentDeliveredCode} • Gói: [${d.variantName || d.variant_name}] (SL: ${d.quantity || (d.accounts ? d.accounts.length : 1)})${warrantyNote}`;
 
@@ -3319,7 +3426,7 @@ function renderOrderCardsInto(containerEl, ordersArray) {
 
   containerEl.innerHTML = ordersArray.map(o => {
     const accs = o.accounts || [];
-    const cfg = getProductDeliveryConfig(o.product_id, o.delivery_config);
+    const cfg = getProductDeliveryConfig(o.product_id, o.delivery_config, o.variant_id);
     const isContact = (o.delivery_type || 'auto') === 'contact_admin';
     const isCompleted = (o.order_status || 'completed') === 'completed';
 
@@ -3595,7 +3702,7 @@ async function toggleAdminOrderComplete(orderId, orderCode, targetStatus, noteIn
 async function createDeposit() {
   if (!currentUser) { notify('Vui lòng đăng nhập trước khi nạp tiền!', true); return switchTab('auth'); }
   const amount = parseInt(document.getElementById('dep-amount').value);
-  const minDep = parseInt(siteSettings.min_deposit || 20000);
+  const minDep = parseInt(siteSettings.min_deposit || 10000);
   if (!amount || amount < minDep) return notify(`Số tiền nạp tối thiểu là ${minDep.toLocaleString()}đ!`, true);
 
   try {
@@ -4153,56 +4260,332 @@ function getDeliveryConfigFromForm() {
   };
 }
 
-function initVariantsForm(vars = []) {
+function renumberVariantRows() {
+  document.querySelectorAll('#variants-container .variant-row').forEach((row, idx) => {
+    const badge = row.querySelector('.var-index-badge');
+    if (badge) badge.innerText = `Gói tùy chọn #${idx + 1}`;
+  });
+}
+
+function updateVariantConfigSummaryBadge(row) {
+  if (!row) return;
+  const isContact = row.querySelector('.var-contact-mode')?.value === '1';
+  const sumEl = row.querySelector('.var-cfg-summary-text');
+  if (!sumEl) return;
+  if (isContact) {
+    const mStock = row.querySelector('.var-manual-stock')?.value || 0;
+    sumEl.innerHTML = `<span class="text-amber-800 font-bold">💬 Khách mua xong nhận Mã Đơn & Liên hệ Admin (SL tồn: ${mStock})</span>`;
+    return;
+  }
+  const btns = [];
+  if (row.querySelector('.vcfg-btn1-on')?.checked) btns.push(row.querySelector('.vcfg-btn1-label')?.value || 'Nút 1');
+  if (row.querySelector('.vcfg-btn2-on')?.checked) btns.push(row.querySelector('.vcfg-btn2-label')?.value || 'Nút 2');
+  if (row.querySelector('.vcfg-btn3-on')?.checked) btns.push(row.querySelector('.vcfg-btn3-label')?.value || 'Nút 3');
+  const txtOn = row.querySelector('.vcfg-txt-on')?.checked;
+  const zipOn = row.querySelector('.vcfg-zip-on')?.checked;
+  sumEl.innerHTML = `Nút hiện: <b class="text-purple-800">${escapeHtml(btns.join(' | ') || 'Copy cả dòng')}</b> • .txt: <b>${txtOn ? 'Bật' : 'Tắt'}</b> • .zip: <b>${zipOn ? 'Bật' : 'Tắt'}</b>`;
+}
+
+function toggleVariantConfigPanel(btnEl) {
+  const row = btnEl.closest('.variant-row');
+  if (!row) return;
+  const panel = row.querySelector('.var-delivery-cfg-panel');
+  if (!panel) return;
+  const isHidden = panel.classList.contains('hidden');
+  panel.classList.toggle('hidden', !isHidden);
+  btnEl.innerHTML = isHidden
+    ? '<i class="fa-solid fa-chevron-up mr-1"></i>Thu gọn cấu hình sau khi mua'
+    : '<i class="fa-solid fa-sliders mr-1"></i>Chỉnh nút Copy & Tải file riêng gói này';
+}
+
+function applyVariantRowPreset(btnEl, presetName) {
+  const row = btnEl.closest('.variant-row');
+  if (!row) return;
+  let cfg = { ...DEFAULT_DELIVERY_CFG };
+  if (presetName === 'email_pass') {
+    cfg = {
+      account_label: 'Tài khoản',
+      btn1_enabled: true, btn1_label: 'Copy Email',
+      btn2_enabled: true, btn2_label: 'Copy Mật khẩu',
+      btn3_enabled: false, btn3_label: 'Copy Link OTP',
+      copy_line_enabled: true, copy_line_label: 'Copy cả dòng',
+      txt_enabled: true, zip_enabled: false, show_part3_box: false
+    };
+  } else if (presetName === 'user_pass_otp') {
+    cfg = {
+      account_label: 'Username',
+      btn1_enabled: true, btn1_label: 'Copy Username',
+      btn2_enabled: true, btn2_label: 'Copy Pass',
+      btn3_enabled: true, btn3_label: 'Copy Link OTP',
+      copy_line_enabled: true, copy_line_label: 'Copy cả dòng',
+      txt_enabled: true, zip_enabled: false, show_part3_box: false
+    };
+  } else if (presetName === 'email_cookie_zip') {
+    cfg = {
+      account_label: 'Email',
+      btn1_enabled: true, btn1_label: 'Copy Riêng Email',
+      btn2_enabled: true, btn2_label: 'Copy Pass',
+      btn3_enabled: true, btn3_label: 'Copy Riêng Cookie',
+      copy_line_enabled: false, copy_line_label: 'Copy cả dòng',
+      txt_enabled: true, zip_enabled: true, show_part3_box: true
+    };
+  } else if (presetName === 'minimal_line') {
+    cfg = {
+      account_label: 'Tài khoản',
+      btn1_enabled: false, btn1_label: 'Copy Email',
+      btn2_enabled: false, btn2_label: 'Copy Mật khẩu',
+      btn3_enabled: false, btn3_label: 'Copy Link OTP',
+      copy_line_enabled: true, copy_line_label: 'Sao chép tài khoản',
+      txt_enabled: false, zip_enabled: false, show_part3_box: false
+    };
+  }
+  populateVariantRowConfigInputs(row, cfg);
+  updateVariantConfigSummaryBadge(row);
+  notify('Đã áp dụng mẫu hiển thị sau khi mua cho riêng gói này!');
+}
+
+function populateVariantRowConfigInputs(row, rawCfg) {
+  const c = getNormalizedDeliveryConfig(rawCfg);
+  const setVal = (sel, val) => { const el = row.querySelector(sel); if (el) el.value = val; };
+  const setChk = (sel, val) => { const el = row.querySelector(sel); if (el) el.checked = Boolean(val); };
+
+  setVal('.vcfg-account-label', c.account_label || 'Tài khoản');
+  setChk('.vcfg-btn1-on', c.btn1_enabled);
+  setVal('.vcfg-btn1-label', c.btn1_label || 'Copy Email');
+  setChk('.vcfg-btn2-on', c.btn2_enabled);
+  setVal('.vcfg-btn2-label', c.btn2_label || 'Copy Mật khẩu');
+  setChk('.vcfg-btn3-on', c.btn3_enabled);
+  setVal('.vcfg-btn3-label', c.btn3_label || 'Copy Link OTP');
+  setChk('.vcfg-btncopyall-on', c.copy_line_enabled);
+  setVal('.vcfg-btncopyall-label', c.copy_line_label || 'Copy cả dòng');
+  setChk('.vcfg-txt-on', c.txt_enabled);
+  setChk('.vcfg-zip-on', c.zip_enabled);
+  setChk('.vcfg-part3-box', c.show_part3_box);
+}
+
+function extractVariantRowConfig(row) {
+  return {
+    account_label: (row.querySelector('.vcfg-account-label')?.value || 'Tài khoản').trim(),
+    btn1_enabled: Boolean(row.querySelector('.vcfg-btn1-on')?.checked),
+    btn1_label: (row.querySelector('.vcfg-btn1-label')?.value || 'Copy Email').trim(),
+    btn2_enabled: Boolean(row.querySelector('.vcfg-btn2-on')?.checked),
+    btn2_label: (row.querySelector('.vcfg-btn2-label')?.value || 'Copy Mật khẩu').trim(),
+    btn3_enabled: Boolean(row.querySelector('.vcfg-btn3-on')?.checked),
+    btn3_label: (row.querySelector('.vcfg-btn3-label')?.value || 'Copy Link OTP').trim(),
+    copy_line_enabled: Boolean(row.querySelector('.vcfg-btncopyall-on')?.checked),
+    copy_line_label: (row.querySelector('.vcfg-btncopyall-label')?.value || 'Copy cả dòng').trim(),
+    txt_enabled: Boolean(row.querySelector('.vcfg-txt-on')?.checked),
+    zip_enabled: Boolean(row.querySelector('.vcfg-zip-on')?.checked),
+    show_part3_box: Boolean(row.querySelector('.vcfg-part3-box')?.checked)
+  };
+}
+
+function initVariantsForm(vars = [], fallbackProdCfg = null) {
   const c = document.getElementById('variants-container');
   c.innerHTML = '';
   if (vars.length) {
-    vars.forEach(v => addVariantRow(v.id || '', v.name, v.price, v.is_contact_admin || 0, v.manual_stock ?? 50));
+    vars.forEach(v => addVariantRow(v.id || '', v.name, v.price, v.is_contact_admin || 0, v.manual_stock ?? 50, v.delivery_config || fallbackProdCfg));
   } else {
-    addVariantRow('', 'Bản tiêu chuẩn (Giao tự động)', 35000, 0, 0);
+    addVariantRow('', 'Gói 1 (VD: Tài khoản thường / 2 Tháng)', 35000, 0, 50, {
+      account_label: 'Tài khoản',
+      btn1_enabled: true, btn1_label: 'Copy Email',
+      btn2_enabled: true, btn2_label: 'Copy Mật khẩu',
+      btn3_enabled: false, btn3_label: 'Copy Link OTP',
+      copy_line_enabled: true, copy_line_label: 'Copy cả dòng',
+      txt_enabled: true, zip_enabled: false, show_part3_box: false
+    });
   }
 }
 
-function addVariantRow(id = '', name = '', price = '', isContactAdmin = 0, manualStock = 50) {
+function addVariantRow(id = '', name = '', price = '', isContactAdmin = 0, manualStock = 50, customDeliveryCfg = null, insertAfterRow = null) {
   const c = document.getElementById('variants-container');
   const r = document.createElement('div');
   const isContact = Number(isContactAdmin) === 1;
-  r.className = 'variant-row bg-white p-2.5 rounded-xl border border-slate-200 space-y-2 shadow-2xs';
+
+  // Tự động đoán cấu hình mặc định thông minh nếu tạo mới và tên gói có chữ Cookie
+  let initialCfg = customDeliveryCfg;
+  if (!initialCfg && /cookie/i.test(String(name || ''))) {
+    initialCfg = {
+      account_label: 'Email',
+      btn1_enabled: true, btn1_label: 'Copy Riêng Email',
+      btn2_enabled: true, btn2_label: 'Copy Pass',
+      btn3_enabled: true, btn3_label: 'Copy Riêng Cookie',
+      copy_line_enabled: false, copy_line_label: 'Copy cả dòng',
+      txt_enabled: true, zip_enabled: true, show_part3_box: true
+    };
+  }
+  const cfg = getNormalizedDeliveryConfig(initialCfg);
+
+  r.className = 'variant-row bg-white p-3 rounded-2xl border-2 border-blue-200 space-y-2.5 shadow-xs transition';
   r.innerHTML = `
     <input type="hidden" class="var-id" value="${escapeHtml(id || '')}">
-    <div class="flex flex-wrap sm:flex-nowrap gap-1.5 items-center">
-      <input type="text" placeholder="Tên gói (VD: 1 Tháng / Nâng cấp chính chủ)..." value="${escapeHtml(name)}" class="var-name w-full sm:flex-1 p-1.5 bg-slate-50 border rounded-lg text-xs font-semibold min-w-0">
-      <div class="flex gap-1.5 w-full sm:w-auto items-center">
-        <input type="number" placeholder="Giá VNĐ..." value="${escapeHtml(price)}" class="var-price flex-1 sm:w-28 p-1.5 bg-slate-50 border rounded-lg text-xs font-bold text-red-600">
-        <button type="button" onclick="this.closest('.variant-row').remove()" class="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 font-bold shrink-0 flex items-center justify-center" title="Xóa gói này"><i class="fa-solid fa-trash text-xs"></i></button>
+
+    <!-- Thanh tiêu đề gói + Nút dấu cộng (+) thêm gói & xóa gói -->
+    <div class="flex flex-wrap justify-between items-center gap-2 border-b border-slate-100 pb-2">
+      <div class="flex items-center gap-1.5">
+        <span class="var-index-badge bg-blue-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-lg shadow-2xs">Gói tùy chọn #1</span>
+        <span class="text-[10px] text-slate-400 font-semibold">Cấu hình độc lập cho riêng gói này</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button type="button" onclick="addVariantRow('', '', '', 0, 50, null, this.closest('.variant-row'))" class="bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-300 px-2.5 py-1 rounded-lg font-extrabold text-[10px] flex items-center gap-1 transition" title="Thêm 1 gói tùy chọn mới ngay bên dưới">
+          <i class="fa-solid fa-plus"></i> Thêm gói nữa
+        </button>
+        <button type="button" onclick="removeVariantRow(this)" class="bg-red-50 hover:bg-red-600 text-red-600 hover:text-white border border-red-200 px-2.5 py-1 rounded-lg font-bold text-[10px] flex items-center gap-1 transition" title="Xóa gói này">
+          <i class="fa-solid fa-trash"></i> Xóa gói
+        </button>
       </div>
     </div>
-    <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100 text-[11px]">
-      <div class="flex items-center gap-1.5">
-        <span class="text-slate-500 font-semibold">Loại gói:</span>
-        <select onchange="onVariantTypeRowChange(this)" class="var-contact-mode p-1 border rounded-lg font-bold text-[11px] ${isContact ? 'bg-amber-50 text-amber-900 border-amber-300' : 'bg-blue-50 text-blue-800 border-blue-200'}">
-          <option value="0" ${!isContact ? 'selected' : ''}>⚡ Giao tự động (Lấy từ Kho Acc)</option>
-          <option value="1" ${isContact ? 'selected' : ''}>💬 Liên hệ Admin (Mua xong lấy mã đơn)</option>
-        </select>
+
+    <!-- Tên gói & Giá bán -->
+    <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+      <div class="sm:col-span-8">
+        <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Tên gói tùy chọn (VD: Gói 2 Tháng / Gói 12 Tháng / Bản Thường / Bản Cookie) *</label>
+        <input type="text" placeholder="Nhập tên gói tùy chọn..." value="${escapeHtml(name)}" class="var-name w-full p-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-blue-600 focus:outline-none">
       </div>
-      <div class="var-manual-stock-wrap ${isContact ? 'flex' : 'hidden'} items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-lg border border-amber-300">
-        <span class="font-bold text-amber-950 text-[10px]">SL hàng sẵn có:</span>
-        <input type="number" min="0" value="${escapeHtml(manualStock)}" class="var-manual-stock w-20 p-1 border border-amber-400 rounded bg-white font-black text-red-600 text-center text-xs">
+      <div class="sm:col-span-4">
+        <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Giá bán gói này (VNĐ) *</label>
+        <input type="number" placeholder="VD: 35000" value="${escapeHtml(price)}" class="var-price w-full p-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-black text-red-600 focus:border-blue-600 focus:outline-none">
+      </div>
+    </div>
+
+    <!-- Hình thức giao của riêng gói này -->
+    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-2">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-[11px] font-extrabold text-slate-700"><i class="fa-solid fa-truck-fast text-blue-600 mr-1"></i>Cách giao của gói này:</span>
+          <select onchange="onVariantTypeRowChange(this)" class="var-contact-mode p-1.5 border rounded-xl font-extrabold text-[11px] ${isContact ? 'bg-amber-100 text-amber-950 border-amber-400' : 'bg-blue-50 text-blue-900 border-blue-300'}">
+            <option value="0" ${!isContact ? 'selected' : ''}>⚡ Giao Tài Khoản Tự Động (Từ Kho Acc của gói này)</option>
+            <option value="1" ${isContact ? 'selected' : ''}>💬 Liên Hệ Admin (Mua xong lấy Mã Đơn nhắn Admin)</option>
+          </select>
+        </div>
+
+        <!-- Ô nhập số lượng sẵn có khi chọn Liên hệ Admin -->
+        <div class="var-manual-stock-wrap ${isContact ? 'flex' : 'hidden'} items-center gap-1.5 bg-amber-100/80 px-2.5 py-1 rounded-xl border border-amber-400">
+          <span class="font-extrabold text-amber-950 text-[11px]">Số lượng nhận bán:</span>
+          <input type="number" min="0" oninput="updateVariantConfigSummaryBadge(this.closest('.variant-row'))" value="${escapeHtml(manualStock)}" class="var-manual-stock w-20 p-1 border border-amber-500 rounded-lg bg-white font-black text-red-600 text-center text-xs">
+        </div>
+
+        <!-- Nút mở bảng chỉnh nút Copy & File .txt/.zip riêng cho gói này -->
+        <button type="button" onclick="toggleVariantConfigPanel(this)" class="var-btn-toggle-cfg ${isContact ? 'hidden' : 'inline-flex'} bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1.5 rounded-xl font-bold text-[11px] shadow-2xs items-center">
+          <i class="fa-solid fa-sliders mr-1"></i>Chỉnh nút Copy & Tải file riêng gói này
+        </button>
+      </div>
+
+      <!-- Dòng tóm tắt cấu hình hiển thị của gói này -->
+      <div class="text-[10px] text-slate-600 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 flex items-center justify-between gap-2">
+        <span class="var-cfg-summary-text truncate"></span>
+      </div>
+
+      <!-- BẢNG TÙY CHỈNH HIỂN THỊ SAU KHI MUA RIÊNG BIỆT CHO GÓI NÀY -->
+      <div class="var-delivery-cfg-panel hidden bg-purple-50/70 border-2 border-purple-300 rounded-xl p-2.5 space-y-2.5 pt-2">
+        <div class="flex flex-wrap justify-between items-center gap-1 border-b border-purple-200 pb-1.5">
+          <b class="text-purple-950 text-[11px] flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles text-purple-600"></i> Khi khách mua gói này xong sẽ thấy những nút gì?</b>
+          <span class="text-[10px] text-purple-700 font-semibold">Độc lập hoàn toàn với các gói khác</span>
+        </div>
+
+        <!-- Mẫu chọn nhanh riêng cho gói này -->
+        <div class="flex flex-wrap gap-1">
+          <button type="button" onclick="applyVariantRowPreset(this, 'email_pass')" class="bg-white hover:bg-purple-100 text-purple-900 border border-purple-300 px-2 py-1 rounded-lg text-[10px] font-bold">Mẫu Thường: Email | Mật khẩu (2 nút)</button>
+          <button type="button" onclick="applyVariantRowPreset(this, 'user_pass_otp')" class="bg-white hover:bg-purple-100 text-purple-900 border border-purple-300 px-2 py-1 rounded-lg text-[10px] font-bold">Mẫu 3 Mục: User | Pass | Link OTP</button>
+          <button type="button" onclick="applyVariantRowPreset(this, 'email_cookie_zip')" class="bg-white hover:bg-purple-100 text-purple-900 border border-purple-300 px-2 py-1 rounded-lg text-[10px] font-bold">Mẫu Cookie: Email | Cookie + Tải .zip</button>
+          <button type="button" onclick="applyVariantRowPreset(this, 'minimal_line')" class="bg-white hover:bg-purple-100 text-purple-900 border border-purple-300 px-2 py-1 rounded-lg text-[10px] font-bold">Mẫu 1 Nút: Chỉ Copy cả dòng</button>
+        </div>
+
+        <div class="bg-white p-2.5 rounded-xl border border-purple-200 space-y-1.5">
+          <div class="flex items-center justify-between gap-2 pb-1 border-b border-slate-100">
+            <span class="text-[11px] font-bold text-slate-700">Nhãn tiêu đề dòng tài khoản:</span>
+            <input type="text" oninput="updateVariantConfigSummaryBadge(this.closest('.variant-row'))" class="vcfg-account-label w-36 p-1 border rounded-lg bg-slate-50 text-xs font-bold text-slate-800" value="${escapeHtml(cfg.account_label || 'Tài khoản')}">
+          </div>
+
+          <div class="flex items-center gap-2">
+            <label class="flex items-center gap-1.5 cursor-pointer shrink-0 w-24">
+              <input type="checkbox" onchange="updateVariantConfigSummaryBadge(this.closest('.variant-row'))" class="vcfg-btn1-on w-4 h-4 rounded text-blue-600" ${cfg.btn1_enabled ? 'checked' : ''}>
+              <span class="font-bold text-[11px] text-blue-800">Nút Mục 1:</span>
+            </label>
+            <input type="text" oninput="updateVariantConfigSummaryBadge(this.closest('.variant-row'))" class="vcfg-btn1-label flex-1 p-1.5 border rounded-lg bg-slate-50 text-xs font-semibold min-w-0" value="${escapeHtml(cfg.btn1_label || 'Copy Email')}" placeholder="VD: Copy Email / Copy Username">
+          </div>
+
+          <div class="flex items-center gap-2">
+            <label class="flex items-center gap-1.5 cursor-pointer shrink-0 w-24">
+              <input type="checkbox" onchange="updateVariantConfigSummaryBadge(this.closest('.variant-row'))" class="vcfg-btn2-on w-4 h-4 rounded text-emerald-600" ${cfg.btn2_enabled ? 'checked' : ''}>
+              <span class="font-bold text-[11px] text-emerald-800">Nút Mục 2:</span>
+            </label>
+            <input type="text" oninput="updateVariantConfigSummaryBadge(this.closest('.variant-row'))" class="vcfg-btn2-label flex-1 p-1.5 border rounded-lg bg-slate-50 text-xs font-semibold min-w-0" value="${escapeHtml(cfg.btn2_label || 'Copy Mật khẩu')}" placeholder="VD: Copy Mật khẩu / Copy Pass">
+          </div>
+
+          <div class="flex items-center gap-2">
+            <label class="flex items-center gap-1.5 cursor-pointer shrink-0 w-24">
+              <input type="checkbox" onchange="updateVariantConfigSummaryBadge(this.closest('.variant-row'))" class="vcfg-btn3-on w-4 h-4 rounded text-purple-600" ${cfg.btn3_enabled ? 'checked' : ''}>
+              <span class="font-bold text-[11px] text-purple-800">Nút Mục 3:</span>
+            </label>
+            <input type="text" oninput="updateVariantConfigSummaryBadge(this.closest('.variant-row'))" class="vcfg-btn3-label flex-1 p-1.5 border rounded-lg bg-slate-50 text-xs font-semibold min-w-0" value="${escapeHtml(cfg.btn3_label || 'Copy Link OTP')}" placeholder="VD: Copy Link OTP / Copy Cookie">
+          </div>
+
+          <div class="flex items-center gap-2">
+            <label class="flex items-center gap-1.5 cursor-pointer shrink-0 w-24">
+              <input type="checkbox" onchange="updateVariantConfigSummaryBadge(this.closest('.variant-row'))" class="vcfg-btncopyall-on w-4 h-4 rounded text-slate-800" ${cfg.copy_line_enabled ? 'checked' : ''}>
+              <span class="font-bold text-[11px] text-slate-800">Nút Cả dòng:</span>
+            </label>
+            <input type="text" oninput="updateVariantConfigSummaryBadge(this.closest('.variant-row'))" class="vcfg-btncopyall-label flex-1 p-1.5 border rounded-lg bg-slate-50 text-xs font-semibold min-w-0" value="${escapeHtml(cfg.copy_line_label || 'Copy cả dòng')}" placeholder="VD: Copy cả dòng">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 bg-white p-2 rounded-xl border border-purple-200">
+          <label class="flex items-center gap-2 cursor-pointer select-none p-1 rounded hover:bg-slate-50">
+            <input type="checkbox" onchange="updateVariantConfigSummaryBadge(this.closest('.variant-row'))" class="vcfg-txt-on w-4 h-4 rounded text-emerald-600" ${cfg.txt_enabled ? 'checked' : ''}>
+            <span class="text-[11px] font-bold text-slate-800"><i class="fa-solid fa-file-lines text-emerald-600 mr-1"></i>Cho phép tải file <b>.txt</b></span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer select-none p-1 rounded hover:bg-slate-50">
+            <input type="checkbox" onchange="updateVariantConfigSummaryBadge(this.closest('.variant-row'))" class="vcfg-zip-on w-4 h-4 rounded text-purple-600" ${cfg.zip_enabled ? 'checked' : ''}>
+            <span class="text-[11px] font-bold text-slate-800"><i class="fa-solid fa-folder-tree text-purple-600 mr-1"></i>Cho phép tải <b>Thư Mục (.zip)</b></span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer select-none p-1 rounded hover:bg-slate-50 sm:col-span-2">
+            <input type="checkbox" onchange="updateVariantConfigSummaryBadge(this.closest('.variant-row'))" class="vcfg-part3-box w-4 h-4 rounded text-amber-600" ${cfg.show_part3_box ? 'checked' : ''}>
+            <span class="text-[11px] font-semibold text-slate-700">Hiển thị Mục 3 thành khung văn bản riêng (Bật nếu gói này là tài khoản Cookie dài)</span>
+          </label>
+        </div>
       </div>
     </div>`;
-  c.appendChild(r);
+
+  if (insertAfterRow && insertAfterRow.parentNode === c) {
+    insertAfterRow.insertAdjacentElement('afterend', r);
+  } else {
+    c.appendChild(r);
+  }
+  renumberVariantRows();
+  updateVariantConfigSummaryBadge(r);
+}
+
+function removeVariantRow(btnEl) {
+  const allRows = document.querySelectorAll('#variants-container .variant-row');
+  if (allRows.length <= 1) {
+    return notify('Sản phẩm phải có ít nhất 1 gói tùy chọn!', true);
+  }
+  const row = btnEl.closest('.variant-row');
+  if (row) row.remove();
+  renumberVariantRows();
 }
 
 function onVariantTypeRowChange(selectEl) {
   const row = selectEl.closest('.variant-row');
   if (!row) return;
   const isContact = selectEl.value === '1';
-  selectEl.className = `var-contact-mode p-1 border rounded-lg font-bold text-[11px] ${isContact ? 'bg-amber-50 text-amber-900 border-amber-300' : 'bg-blue-50 text-blue-800 border-blue-200'}`;
+  selectEl.className = `var-contact-mode p-1.5 border rounded-xl font-extrabold text-[11px] ${isContact ? 'bg-amber-100 text-amber-950 border-amber-400' : 'bg-blue-50 text-blue-900 border-blue-300'}`;
   const wrap = row.querySelector('.var-manual-stock-wrap');
   if (wrap) {
     wrap.classList.toggle('hidden', !isContact);
     wrap.classList.toggle('flex', isContact);
   }
+  const btnCfg = row.querySelector('.var-btn-toggle-cfg');
+  const panelCfg = row.querySelector('.var-delivery-cfg-panel');
+  if (btnCfg) {
+    btnCfg.classList.toggle('hidden', isContact);
+    btnCfg.classList.toggle('inline-flex', !isContact);
+  }
+  if (isContact && panelCfg) {
+    panelCfg.classList.add('hidden');
+  }
+  updateVariantConfigSummaryBadge(row);
 }
 
 function toggleAllVariantsContactMode(checked) {
@@ -4223,7 +4606,8 @@ function getFormVariants() {
     const price = parseInt(r.querySelector('.var-price')?.value) || 0;
     const is_contact_admin = parseInt(r.querySelector('.var-contact-mode')?.value) || 0;
     const manual_stock = Math.max(0, parseInt(r.querySelector('.var-manual-stock')?.value) || 0);
-    if (name) vars.push({ id, name, price, is_contact_admin, manual_stock });
+    const delivery_config = extractVariantRowConfig(r);
+    if (name) vars.push({ id, name, price, is_contact_admin, manual_stock, delivery_config });
   });
   return vars;
 }
@@ -4272,6 +4656,9 @@ function renderAdminProducts() {
           </div>
         </div>
         <div class="flex flex-wrap gap-1 shrink-0">
+          <button type="button" onclick="openProductNoteModal(${p.id})" class="px-2.5 py-1 rounded-lg border text-[11px] font-extrabold shadow-2xs flex items-center gap-1 ${(p.admin_note && p.admin_note.trim()) ? 'bg-amber-500 text-slate-950 border-amber-500' : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300'}" title="Xem / Sửa ghi chú nội bộ của sản phẩm này">
+            <i class="fa-solid fa-note-sticky"></i> Ghi chú${(p.admin_note && p.admin_note.trim()) ? ' (Có)' : ''}
+          </button>
           <button type="button" onclick="quickToggleProductFlag(${p.id}, 'is_featured', ${isFeatured ? 0 : 1})" class="px-2 py-1 rounded-lg border text-[10px] font-bold ${isFeatured ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-600'}" title="Ghim lên đầu">${isFeatured ? '★ Đã ghim' : '☆ Ghim'}</button>
           <button type="button" onclick="quickToggleProductFlag(${p.id}, 'is_hidden', ${isHidden ? 0 : 1})" class="px-2 py-1 rounded-lg border text-[10px] font-bold ${isHidden ? 'bg-slate-700 text-white' : 'bg-white text-slate-600'}" title="Ẩn / Hiện sản phẩm">${isHidden ? 'Hiện lại' : 'Ẩn SP'}</button>
           <button type="button" onclick="goToStockForProduct(${p.id}, '${firstVarId}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-[11px] font-bold shadow-2xs"><i class="fa-solid fa-plus mr-0.5"></i>Kho / SL</button>
@@ -4281,9 +4668,17 @@ function renderAdminProducts() {
       </div>
       <div class="pt-1.5 border-t border-slate-200/80 flex flex-wrap gap-1.5 text-[10px]">
         ${vars.map(v => {
-          const isC = Number(v.is_contact_admin) === 1 || Number(p.is_contact_admin) === 1;
-          return `<span class="px-2 py-0.5 rounded-md border ${isC ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-white border-slate-200 text-slate-700'} font-semibold">
-            ${escapeHtml(v.name)}: <b class="text-red-600">${Number(v.price).toLocaleString()}đ</b> (${isC ? `💬 Liên hệ Admin - SL: ${v.stock || 0}` : `⚡ Kho: ${v.stock || 0}`})
+          const isC = Number(v.is_contact_admin) === 1;
+          const vCfg = getNormalizedDeliveryConfig(v.delivery_config || p.delivery_config);
+          const vBtns = [];
+          if (vCfg.btn1_enabled) vBtns.push(vCfg.btn1_label);
+          if (vCfg.btn2_enabled) vBtns.push(vCfg.btn2_label);
+          if (vCfg.btn3_enabled) vBtns.push(vCfg.btn3_label);
+          const modeInfo = isC
+            ? `💬 Liên hệ Admin (SL: ${v.stock || 0})`
+            : `⚡ Tự động (Kho: ${v.stock || 0} • Nút: ${vBtns.join('+') || 'Copy dòng'}${vCfg.zip_enabled ? ' + .zip' : ''})`;
+          return `<span class="px-2 py-1 rounded-lg border ${isC ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-white border-slate-200 text-slate-700'} font-semibold">
+            <b>${escapeHtml(v.name)}</b>: <b class="text-red-600">${Number(v.price).toLocaleString()}đ</b> — <span class="text-slate-600">${escapeHtml(modeInfo)}</span>
           </span>`;
         }).join('')}
       </div>
@@ -4306,6 +4701,86 @@ async function quickToggleProductFlag(prodId, field, val) {
   await loadProducts();
   renderAdminProducts();
   notify('Đã cập nhật trạng thái sản phẩm!');
+}
+
+
+let activeNoteProductId = null;
+
+function updateFormNotePreviewLabel(noteStr) {
+  const lbl = document.getElementById('lbl-form-note-preview');
+  if (!lbl) return;
+  const clean = String(noteStr || '').trim();
+  if (clean) {
+    lbl.innerText = '📝 ' + clean.replace(/\s+/g, ' ');
+    lbl.className = 'text-[11px] text-amber-900 font-bold block truncate max-w-xs';
+  } else {
+    lbl.innerText = 'Chưa có ghi chú nội bộ (Chỉ Admin mới xem được)';
+    lbl.className = 'text-[10px] text-slate-600 block truncate max-w-xs';
+  }
+}
+
+function openProductNoteModal(prodId) {
+  const p = allProducts.find(x => Number(x.id) === Number(prodId));
+  if (!p) return notify('Không tìm thấy sản phẩm!', true);
+  activeNoteProductId = p.id;
+  document.getElementById('mdl-prod-note-title').innerText = p.name || `Sản phẩm #${p.id}`;
+  document.getElementById('mdl-prod-note-textarea').value = p.admin_note || '';
+  document.getElementById('prod-note-modal').classList.remove('hidden');
+}
+
+function openProductNoteModalFromForm() {
+  const formId = document.getElementById('prod-id')?.value;
+  const formName = (document.getElementById('prod-name')?.value || '').trim() || 'Sản phẩm đang soạn';
+  const curNote = document.getElementById('prod-admin-note')?.value || '';
+  activeNoteProductId = formId ? Number(formId) : 'FORM_NEW';
+  document.getElementById('mdl-prod-note-title').innerText = formName;
+  document.getElementById('mdl-prod-note-textarea').value = curNote;
+  document.getElementById('prod-note-modal').classList.remove('hidden');
+}
+
+function closeProductNoteModal() {
+  const m = document.getElementById('prod-note-modal');
+  if (m) m.classList.add('hidden');
+  activeNoteProductId = null;
+}
+
+async function saveProductNoteFromModal() {
+  const noteVal = (document.getElementById('mdl-prod-note-textarea')?.value || '').trim();
+
+  // Đồng bộ vào form nếu đang mở form của cùng sản phẩm hoặc sản phẩm mới
+  const currentFormProdId = document.getElementById('prod-id')?.value;
+  if (activeNoteProductId === 'FORM_NEW' || (currentFormProdId && Number(currentFormProdId) === Number(activeNoteProductId))) {
+    const inp = document.getElementById('prod-admin-note');
+    if (inp) inp.value = noteVal;
+    updateFormNotePreviewLabel(noteVal);
+  }
+
+  if (!activeNoteProductId || activeNoteProductId === 'FORM_NEW') {
+    closeProductNoteModal();
+    return notify('Đã lưu ghi chú vào form sản phẩm! Hãy bấm "Lưu Sản Phẩm" để hoàn tất.');
+  }
+
+  const targetId = activeNoteProductId;
+  try {
+    const res = await fetch(`/api/admin/products/${targetId}/note`, {
+      method: 'POST',
+      headers: adminHeaders(),
+      body: JSON.stringify({ admin_note: noteVal })
+    });
+    const d = await res.json();
+    if (!res.ok) return notify(d.error || 'Lỗi lưu ghi chú!', true);
+    const p = allProducts.find(x => Number(x.id) === Number(targetId));
+    if (p) { p.admin_note = noteVal; safeSetStorage('jerry_demo_products', allProducts); }
+    renderAdminProducts();
+    closeProductNoteModal();
+    notify(d.message || 'Đã lưu ghi chú sản phẩm thành công!');
+  } catch (e) {
+    const p = allProducts.find(x => Number(x.id) === Number(targetId));
+    if (p) { p.admin_note = noteVal; safeSetStorage('jerry_demo_products', allProducts); }
+    renderAdminProducts();
+    closeProductNoteModal();
+    notify('Đã lưu ghi chú sản phẩm thành công!');
+  }
 }
 
 function goToStockForProduct(prodId, varId) {
@@ -4337,12 +4812,14 @@ function editProduct(id) {
   document.getElementById('prod-image').value = p.image || '';
   document.getElementById('prod-desc').value = p.description || '';
   document.getElementById('prod-guide').value = p.guide || '';
+  document.getElementById('prod-admin-note').value = p.admin_note || '';
+  updateFormNotePreviewLabel(p.admin_note || '');
   document.getElementById('chk-prod-all-contact').checked = Number(p.is_contact_admin) === 1;
   document.getElementById('prod-featured').checked = Number(p.is_featured) === 1;
   document.getElementById('prod-hidden').checked = Number(p.is_hidden) === 1;
 
   setDeliveryConfigForm(p.delivery_config);
-  initVariantsForm(p.variants || []);
+  initVariantsForm(p.variants || [], p.delivery_config);
   document.getElementById('adm-prod-title').innerHTML = `<i class="fa-solid fa-pen-to-square text-amber-600"></i> Sửa Sản Phẩm #${p.id}`;
   document.getElementById('btn-save-prod-text').innerText = 'Lưu Thay Đổi Sản Phẩm & Nút Hiển Thị';
   document.getElementById('btn-cancel-edit').classList.remove('hidden');
@@ -4357,6 +4834,8 @@ function resetProductForm() {
   document.getElementById('prod-image').value = '';
   document.getElementById('prod-desc').value = '';
   document.getElementById('prod-guide').value = '';
+  document.getElementById('prod-admin-note').value = '';
+  updateFormNotePreviewLabel('');
   document.getElementById('chk-prod-all-contact').checked = false;
   document.getElementById('prod-featured').checked = false;
   document.getElementById('prod-hidden').checked = false;
@@ -4387,7 +4866,7 @@ async function saveProduct() {
   }
 
   const is_contact_admin = document.getElementById('chk-prod-all-contact').checked || variants.every(v => Number(v.is_contact_admin) === 1) ? 1 : 0;
-  const delivery_config = getDeliveryConfigFromForm();
+  const delivery_config = variants[0] && variants[0].delivery_config ? variants[0].delivery_config : getDeliveryConfigFromForm();
 
   const payload = {
     name,
@@ -4397,6 +4876,7 @@ async function saveProduct() {
     image: document.getElementById('prod-image').value,
     description: document.getElementById('prod-desc').value,
     guide: document.getElementById('prod-guide').value,
+    admin_note: document.getElementById('prod-admin-note').value,
     is_contact_admin,
     delivery_config,
     is_featured: document.getElementById('prod-featured').checked ? 1 : 0,
@@ -4440,7 +4920,8 @@ async function saveProduct() {
         price: Number(v.price) || 0,
         is_contact_admin: isC ? 1 : 0,
         manual_stock: mStock,
-        stock: isC ? mStock : 0
+        stock: isC ? mStock : 0,
+        delivery_config: v.delivery_config || delivery_config
       };
     });
     if (id) {
@@ -5752,11 +6233,13 @@ function switchTab(tab) {
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
+    closeBuyStep2Modal();
     closeBuyModal();
     closeSuccessModal();
     closeGuideModal();
     closeDeleteConfirmModal();
     closeAdminActionModal();
+    closeProductNoteModal();
   }
 });
 
